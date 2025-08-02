@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API動作テスト</title>
+    <style>
+        body { font-family: 'Arial', sans-serif; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .error { background-color: #ffebee; border-color: #f44336; }
+        .success { background-color: #e8f5e8; border-color: #4caf50; }
+        button { padding: 10px 20px; margin: 5px; }
+    </style>
+</head>
+<body>
+    <h1>時間割参照画面 API動作テスト</h1>
+    
+    <button onclick="testConventionalAPI()">従来時間割API テスト</button>
+    <button onclick="testSavedTimetablesAPI()">生成済み時間割API テスト</button>
+    <button onclick="testCombinedAPI()">統合API テスト（修正版）</button>
+    
+    <div id="results"></div>
+
+    <script>
+        function addResult(title, content, isError = false) {
+            const resultsDiv = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `result ${isError ? 'error' : 'success'}`;
+            div.innerHTML = `<h3>${title}</h3><pre>${content}</pre>`;
+            resultsDiv.appendChild(div);
+        }
+
+        async function testConventionalAPI() {
+            try {
+                addResult('従来時間割API', '呼び出し中...');
+                const response = await fetch('/api/frontend/school/timetables');
+                const data = await response.json();
+                addResult('従来時間割API 結果', JSON.stringify(data, null, 2));
+            } catch (error) {
+                addResult('従来時間割API エラー', error.message, true);
+            }
+        }
+
+        async function testSavedTimetablesAPI() {
+            try {
+                addResult('生成済み時間割API', '呼び出し中...');
+                const response = await fetch('/api/timetable/program/saved');
+                const data = await response.json();
+                addResult('生成済み時間割API 結果', JSON.stringify(data, null, 2));
+                
+                // レスポンス形式の詳細チェック
+                if (data.success && data.data && data.data.timetables) {
+                    addResult('データ構造確認', `
+                        成功: ${data.success}
+                        timetables配列: ${Array.isArray(data.data.timetables)}
+                        件数: ${data.data.timetables.length}
+                        最初の項目: ${JSON.stringify(data.data.timetables[0] || 'なし', null, 2)}
+                    `);
+                }
+            } catch (error) {
+                addResult('生成済み時間割API エラー', error.message, true);
+            }
+        }
+
+        async function testCombinedAPI() {
+            try {
+                addResult('統合API テスト', '開始...');
+                
+                // 修正版の統合ロジックをテスト
+                const [conventionalResult, savedResult] = await Promise.allSettled([
+                    fetch('/api/frontend/school/timetables').then(r => r.json()),
+                    fetch('/api/timetable/program/saved').then(r => r.json())
+                ]);
+
+                let allTimetables = [];
+
+                // 従来の時間割データを追加
+                if (conventionalResult.status === 'fulfilled') {
+                    const conventionalData = conventionalResult.value;
+                    if (conventionalData && conventionalData.success && conventionalData.data) {
+                        allTimetables = [...conventionalData.data];
+                    } else if (Array.isArray(conventionalData)) {
+                        allTimetables = [...conventionalData];
+                    }
+                    addResult('従来時間割処理', `成功: ${allTimetables.length}件`);
+                } else {
+                    addResult('従来時間割処理', `失敗: ${conventionalResult.reason}`, true);
+                }
+
+                // 生成された時間割データを追加
+                if (savedResult.status === 'fulfilled') {
+                    const savedData = savedResult.value;
+                    if (savedData && savedData.success && savedData.data && savedData.data.timetables) {
+                        // データ変換テスト
+                        const convertedSavedTimetables = savedData.data.timetables.map(timetable => ({
+                            id: timetable.id,
+                            name: `時間割 ${timetable.assignmentRate?.toFixed(1)}% (${timetable.generationMethod})` || `生成済み時間割 ${timetable.id}`,
+                            createdAt: timetable.createdAt ? new Date(timetable.createdAt).toLocaleDateString('ja-JP') : new Date().toLocaleDateString('ja-JP'),
+                            status: 'active'
+                        }));
+                        
+                        allTimetables = [...allTimetables, ...convertedSavedTimetables];
+                        addResult('生成済み時間割処理', `成功: ${convertedSavedTimetables.length}件変換`);
+                        addResult('変換結果サンプル', JSON.stringify(convertedSavedTimetables[0] || 'なし', null, 2));
+                    } else {
+                        addResult('生成済み時間割処理', 'データ構造が予期しない形式', true);
+                    }
+                } else {
+                    addResult('生成済み時間割処理', `失敗: ${savedResult.reason}`, true);
+                }
+
+                addResult('統合API 最終結果', `
+                    合計時間割数: ${allTimetables.length}
+                    データ: ${JSON.stringify(allTimetables, null, 2)}
+                `);
+
+            } catch (error) {
+                addResult('統合API エラー', error.message, true);
+            }
+        }
+    </script>
+</body>
+</html>
