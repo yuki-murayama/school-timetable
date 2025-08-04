@@ -57,3 +57,5 @@ __pycache__/
 *.pyc
 # Python virtual environment
 *.egg-info/
+
+AI_INSTRUCTIONS.md

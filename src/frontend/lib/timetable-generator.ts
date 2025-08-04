@@ -49,7 +49,8 @@ export class TimetableGenerator {
   private baseUrl: string = 'https://school-timetable-backend.grundhunter.workers.dev'
   private token: string | null = null
 
-  public onProgress: ((progress: TimetableProgressData, error?: string[] | null) => void) | null = null
+  public onProgress: ((progress: TimetableProgressData, error?: string[] | null) => void) | null =
+    null
   public onComplete: ((finalTimetableId: string) => void) | null = null
   public onError: ((error: Error) => void) | null = null
 
@@ -66,11 +67,11 @@ export class TimetableGenerator {
       // 1. セッション作成
       const createResponse = await this.fetchWithRetry(`${this.baseUrl}/frontend/session/create`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          ...(this.token && { 'Authorization': `Bearer ${this.token}` })
+          ...(this.token && { Authorization: `Bearer ${this.token}` }),
         },
-        body: JSON.stringify({ schoolId: 'school-1' })
+        body: JSON.stringify({ schoolId: 'school-1' }),
       })
 
       const createData: TimetableSessionCreateResponse = await createResponse.json()
@@ -90,17 +91,16 @@ export class TimetableGenerator {
 
       // 初期進捗を通知（デフォルト値を設定）
       const totalSteps = createData.totalSteps ?? 36
-      
+
       this.notifyProgress({
         current: 0,
         total: totalSteps,
         percentage: 0,
-        currentStep: 'セッション作成完了、生成開始中...'
+        currentStep: 'セッション作成完了、生成開始中...',
       })
 
       // 2. 段階的実行
       await this.executeSteps()
-
     } catch (error) {
       this.handleError(error instanceof Error ? error : new Error('Unknown error'))
     } finally {
@@ -110,16 +110,16 @@ export class TimetableGenerator {
 
   private async executeSteps(): Promise<void> {
     let completed = false
-    
+
     while (!completed && this.isGenerating && this.sessionId) {
       try {
         const stepResponse = await this.fetchWithRetry(`${this.baseUrl}/frontend/session/step`, {
           method: 'POST',
-          headers: { 
+          headers: {
             'Content-Type': 'application/json',
-            ...(this.token && { 'Authorization': `Bearer ${this.token}` })
+            ...(this.token && { Authorization: `Bearer ${this.token}` }),
           },
-          body: JSON.stringify({ sessionId: this.sessionId })
+          body: JSON.stringify({ sessionId: this.sessionId }),
         })
 
         const stepResult: TimetableSessionStepResponse = await stepResponse.json()
@@ -133,7 +133,7 @@ export class TimetableGenerator {
           current: stepResult.data?.progress?.current,
           total: stepResult.data?.progress?.total,
           percentage: stepResult.data?.progress?.percentage,
-          currentStep: stepResult.data?.progress?.currentStep
+          currentStep: stepResult.data?.progress?.currentStep,
         })
 
         // レスポンス検証
@@ -158,16 +158,20 @@ export class TimetableGenerator {
         console.log(`進捗: ${current}/${total} (${percentage}%)`)
 
         // より詳細なステップ情報を表示
-        const stepMessage = stepData.currentDay && stepData.currentClass
-          ? `${stepData.currentClass}の${stepData.currentDay}を処理中...`
-          : stepData.message || progress.currentStep || `ステップ ${current}/${total} 実行中...`
+        const stepMessage =
+          stepData.currentDay && stepData.currentClass
+            ? `${stepData.currentClass}の${stepData.currentDay}を処理中...`
+            : stepData.message || progress.currentStep || `ステップ ${current}/${total} 実行中...`
 
-        this.notifyProgress({
-          current,
-          total,
-          percentage,
-          currentStep: stepMessage
-        }, stepData.error)
+        this.notifyProgress(
+          {
+            current,
+            total,
+            percentage,
+            currentStep: stepMessage,
+          },
+          stepData.error
+        )
 
         completed = stepData.completed
 
@@ -179,7 +183,6 @@ export class TimetableGenerator {
 
         // UI応答性のため少し待機（仕様書の100msではなく1秒で実装）
         await this.wait(1000)
-
       } catch (error) {
         this.handleError(error instanceof Error ? error : new Error('Unknown error'))
         break
@@ -191,7 +194,9 @@ export class TimetableGenerator {
     if (!this.sessionId) return
 
     try {
-      const resultResponse = await this.fetchWithRetry(`${this.baseUrl}/frontend/session/result/${this.sessionId}`)
+      const resultResponse = await this.fetchWithRetry(
+        `${this.baseUrl}/frontend/session/result/${this.sessionId}`
+      )
       const finalResult: TimetableSessionResultResponse = await resultResponse.json()
 
       console.log('最終結果レスポンス:', finalResult)
@@ -202,15 +207,14 @@ export class TimetableGenerator {
       }
 
       this.notifyComplete(finalResult.timetable.id)
-      
+
       // 完了進捗を通知
       this.notifyProgress({
         current: 36,
         total: 36,
         percentage: 100,
-        currentStep: '時間割生成完了'
+        currentStep: '時間割生成完了',
       })
-
     } catch (error) {
       this.handleError(error instanceof Error ? error : new Error('Final result fetch failed'))
     }
@@ -221,7 +225,9 @@ export class TimetableGenerator {
       this.onProgress(progress, error)
     }
 
-    console.log(`進捗: ${progress.percentage}% (${progress.current}/${progress.total}) - ${progress.currentStep}`)
+    console.log(
+      `進捗: ${progress.percentage}% (${progress.current}/${progress.total}) - ${progress.currentStep}`
+    )
     if (error && error.length > 0) {
       console.warn('ステップエラー:', error)
     }
@@ -249,12 +255,16 @@ export class TimetableGenerator {
     return new Promise(resolve => setTimeout(resolve, ms))
   }
 
-  private async fetchWithRetry(url: string, options?: RequestInit, maxRetries: number = 3): Promise<Response> {
+  private async fetchWithRetry(
+    url: string,
+    options?: RequestInit,
+    maxRetries: number = 3
+  ): Promise<Response> {
     for (let i = 0; i < maxRetries; i++) {
       try {
         const response = await fetch(url, options)
         if (response.ok) return response
-        
+
         // エラーレスポンスの詳細を取得
         let errorDetails = `HTTP ${response.status}`
         try {
@@ -265,15 +275,15 @@ export class TimetableGenerator {
             url,
             method: options?.method || 'GET',
             headers: options?.headers,
-            body: options?.body
+            body: options?.body,
           })
-          
+
           if (errorBody) {
             try {
               const errorData = JSON.parse(errorBody)
               errorDetails = `HTTP ${response.status}: ${errorData.message || errorData.error || '詳細不明'}`
               console.error('パースされたエラーデータ:', errorData)
-            } catch (jsonError) {
+            } catch (_jsonError) {
               errorDetails = `HTTP ${response.status}: ${errorBody}`
               console.error('JSON解析失敗、生レスポンス:', errorBody)
             }
@@ -282,7 +292,7 @@ export class TimetableGenerator {
           console.error('レスポンス読み取りエラー:', responseError)
           errorDetails = `HTTP ${response.status} (レスポンス読み取り失敗)`
         }
-        
+
         throw new Error(errorDetails)
       } catch (error) {
         if (i === maxRetries - 1) throw error

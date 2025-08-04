@@ -1,5 +1,5 @@
-import { useUser, useAuth as useClerkAuth, useClerk } from '@clerk/clerk-react'
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useClerk, useAuth as useClerkAuth, useUser } from '@clerk/clerk-react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 export interface AuthUser {
   sub: string
@@ -42,11 +42,11 @@ export function useAuth() {
     const loadUserData = async () => {
       if (isSignedIn && user) {
         try {
-          const accessToken = await getFreshToken()
-          
+          const _accessToken = await getFreshToken()
+
           // Get roles from Clerk metadata or default to school_admin
-          const clerkRoles = user.publicMetadata?.roles as string[] || ['school_admin']
-          
+          const clerkRoles = (user.publicMetadata?.roles as string[]) || ['school_admin']
+
           const userInfo: AuthUser = {
             sub: user.id,
             email: user.emailAddresses[0]?.emailAddress || '',
@@ -54,20 +54,32 @@ export function useAuth() {
             picture: user.imageUrl,
             roles: clerkRoles,
             permissions: [
-              'schools:read', 'schools:write',
-              'classes:read', 'classes:write',
-              'teachers:read', 'teachers:write',
-              'subjects:read', 'subjects:write',
-              'classrooms:read', 'classrooms:write',
-              'timetables:read', 'timetables:write', 'timetables:generate',
-              'constraints:read', 'constraints:write',
-              'users:read', 'users:write'
-            ]
+              'schools:read',
+              'schools:write',
+              'classes:read',
+              'classes:write',
+              'teachers:read',
+              'teachers:write',
+              'subjects:read',
+              'subjects:write',
+              'classrooms:read',
+              'classrooms:write',
+              'timetables:read',
+              'timetables:write',
+              'timetables:generate',
+              'constraints:read',
+              'constraints:write',
+              'users:read',
+              'users:write',
+            ],
           }
-          
+
           setAuthUser(userInfo)
-          
-          console.log('Auth user loaded:', { roles: clerkRoles, permissions: userInfo.permissions.slice(0, 3) })
+
+          console.log('Auth user loaded:', {
+            roles: clerkRoles,
+            permissions: userInfo.permissions.slice(0, 3),
+          })
         } catch (error) {
           console.error('Failed to load user data:', error)
         }
@@ -101,6 +113,6 @@ export function useAuth() {
     token,
     getFreshToken,
     login,
-    logout
+    logout,
   }
 }

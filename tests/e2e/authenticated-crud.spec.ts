@@ -591,6 +591,13 @@ test.describe('Authenticated CRUD Operations', () => {
     
     console.log('📚 Starting authenticated subjects test...');
     
+    // Listen to console messages for debugging
+    page.on('console', msg => {
+      if (msg.text().includes('SubjectsSection') || msg.text().includes('loading') || msg.text().includes('🔍') || msg.text().includes('🚦')) {
+        console.log(`📝 CONSOLE: ${msg.text()}`);
+      }
+    });
+    
     const navSuccess = await navigateToDataPage(page);
     expect(navSuccess, 'Could not navigate to data registration page').toBe(true);
     
@@ -618,20 +625,45 @@ test.describe('Authenticated CRUD Operations', () => {
     console.log('🔍 Looking for enabled add button...');
     const addButton = page.locator('button:has-text("追加"), button:has-text("教科を追加")').first();
     
-    // Wait for button to be visible and enabled
+    // Wait for button to be visible
     await addButton.waitFor({ state: 'visible', timeout: 10000 });
+    
+    // Debug button state
+    const buttonState = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button'));
+      const addBtns = buttons.filter(btn => 
+        btn.textContent?.includes('追加') || btn.textContent?.includes('教科')
+      );
+      return addBtns.map(btn => ({
+        text: btn.textContent,
+        disabled: btn.disabled,
+        classes: btn.className,
+        testId: btn.getAttribute('data-testid')
+      }));
+    });
+    console.log('🔍 Button states:', JSON.stringify(buttonState, null, 2));
+    
+    // Wait for button to be enabled with debugging
     await page.waitForFunction(() => {
       const buttons = Array.from(document.querySelectorAll('button'));
       const addBtn = buttons.find(btn => 
         (btn.textContent?.includes('追加') || btn.textContent?.includes('教科を追加')) &&
         !btn.disabled
       );
+      if (!addBtn) {
+        console.log('⚠️ Add button still disabled or not found');
+      }
       return !!addBtn;
-    }, { timeout: 15000 });
+    }, { timeout: 30000 });
     
     if (await addButton.count() > 0) {
-      console.log('✅ Found enabled add subject button');
-      await addButton.click();
+      const isEnabled = await addButton.isEnabled();
+      console.log('✅ Found add subject button, enabled:', isEnabled);
+      if (isEnabled) {
+        await addButton.click();
+      } else {
+        throw new Error('Add button is still disabled after waiting');
+      }
       await page.waitForTimeout(1000);
       
       const modal = page.locator('[role="dialog"], .modal');

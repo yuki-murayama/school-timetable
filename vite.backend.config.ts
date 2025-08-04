@@ -9,16 +9,16 @@ export default defineConfig({
       entry: 'src/worker.ts',
       name: 'worker',
       fileName: () => 'worker.js',
-      formats: ['es']
+      formats: ['es'],
     },
     rollupOptions: {
-      external: ['cloudflare:workers']
+      external: ['cloudflare:workers'],
     },
-    minify: false
+    minify: false,
   },
   resolve: {
     alias: {
-      '@': '/src'
-    }
-  }
+      '@': '/src',
+    },
+  },
 })

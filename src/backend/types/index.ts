@@ -1,13 +1,13 @@
 // 統一型定義を再エクスポート
 export type {
+  AssignmentRestriction,
+  Classroom,
   Env,
   SchoolSettings,
-  Teacher,
   Subject,
-  Classroom,
-  AssignmentRestriction,
+  Teacher,
+  TimetableGenerationResult,
   TimetableSlot,
-  TimetableGenerationResult
 } from '../../shared/types'
 
 export interface Class {
@@ -61,13 +61,23 @@ export interface GenerationStep {
   created_at: string
 }
 
+export interface TimetableConditions {
+  constraints?: string[]
+  preferences?: Record<string, unknown>
+  restrictions?: Record<string, unknown>
+}
+
+export interface TimetableStructure {
+  [day: string]: Period[]
+}
+
 export interface TimetableData {
   teachers: Teacher[]
   subjects: Subject[]
   classrooms: Classroom[]
   classes: Class[]
   schoolSettings: SchoolSettings
-  conditions?: any
+  conditions?: TimetableConditions
 }
 
 export interface ValidationResult {

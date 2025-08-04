@@ -4,7 +4,7 @@
 
 export interface Env {
   DB: D1Database
-  ASSETS?: any
+  ASSETS?: unknown
   GROQ_API_KEY: string
   AUTH0_DOMAIN: string
   AUTH0_AUDIENCE: string
@@ -23,8 +23,8 @@ export interface SchoolSettings {
   grade3Classes: number
   dailyPeriods: number
   saturdayPeriods: number
-  grades: number[]  // [1, 2, 3]
-  classesPerGrade: { [grade: number]: string[] }  // {1: ['A', 'B'], 2: ['A', 'B']}
+  grades: number[] // [1, 2, 3]
+  classesPerGrade: { [grade: number]: string[] } // {1: ['A', 'B'], 2: ['A', 'B']}
   created_at?: string
   updated_at?: string
 }
@@ -35,14 +35,14 @@ export interface SchoolSettings {
 export interface Subject {
   id: string
   name: string
-  grades: number[]  // 対象学年 [1, 2, 3]、空配列=全学年対応
-  weeklyHours: { [grade: number]: number }  // 学年別週間授業数 {1: 5, 2: 4, 3: 4}
+  grades: number[] // 対象学年 [1, 2, 3]、空配列=全学年対応
+  weeklyHours: { [grade: number]: number } // 学年別週間授業数 {1: 5, 2: 4, 3: 4}
   requiresSpecialClassroom?: boolean
   classroomType?: string
   // フロントエンド互換性のため追加
   specialClassroom?: string
-  weekly_hours?: number  // データベース互換性
-  target_grades?: number[]  // データベース互換性
+  weekly_hours?: number // データベース互換性
+  target_grades?: number[] // データベース互換性
   order?: number
   created_at?: string
   updated_at?: string
@@ -54,11 +54,11 @@ export interface Subject {
 export interface Teacher {
   id: string
   name: string
-  subjects: (string | Subject)[]  // 担当教科（ID文字列またはオブジェクト）
-  grades: number[]  // 受け持ち学年
+  subjects: (string | Subject)[] // 担当教科（ID文字列またはオブジェクト）
+  grades: number[] // 受け持ち学年
   assignmentRestrictions?: AssignmentRestriction[]
   // データベース互換性のため追加
-  assignment_restrictions?: string  // JSON文字列形式
+  assignment_restrictions?: string // JSON文字列形式
   order?: number
   created_at?: string
   updated_at?: string
@@ -85,10 +85,10 @@ export interface Classroom {
 // 割当制限
 // ======================
 export interface AssignmentRestriction {
-  displayOrder?: number        // 表示順序（1から開始）
-  restrictedDay: string      // 割当不可曜日（月曜、火曜、水曜、木曜、金曜、土曜）
+  displayOrder?: number // 表示順序（1から開始）
+  restrictedDay: string // 割当不可曜日（月曜、火曜、水曜、木曜、金曜、土曜）
   restrictedPeriods: number[] // 割当不可時限（1〜授業数の配列）
-  restrictionLevel: '必須' | '推奨'   // 割当不可レベル（必須、推奨）
+  restrictionLevel: '必須' | '推奨' // 割当不可レベル（必須、推奨）
   reason?: string
 }
 
@@ -103,11 +103,19 @@ export interface TimetableSlot {
   subject?: Subject
   teacher?: Teacher
   classroom?: Classroom
+  // 制約違反情報
+  hasViolation?: boolean
+  violationSeverity?: 'high' | 'medium' | 'low'
+  violations?: Array<{
+    type: string
+    severity: string
+    message: string
+  }>
 }
 
 export interface TimetableGenerationResult {
   success: boolean
-  timetable?: TimetableSlot[][][]  // [day][period][class]
+  timetable?: TimetableSlot[][][] // [day][period][class]
   statistics?: {
     totalAssignments?: number
     assignedSlots?: number
@@ -125,25 +133,39 @@ export interface TimetableGenerationResult {
 // ======================
 // API レスポンス型
 // ======================
+interface TimetableStatistics {
+  totalSlots: number
+  assignedSlots: number
+  unassignedSlots: number
+  backtrackCount: number
+  generationTime?: string
+  totalAssignments?: number
+  constraintViolations?: number
+}
+
+interface GeneratedTimetableData {
+  [day: string]: {
+    [period: string]: {
+      subject?: string
+      teacher?: string
+      classroom?: string
+      grade?: number
+      class?: string
+    }
+  }
+}
+
 export interface TimetableGenerationResponse {
   success: boolean
   sessionId?: string
   message?: string
   data?: {
-    timetable: any
-    statistics: {
-      totalSlots: number
-      assignedSlots: number
-      unassignedSlots: number
-      backtrackCount: number
-      generationTime?: string
-      totalAssignments?: number
-      constraintViolations?: number
-    }
+    timetable: GeneratedTimetableData
+    statistics: TimetableStatistics
     generatedAt: string
     method: string
   }
-  statistics?: any
+  statistics?: TimetableStatistics
 }
 
 export interface TimetableListItem {

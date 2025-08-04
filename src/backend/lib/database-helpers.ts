@@ -46,7 +46,7 @@ export async function checkDatabaseHealth(db: D1Database) {
     // 主要テーブルの存在確認
     const tables = ['teachers', 'subjects', 'classrooms', 'school_settings']
     const results = []
-    
+
     for (const table of tables) {
       try {
         const result = await db.prepare(`SELECT COUNT(*) as count FROM ${table}`).first()
@@ -55,15 +55,15 @@ export async function checkDatabaseHealth(db: D1Database) {
         results.push({ table, count: 0, status: 'error', error: error.message })
       }
     }
-    
+
     return {
       healthy: results.every(r => r.status === 'ok'),
-      tables: results
+      tables: results,
     }
   } catch (error) {
     return {
       healthy: false,
-      error: error.message
+      error: error.message,
     }
   }
 }

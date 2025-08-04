@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { TimetableGenerator, type TimetableProgressData } from '../lib/timetable-generator'
 
 export interface UseTimetableGenerationState {
@@ -13,13 +13,15 @@ export interface UseTimetableGenerationActions {
   stopGeneration: () => void
 }
 
-export function useTimetableGeneration(token?: string): UseTimetableGenerationState & UseTimetableGenerationActions {
+export function useTimetableGeneration(
+  token?: string
+): UseTimetableGenerationState & UseTimetableGenerationActions {
   const [isGenerating, setIsGenerating] = useState(false)
   const [progress, setProgress] = useState<TimetableProgressData>({
     current: 0,
     total: 36,
     percentage: 0,
-    currentStep: '待機中'
+    currentStep: '待機中',
   })
   const [error, setError] = useState<string | null>(null)
   const [finalTimetableId, setFinalTimetableId] = useState<string | null>(null)
@@ -36,7 +38,7 @@ export function useTimetableGeneration(token?: string): UseTimetableGenerationSt
       current: 0,
       total: 36,
       percentage: 0,
-      currentStep: 'セッション作成中...'
+      currentStep: 'セッション作成中...',
     })
 
     const generator = new TimetableGenerator(token)
@@ -57,7 +59,7 @@ export function useTimetableGeneration(token?: string): UseTimetableGenerationSt
       setProgress(prev => ({
         ...prev,
         percentage: 100,
-        currentStep: '完了'
+        currentStep: '完了',
       }))
     }
 
@@ -66,7 +68,7 @@ export function useTimetableGeneration(token?: string): UseTimetableGenerationSt
       setIsGenerating(false)
       setProgress(prev => ({
         ...prev,
-        currentStep: 'エラー発生'
+        currentStep: 'エラー発生',
       }))
     }
 
@@ -80,7 +82,7 @@ export function useTimetableGeneration(token?: string): UseTimetableGenerationSt
     setIsGenerating(false)
     setProgress(prev => ({
       ...prev,
-      currentStep: '停止しました'
+      currentStep: '停止しました',
     }))
   }, [])
 
@@ -90,6 +92,6 @@ export function useTimetableGeneration(token?: string): UseTimetableGenerationSt
     error,
     finalTimetableId,
     startGeneration,
-    stopGeneration
+    stopGeneration,
   }
 }

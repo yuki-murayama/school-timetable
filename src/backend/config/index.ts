@@ -1,4 +1,4 @@
-import { SchoolSettings } from '../types'
+import type { SchoolSettings } from '../types'
 
 // デフォルト設定
 export const defaultSettings: SchoolSettings = {

@@ -1,11 +1,10 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { serveStatic } from 'hono/cloudflare-workers'
 import apiApp from './backend/index'
 
 type Env = {
   DB: D1Database
-  ASSETS?: any
+  ASSETS?: unknown
   GROQ_API_KEY: string
   AUTH0_DOMAIN: string
   AUTH0_AUDIENCE: string
@@ -17,19 +16,23 @@ type Env = {
 const app = new Hono<{ Bindings: Env }>()
 
 // CORS設定
-app.use('*', cors({
-  origin: '*',
-  allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowHeaders: ['Content-Type', 'Authorization'],
-}))
+app.use(
+  '*',
+  cors({
+    origin: '*',
+    allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowHeaders: ['Content-Type', 'Authorization'],
+  })
+)
 
 // Database initialization endpoint
-app.post('/api/init-db', async (c) => {
+app.post('/api/init-db', async c => {
   try {
     const db = c.env.DB
-    
+
     // Create school_settings table
-    await db.prepare(`
+    await db
+      .prepare(`
       CREATE TABLE IF NOT EXISTS school_settings (
         id TEXT PRIMARY KEY DEFAULT 'default',
         grade1Classes INTEGER NOT NULL DEFAULT 4,
@@ -40,10 +43,12 @@ app.post('/api/init-db', async (c) => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `).run()
-    
+    `)
+      .run()
+
     // Create teachers table
-    await db.prepare(`
+    await db
+      .prepare(`
       CREATE TABLE IF NOT EXISTS teachers (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -53,10 +58,12 @@ app.post('/api/init-db', async (c) => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `).run()
-    
+    `)
+      .run()
+
     // Create subjects table
-    await db.prepare(`
+    await db
+      .prepare(`
       CREATE TABLE IF NOT EXISTS subjects (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -67,10 +74,12 @@ app.post('/api/init-db', async (c) => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `).run()
-    
+    `)
+      .run()
+
     // Create classrooms table
-    await db.prepare(`
+    await db
+      .prepare(`
       CREATE TABLE IF NOT EXISTS classrooms (
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
@@ -80,10 +89,12 @@ app.post('/api/init-db', async (c) => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `).run()
-    
+    `)
+      .run()
+
     // Create generated_timetables table for saving timetable results
-    await db.prepare(`
+    await db
+      .prepare(`
       CREATE TABLE IF NOT EXISTS generated_timetables (
         id TEXT PRIMARY KEY,
         timetable_data TEXT NOT NULL,
@@ -96,10 +107,12 @@ app.post('/api/init-db', async (c) => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `).run()
-    
+    `)
+      .run()
+
     // Create users table (required for authentication and FK references)
-    await db.prepare(`
+    await db
+      .prepare(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
         email TEXT NOT NULL UNIQUE,
@@ -111,10 +124,12 @@ app.post('/api/init-db', async (c) => {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `).run()
-    
+    `)
+      .run()
+
     // Create teacher_subjects association table
-    await db.prepare(`
+    await db
+      .prepare(`
       CREATE TABLE IF NOT EXISTS teacher_subjects (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         teacher_id TEXT NOT NULL,
@@ -124,96 +139,114 @@ app.post('/api/init-db', async (c) => {
         FOREIGN KEY (subject_id) REFERENCES subjects(id) ON DELETE CASCADE,
         UNIQUE(teacher_id, subject_id)
       )
-    `).run()
-    
+    `)
+      .run()
+
     // Insert default settings
-    await db.prepare(`
+    await db
+      .prepare(`
       INSERT OR REPLACE INTO school_settings 
       (id, grade1Classes, grade2Classes, grade3Classes, dailyPeriods, saturdayPeriods)
       VALUES ('default', 4, 4, 3, 6, 4)
-    `).run()
-    
+    `)
+      .run()
+
     return c.json({
       success: true,
-      message: 'Database initialized successfully'
+      message: 'Database initialized successfully',
     })
   } catch (error) {
     console.error('Database initialization error:', error)
-    return c.json({
-      success: false,
-      error: error.message
-    }, 500)
+    return c.json(
+      {
+        success: false,
+        error: error.message,
+      },
+      500
+    )
   }
 })
 
 // Data migration endpoint
-app.post('/api/migrate-data', async (c) => {
+app.post('/api/migrate-data', async c => {
   try {
     const db = c.env.DB
     const body = await c.req.json()
     const { type, data } = body
-    
+
     if (type === 'teachers') {
       for (const teacher of data) {
-        await db.prepare(`
+        await db
+          .prepare(`
           INSERT OR REPLACE INTO teachers 
           (id, name, email, subjects, grades, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          teacher.id,
-          teacher.name,
-          teacher.email || '',
-          teacher.subjects || '[]',
-          teacher.grades || '[]',
-          teacher.created_at,
-          teacher.updated_at
-        ).run()
+        `)
+          .bind(
+            teacher.id,
+            teacher.name,
+            teacher.email || '',
+            teacher.subjects || '[]',
+            teacher.grades || '[]',
+            teacher.created_at,
+            teacher.updated_at
+          )
+          .run()
       }
     } else if (type === 'subjects') {
       for (const subject of data) {
-        await db.prepare(`
+        await db
+          .prepare(`
           INSERT OR REPLACE INTO subjects 
           (id, name, special_classroom, description, weekly_lessons, target_grades, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          subject.id,
-          subject.name,
-          subject.special_classroom || '',
-          subject.description || '',
-          subject.weeklyLessons || 1,
-          subject.target_grades || '[]',
-          subject.created_at,
-          subject.updated_at
-        ).run()
+        `)
+          .bind(
+            subject.id,
+            subject.name,
+            subject.special_classroom || '',
+            subject.description || '',
+            subject.weeklyLessons || 1,
+            subject.target_grades || '[]',
+            subject.created_at,
+            subject.updated_at
+          )
+          .run()
       }
     } else if (type === 'classrooms') {
       for (const classroom of data) {
-        await db.prepare(`
+        await db
+          .prepare(`
           INSERT OR REPLACE INTO classrooms 
           (id, name, type, capacity, count, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).bind(
-          classroom.id,
-          classroom.name,
-          classroom.type,
-          classroom.capacity || null,
-          classroom.count || 1,
-          classroom.created_at,
-          classroom.updated_at
-        ).run()
+        `)
+          .bind(
+            classroom.id,
+            classroom.name,
+            classroom.type,
+            classroom.capacity || null,
+            classroom.count || 1,
+            classroom.created_at,
+            classroom.updated_at
+          )
+          .run()
       }
     }
-    
+
     return c.json({
       success: true,
-      message: `${data.length} ${type} migrated successfully`
+      message: `${data.length} ${type} migrated successfully`,
     })
   } catch (error) {
     console.error('Data migration error:', error)
-    return c.json({
-      success: false,
-      error: error.message
-    }, 500)
+    return c.json(
+      {
+        success: false,
+        error: error.message,
+      },
+      500
+    )
   }
 })
 
@@ -223,19 +256,19 @@ app.route('/api', apiApp)
 // Serve static assets for frontend (only for non-API routes)
 app.use('*', async (c, next) => {
   const pathname = new URL(c.req.url).pathname
-  
+
   // Skip static file serving for API routes
   if (pathname.startsWith('/api/')) {
     return next()
   }
-  
+
   try {
     if (c.env.ASSETS) {
       const url = new URL(c.req.url)
-      
+
       // For root path or any path that doesn't have file extension, serve index.html
       if (pathname === '/' || !pathname.includes('.')) {
-        const indexResponse = await c.env.ASSETS.fetch(new Request(url.origin + '/index.html'))
+        const indexResponse = await c.env.ASSETS.fetch(new Request(`${url.origin}/index.html`))
         if (indexResponse.ok) {
           return new Response(indexResponse.body, {
             headers: {
@@ -244,7 +277,7 @@ app.use('*', async (c, next) => {
           })
         }
       }
-      
+
       // For static assets, serve directly
       const assetResponse = await c.env.ASSETS.fetch(c.req.raw)
       if (assetResponse.ok) {
@@ -254,19 +287,19 @@ app.use('*', async (c, next) => {
   } catch (error) {
     console.error('Error serving static assets:', error)
   }
-  
+
   return next()
 })
 
 // Fallback HTML for when assets are not available (only for non-API routes)
-app.get('*', (c) => {
+app.get('*', c => {
   const pathname = new URL(c.req.url).pathname
-  
+
   // Don't serve HTML fallback for API routes
   if (pathname.startsWith('/api/')) {
     return c.json({ error: 'API endpoint not found' }, 404)
   }
-  
+
   return c.html(`
     <!DOCTYPE html>
     <html lang="en">

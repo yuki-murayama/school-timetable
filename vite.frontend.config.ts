@@ -1,12 +1,14 @@
-import { defineConfig } from 'vite'
+import path from 'node:path'
 import react from '@vitejs/plugin-react'
-import path from 'path'
+import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [react()],
   root: '.',
   define: {
-    'import.meta.env.VITE_CLERK_PUBLISHABLE_KEY': JSON.stringify('pk_test_ZXF1YWwteWV0aS00Ny5jbGVyay5hY2NvdW50cy5kZXYk'),
+    'import.meta.env.VITE_CLERK_PUBLISHABLE_KEY': JSON.stringify(
+      'pk_test_ZXF1YWwteWV0aS00Ny5jbGVyay5hY2NvdW50cy5kZXYk'
+    ),
   },
   build: {
     outDir: 'dist/frontend',
@@ -15,7 +17,7 @@ export default defineConfig({
     minify: 'esbuild', // esbuildを使用（高速）
     rollupOptions: {
       input: {
-        main: './index.html'
+        main: './index.html',
       },
       output: {
         manualChunks: {
@@ -41,8 +43,8 @@ export default defineConfig({
         chunkFileNames: 'assets/[name]-[hash].js',
         entryFileNames: 'assets/[name]-[hash].js',
         assetFileNames: 'assets/[name]-[hash].[ext]',
-      }
-    }
+      },
+    },
   },
   resolve: {
     alias: {
@@ -55,7 +57,7 @@ export default defineConfig({
       '/api': {
         target: 'http://localhost:8787',
         changeOrigin: true,
-      }
-    }
-  }
+      },
+    },
+  },
 })
