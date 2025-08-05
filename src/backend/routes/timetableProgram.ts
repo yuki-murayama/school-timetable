@@ -68,7 +68,12 @@ app.post('/generate', async c => {
     // まず学校設定を取得
     console.log('📊 学校設定を取得...')
     const settingsResult = await db.prepare('SELECT * FROM school_settings LIMIT 1').first()
-    console.log('学校設定結果:', settingsResult)
+    console.log('学校設定結果:', {
+      hasResult: !!settingsResult,
+      resultType: typeof settingsResult,
+      resultKeys: settingsResult ? Object.keys(settingsResult) : 'undefined',
+      result: settingsResult
+    })
 
     // 次に教師データを取得（簡略化）
     console.log('👨‍🏫 教師データを取得...')
@@ -103,6 +108,7 @@ app.post('/generate', async c => {
       grade3Classes: Number(settingsResult.grade3Classes) || 3,
       dailyPeriods: Number(settingsResult.dailyPeriods) || 6,
       saturdayPeriods: Number(settingsResult.saturdayPeriods) || 4,
+      days: ['月曜', '火曜', '水曜', '木曜', '金曜', '土曜'], // 曜日配列を明示的に設定
       grades: [1, 2, 3], // 固定値として設定
       classesPerGrade: {
         1: Array.from({ length: Number(settingsResult.grade1Classes) || 4 }, (_, i) =>
@@ -303,14 +309,39 @@ app.post('/generate', async c => {
         )
       }
 
+      // デバッグ: settingsオブジェクトの詳細確認
+      console.log('🔍 TimetableGenerator作成前のsettings詳細チェック:')
+      console.log('  settings:', JSON.stringify(settings, null, 2))
+      console.log('  settings type:', typeof settings)
+      console.log('  settings.days:', settings.days)
+      console.log('  settings.days type:', typeof settings.days)
+      console.log('  settings.days length:', settings.days?.length)
+      
       // TimetableGeneratorインスタンスを作成 (デバッグモードOFF)
-      const generator = new TimetableGenerator(
-        settings,
-        teachers,
-        processedSubjects,
-        classrooms,
-        false
-      )
+      let generator
+      try {
+        console.log('🔧 TimetableGenerator作成直前の最終チェック')
+        console.log('settings final:', {
+          settingsExists: !!settings,
+          settingsType: typeof settings,
+          hasDays: !!(settings?.days),
+          hasGrades: !!(settings?.grades),
+          hasClassesPerGrade: !!(settings?.classesPerGrade)
+        })
+        
+        generator = new TimetableGenerator(
+          settings,
+          teachers,
+          processedSubjects,
+          classrooms,
+          false
+        )
+        console.log('✅ TimetableGenerator作成成功')
+      } catch (constructorError) {
+        console.log('❌ TimetableGeneratorコンストラクタでエラー:', constructorError)
+        console.log('❌ コンストラクタエラースタック:', constructorError instanceof Error ? constructorError.stack : 'No stack')
+        throw constructorError
+      }
 
       // 最適化モードの場合はリトライ機能付き生成を使用
       let result: TimetableValidationResult | null = null
@@ -385,7 +416,18 @@ app.post('/generate', async c => {
         result = await generator.generateTimetable({ tolerantMode, useNewAlgorithm: true })
       } else {
         console.log('📅 標準時間割生成を実行中...')
-        result = await generator.generateTimetable({ tolerantMode })
+        try {
+          console.log('🚀 generateTimetable呼び出し前チェック')
+          console.log('generator exists:', !!generator)
+          console.log('tolerantMode:', tolerantMode)
+          
+          result = await generator.generateTimetable({ tolerantMode })
+          console.log('✅ generateTimetable完了')
+        } catch (generateError) {
+          console.log('❌ generateTimetableでエラー:', generateError)
+          console.log('❌ generateエラースタック:', generateError instanceof Error ? generateError.stack : 'No stack')
+          throw generateError
+        }
       }
 
       console.log('📊 TimetableGenerator結果:', result.success)
@@ -475,6 +517,16 @@ app.post('/generate', async c => {
       })
     } catch (generatorError) {
       console.log('❌ TimetableGenerator実行エラー:', generatorError)
+      console.log('❌ エラースタックトレース:', generatorError instanceof Error ? generatorError.stack : 'No stack trace')
+      console.log('❌ エラー発生時のsettings:', settings)
+      console.log('❌ settingsオブジェクトの詳細:', {
+        hasSettings: !!settings,
+        settingsType: typeof settings,
+        settingsKeys: settings ? Object.keys(settings) : 'undefined',
+        hasDays: !!(settings?.days),
+        daysValue: settings?.days,
+        daysType: typeof settings?.days
+      })
 
       return c.json(
         {
@@ -749,6 +801,7 @@ app.get('/quick-test', async c => {
       const rawSettings = settingsResult.results[0]
       settings = {
         ...rawSettings,
+        days: ['月曜', '火曜', '水曜', '木曜', '金曜', '土曜'], // 曜日配列を明示的に設定
         grades:
           typeof rawSettings.grades === 'string'
             ? JSON.parse(rawSettings.grades)
@@ -761,12 +814,14 @@ app.get('/quick-test', async c => {
     } else {
       // デフォルト設定
       settings = {
-        schoolName: 'テスト学校',
+        grade1Classes: 1, // デフォルト値
+        grade2Classes: 1, // デフォルト値  
+        grade3Classes: 1, // デフォルト値
+        dailyPeriods: 6,
+        saturdayPeriods: 4,
+        days: ['月曜', '火曜', '水曜', '木曜', '金曜', '土曜'], // 曜日配列を明示的に設定
         grades: [1, 2, 3],
         classesPerGrade: { 1: ['A'], 2: ['A'], 3: ['A'] },
-        periodsPerDay: 6,
-        saturdayPeriods: 4,
-        lunchBreakPeriod: 4,
       }
     }
 
@@ -1234,11 +1289,14 @@ app.post('/validate', async c => {
     }
 
     const settings: SchoolSettings = {
+      grade1Classes: 2, // デフォルト値
+      grade2Classes: 2, // デフォルト値
+      grade3Classes: 2, // デフォルト値
       dailyPeriods: settingsResult.daily_periods || 6,
       saturdayPeriods: settingsResult.saturday_periods || 0,
-      schoolName: settingsResult.school_name || '',
-      semesterSystem: settingsResult.semester_system || '3学期制',
-      gradeLevels: settingsResult.grade_levels || 3,
+      days: ['月曜', '火曜', '水曜', '木曜', '金曜', '土曜'], // 曜日配列を明示的に設定
+      grades: [1, 2, 3], // 固定値として設定
+      classesPerGrade: { 1: ['1', '2'], 2: ['1', '2'], 3: ['1', '2'] }, // デフォルト値
     }
 
     // 教師データを取得
@@ -1420,6 +1478,7 @@ app.get('/validate-light', async c => {
       grade3Classes: settingsResult.grade3_classes || 2,
       dailyPeriods: settingsResult.daily_periods || 6,
       saturdayPeriods: settingsResult.saturday_periods || 0,
+      days: ['月曜', '火曜', '水曜', '木曜', '金曜', '土曜'], // 曜日配列を明示的に設定
       grades: [1, 2, 3],
       classesPerGrade: {
         1: ['A', 'B'],
@@ -1572,6 +1631,7 @@ app.post('/generate-optimized', async c => {
       grade3Classes: settingsResult.grade3_classes || 2,
       dailyPeriods: settingsResult.daily_periods || 6,
       saturdayPeriods: settingsResult.saturday_periods || 0,
+      days: ['月曜', '火曜', '水曜', '木曜', '金曜', '土曜'], // 曜日配列を明示的に設定
       grades: [1, 2, 3],
       classesPerGrade: {
         1: ['A', 'B'],

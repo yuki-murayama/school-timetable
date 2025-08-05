@@ -23,6 +23,7 @@ export interface SchoolSettings {
   grade3Classes: number
   dailyPeriods: number
   saturdayPeriods: number
+  days: string[] // 曜日配列 ['月曜', '火曜', '水曜', '木曜', '金曜', '土曜']
   grades: number[] // [1, 2, 3]
   classesPerGrade: { [grade: number]: string[] } // {1: ['A', 'B'], 2: ['A', 'B']}
   created_at?: string
