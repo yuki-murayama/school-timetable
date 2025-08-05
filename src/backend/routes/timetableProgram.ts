@@ -52,10 +52,12 @@ app.post('/generate', async c => {
   try {
     const body = await c.req.json().catch(() => ({}))
     const useOptimization = body.useOptimization || false
+    const useNewAlgorithm = body.useNewAlgorithm || false
     // 制約違反記録を常にデフォルトで有効にする（メイン機能として）
     const tolerantMode = true
     console.log('📅 プログラム型時間割生成リクエスト受信', 
       useOptimization ? '(最適化モード)' : '', 
+      useNewAlgorithm ? '(新アルゴリズム)' : '(従来アルゴリズム)',
       '(制約違反記録モード - デフォルト有効)'
     )
 
@@ -378,6 +380,9 @@ app.post('/generate', async c => {
         if (!result) {
           result = { success: false, message: '最適化時間割生成に失敗しました' }
         }
+      } else if (useNewAlgorithm) {
+        console.log('🚀 新アルゴリズムによる時間割生成を実行中...')
+        result = await generator.generateTimetable({ tolerantMode, useNewAlgorithm: true })
       } else {
         console.log('📅 標準時間割生成を実行中...')
         result = await generator.generateTimetable({ tolerantMode })
@@ -459,7 +464,7 @@ app.post('/generate', async c => {
 
       return c.json({
         success: true,
-        message: '時間割生成が完了しました',
+        message: result.message || '時間割生成が完了しました',
         data: {
           timetable: result.timetable,
           statistics: generationStats,

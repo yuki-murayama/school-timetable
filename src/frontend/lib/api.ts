@@ -611,7 +611,7 @@ export const timetableApi = {
       message?: string
       data?: unknown
       statistics?: unknown
-    }>('/timetable/program/generate', { useOptimization: true }, options)
+    }>('/timetable/program/generate', { useOptimization: true, useNewAlgorithm: true }, options)
   },
 
   async getProgramConfig(options?: ApiOptions): Promise<{

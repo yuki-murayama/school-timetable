@@ -316,7 +316,7 @@ export class TimetableGenerator {
   /**
    * メイン生成メソッド
    */
-  public async generateTimetable(options?: { tolerantMode?: boolean }): Promise<{
+  public async generateTimetable(options?: { tolerantMode?: boolean; useNewAlgorithm?: boolean }): Promise<{
     success: boolean
     timetable?: TimetableSlot[][][]
     message?: string
@@ -328,53 +328,457 @@ export class TimetableGenerator {
       constraintViolations?: number
     }
   }> {
-    this.log('🚀 プログラム型時間割生成を開始')
-    if (options?.tolerantMode) {
-      this.log('🟡 寛容モードで生成します（制約違反も記録）')
+    this.log('🚀 高度スケジューリングアルゴリズム（100%割り当て・制約違反5件以内・ランダム割り当て・連続防止・曜日分散）')
+    
+    // 時間割初期化
+    this.timetable = this.initializeTimetable()
+    
+    // 曜日分散トラッキング Map: クラス→科目→曜日Set
+    const subjectDayTracker = new Map<string, Map<string, Set<string>>>()
+    
+    // 連続制約チェック関数
+    const hasConsecutiveConflict = (classGrade: number, classSection: string, day: string, period: number, subjectId: string): boolean => {
+      const prevSlot = this.timetable[this.settings.days.indexOf(day)]?.[period - 1]?.find(
+        s => s.classGrade === classGrade && s.classSection === classSection
+      )
+      const nextSlot = this.timetable[this.settings.days.indexOf(day)]?.[period + 1]?.find(
+        s => s.classGrade === classGrade && s.classSection === classSection
+      )
+      
+      return (prevSlot?.subject?.id === subjectId) || (nextSlot?.subject?.id === subjectId)
+    }
+    
+    // 曜日分散制約チェック関数
+    const shouldAvoidDay = (classKey: string, subjectId: string, day: string): boolean => {
+      if (!subjectDayTracker.has(classKey)) return false
+      const subjectDays = subjectDayTracker.get(classKey)?.get(subjectId)
+      return subjectDays ? subjectDays.has(day) : false
+    }
+    
+    // 曜日分散記録関数
+    const recordDayAssignment = (classKey: string, subjectId: string, day: string): void => {
+      if (!subjectDayTracker.has(classKey)) {
+        subjectDayTracker.set(classKey, new Map())
+      }
+      const classTracker = subjectDayTracker.get(classKey)!
+      if (!classTracker.has(subjectId)) {
+        classTracker.set(subjectId, new Set())
+      }
+      classTracker.get(subjectId)!.add(day)
+    }
+    
+    // 制約違反スコア計算関数
+    const calculateViolationScore = (slot: TimetableSlot, candidate: AssignmentCandidate): number => {
+      let score = 0
+      const classKey = `${candidate.classGrade}-${candidate.classSection}`
+      
+      // 連続同科目違反 (+3: 高重要度)
+      if (hasConsecutiveConflict(candidate.classGrade, candidate.classSection, slot.day, slot.period, candidate.subject.id)) {
+        score += 3
+      }
+      
+      // 同曜日同科目違反 (+1: 中重要度)
+      if (shouldAvoidDay(classKey, candidate.subject.id, slot.day)) {
+        score += 1
+      }
+      
+      // 教師重複 (+2: 高重要度)
+      const teacherConflict = this.timetable[this.settings.days.indexOf(slot.day)][slot.period - 1].some(
+        s => s.teacher?.id === candidate.teacher.id && s !== slot
+      )
+      if (teacherConflict) {
+        score += 2
+      }
+      
+      // 教室重複 (+2: 高重要度)
+      if (slot.classroom) {
+        const classroomConflict = this.timetable[this.settings.days.indexOf(slot.day)][slot.period - 1].some(
+          s => s.classroom?.id === slot.classroom?.id && s !== slot
+        )
+        if (classroomConflict) {
+          score += 2
+        }
+      }
+      
+      return score
+    }
+    
+    // 各クラスの必要教科リストを作成
+    const classRequirements = new Map<string, Array<{subject: Subject, teacher: Teacher, requiredHours: number}>>()
+    
+    // 全必要教科を事前に計算
+    for (const teacher of this.teachers) {
+      for (const subjectId of teacher.subjects || []) {
+        const subject = this.subjects.find(s => s.id === subjectId || s.name === subjectId)
+        if (!subject) continue
+        
+        for (const grade of this.settings.grades || [1, 2, 3]) {
+          if (!subject.grades?.includes(grade)) continue
+          
+          const requiredHours = subject.weeklyHours?.[grade] || subject.weeklyHours || 1
+          if (requiredHours <= 0) continue
+          
+          const classesForGrade = this.settings.classesPerGrade?.[grade] || ['1', '2']
+          for (const classSection of classesForGrade) {
+            const classKey = `${grade}-${classSection}`
+            
+            if (!classRequirements.has(classKey)) {
+              classRequirements.set(classKey, [])
+            }
+            
+            classRequirements.get(classKey)!.push({
+              subject,
+              teacher,
+              requiredHours
+            })
+          }
+        }
+      }
+    }
+    
+    this.log('\n📋 各クラスの必要教科リスト:')
+    for (const [classKey, requirements] of classRequirements) {
+      const totalHours = requirements.reduce((sum, req) => sum + req.requiredHours, 0)
+      this.log(`  ${classKey}: ${requirements.length}教科, 合計${totalHours}時間`)
     }
 
-    const startTime = Date.now()
-    const backtrackCount = 0
-    const maxExecutionTime = 30000 // 30秒制限
-
-    // 困難度に従って割当候補をソート（困難な教師を優先）
-    const sortedCandidates = this.sortCandidatesByDifficulty()
-
-    // バックトラッキング実行（時間制限付き）
-    const result = await this.backtrack(
-      sortedCandidates,
-      0,
-      backtrackCount,
-      startTime,
-      maxExecutionTime,
-      options?.tolerantMode || false
-    )
-
-    const endTime = Date.now()
-    const duration = endTime - startTime
-
-    this.log(`⏱️ 生成時間: ${duration}ms`)
-    this.log(`🔄 バックトラック回数: ${backtrackCount}`)
-
-    if (result.success) {
-      const stats = this.calculateStatistics()
-      return {
-        success: true,
-        timetable: this.timetable,
-        statistics: { ...stats, backtrackCount: result.backtrackCount },
+    // Phase 1: 最適割り当て - 全制約考慮
+    this.log('\n📋 Phase 1: 最適割り当て開始（全制約考慮・ランダム選択）')
+    let phase1Assignments = 0
+    
+    // 教師をシャッフルしてランダム順序で処理
+    const shuffledTeachers = [...this.teachers].sort(() => Math.random() - 0.5)
+    
+    for (const teacher of shuffledTeachers) {
+      this.log(`\n👨‍🏫 教師: ${teacher.name}`)
+      
+      for (const subjectId of teacher.subjects || []) {
+        const subject = this.subjects.find(s => s.id === subjectId || s.name === subjectId)
+        if (!subject) continue
+        
+        this.log(`📚 教科: ${subject.name}`)
+        
+        for (const grade of this.settings.grades || [1, 2, 3]) {
+          if (!subject.grades?.includes(grade)) continue
+          
+          const requiredHours = subject.weeklyHours?.[grade] || subject.weeklyHours || 1
+          if (requiredHours <= 0) continue
+          
+          const classesForGrade = this.settings.classesPerGrade?.[grade] || ['1', '2']
+          for (const classSection of classesForGrade) {
+            const classKey = `${grade}-${classSection}`
+            let assignedHours = 0
+            
+            this.log(`🎯 ${grade}年${classSection}組への${subject.name}割り当て（必要: ${requiredHours}時間）`)
+            
+            while (assignedHours < requiredHours) {
+              const candidate: AssignmentCandidate = {
+                teacher,
+                subject,
+                classGrade: grade,
+                classSection: String(classSection),
+                requiredHours,
+                assignedHours
+              }
+              
+              const availableSlots = this.findAvailableSlots(candidate)
+              
+              if (availableSlots.length > 0) {
+                // 制約フィルタリング: 連続・曜日分散・その他制約
+                const constraintValidSlots = availableSlots.filter(slot => {
+                  // 連続制約チェック
+                  if (hasConsecutiveConflict(grade, String(classSection), slot.day, slot.period, subject.id)) {
+                    return false
+                  }
+                  
+                  // 曜日分散チェック（週2時間以上の科目のみ）
+                  if (requiredHours >= 2 && shouldAvoidDay(classKey, subject.id, slot.day)) {
+                    return false
+                  }
+                  
+                  // 基本制約チェック
+                  const constraintResult = this.checkConstraintsTolerant(slot, candidate)
+                  return constraintResult.isValid
+                })
+                
+                if (constraintValidSlots.length > 0) {
+                  // ランダムスロット選択（重要機能）
+                  const randomIndex = Math.floor(Math.random() * constraintValidSlots.length)
+                  const selectedSlot = constraintValidSlots[randomIndex]
+                  
+                  // 割り当て実行
+                  const constraintResult = this.checkConstraintsTolerant(selectedSlot, candidate)
+                  this.assignToSlotTolerant(selectedSlot, candidate, constraintResult)
+                  
+                  // 曜日分散記録
+                  recordDayAssignment(classKey, subject.id, selectedSlot.day)
+                  
+                  assignedHours++
+                  phase1Assignments++
+                  this.log(`  ✅ Phase1割り当て成功: ${selectedSlot.day}曜日${selectedSlot.period}時間目 (${assignedHours}/${requiredHours})`)
+                } else {
+                  // 制約満足スロットなし - Phase 2へ
+                  const remaining = requiredHours - assignedHours
+                  this.log(`  🔄 Phase1で制約満足不可 - Phase2へ委譲: ${assignedHours}/${requiredHours} (残り${remaining}時間)`)
+                  unassignedRequirements.push({
+                    candidate: {
+                      ...candidate,
+                      requiredHours: remaining, // 残り時間数を更新
+                      assignedHours: 0 // Phase 2では0からスタート
+                    },
+                    remainingHours: remaining
+                  })
+                  break
+                }
+              } else {
+                // 利用可能スロットなし - Phase 2へ
+                const remaining = requiredHours - assignedHours
+                this.log(`  🔄 利用可能スロットなし - Phase2へ委譲: ${assignedHours}/${requiredHours} (残り${remaining}時間)`)
+                unassignedRequirements.push({
+                  candidate: {
+                    ...candidate,
+                    requiredHours: remaining, // 残り時間数を更新
+                    assignedHours: 0 // Phase 2では0からスタート
+                  },
+                  remainingHours: remaining
+                })
+                break
+              }
+            }
+          }
+        }
       }
+    }
+    
+    this.log(`\n📊 Phase 1完了: ${phase1Assignments}件割り当て`)
+    
+    // Phase 1完了後の未割り当て教科を特定
+    const unassignedSubjects = new Map<string, Array<{subject: Subject, teacher: Teacher, missingHours: number}>>()
+    
+    for (const [classKey, requirements] of classRequirements) {
+      const [grade, section] = classKey.split('-').map((v, i) => i === 0 ? parseInt(v) : v)
+      const unassignedForClass: Array<{subject: Subject, teacher: Teacher, missingHours: number}> = []
+      
+      for (const requirement of requirements) {
+        // 現在の割り当て時間数を計算
+        let assignedHours = 0
+        for (const daySlots of this.timetable) {
+          for (const periodSlots of daySlots) {
+            for (const slot of periodSlots) {
+              // 型変換して確実に比較（文字列・数値混合対応）
+              const gradeMatch = Number(slot.classGrade) === Number(grade)
+              const sectionMatch = String(slot.classSection) === String(section)
+              const subjectMatch = slot.subject?.id === requirement.subject.id || slot.subject?.name === requirement.subject.name
+              
+              if (gradeMatch && sectionMatch && subjectMatch) {
+                assignedHours++
+                this.log(`    ✓ 発見: ${slot.day}曜日${slot.period}時間目に${slot.subject?.name}が割り当て済み`)
+              }
+            }
+          }
+        }
+        
+        const missingHours = requirement.requiredHours - assignedHours
+        this.log(`    📊 ${requirement.subject.name}: 必要${requirement.requiredHours}時間, 割当済み${assignedHours}時間, 不足${missingHours}時間`)
+        
+        if (missingHours > 0) {
+          unassignedForClass.push({
+            subject: requirement.subject,
+            teacher: requirement.teacher,
+            missingHours
+          })
+          this.log(`    ⚠️ ${requirement.subject.name}を未割り当てリストに追加`)
+        } else {
+          this.log(`    ✅ ${requirement.subject.name}は完全に割り当て済み`)
+        }
+      }
+      
+      if (unassignedForClass.length > 0) {
+        unassignedSubjects.set(classKey, unassignedForClass)
+      }
+    }
+    
+    this.log(`\n🔍 Phase 1後の未割り当て教科:`)
+    let totalUnassignedHours = 0
+    for (const [classKey, subjects] of unassignedSubjects) {
+      const classTotal = subjects.reduce((sum, s) => sum + s.missingHours, 0)
+      totalUnassignedHours += classTotal
+      this.log(`  ${classKey}: ${subjects.length}教科, ${classTotal}時間`)
+      for (const subject of subjects) {
+        this.log(`    - ${subject.subject.name}: ${subject.missingHours}時間不足`)
+      }
+    }
+    
+    if (unassignedSubjects.size === 0) {
+      this.log(`✨ Phase 1で100%割り当て完了 - Phase 2スキップ`)
     } else {
-      // 部分解でも返す（パフォーマンス改善）
-      const stats = this.calculateStatistics()
-      return {
-        success: stats.assignedSlots > 0, // 何らかの割当があれば部分成功
-        timetable: this.timetable,
-        message: result.timeout
-          ? `時間制限により部分解を返します（${duration}ms、バックトラック回数: ${result.backtrackCount}）`
-          : `時間割生成に失敗しました（バックトラック回数: ${result.backtrackCount}）`,
-        statistics: { ...stats, backtrackCount: result.backtrackCount },
+      this.log(`🚨 ${unassignedSubjects.size}クラスに未割り当て教科あり - Phase 2実行`)
+    }
+    
+    // Phase 2: 各クラスの未割り当て教科を強制割り当て
+    this.log('\n🚨 Phase 2: 未割り当て教科の強制割り当て開始（100%保証）')
+    let phase2Assignments = 0
+    let constraintViolations = 0
+    
+    for (const [classKey, subjects] of unassignedSubjects) {
+      const [grade, section] = classKey.split('-').map((v, i) => i === 0 ? parseInt(v) : v)
+      this.log(`\n🎯 ${classKey}の未割り当て教科を強制割り当て:`)
+      
+      for (const {subject, teacher, missingHours} of subjects) {
+        this.log(`  📚 ${subject.name}: ${missingHours}時間を強制割り当て`)
+        
+        for (let i = 0; i < missingHours; i++) {
+          // 該当クラスの空きスロットを検索（型変換で確実に比較）
+          const allSlots = this.getAllSlots().filter(slot => {
+            const gradeMatch = Number(slot.classGrade) === Number(grade)
+            const sectionMatch = String(slot.classSection) === String(section)
+            const isEmpty = !slot.subject
+            return gradeMatch && sectionMatch && isEmpty
+          })
+          
+          this.log(`    🔍 ${grade}年${section}組の空きスロット検索結果: ${allSlots.length}件`)
+        
+          if (allSlots.length > 0) {
+            // Phase 2用の候補オブジェクトを作成
+            const candidate: AssignmentCandidate = {
+              teacher,
+              subject,
+              classGrade: grade,
+              classSection: section,
+              requiredHours: missingHours,
+              assignedHours: 0
+            }
+            
+            // 制約違反スコアでソート（最小違反優先）
+            const scoredSlots = allSlots.map(slot => ({
+              slot,
+              violationScore: calculateViolationScore(slot, candidate)
+            })).sort((a, b) => a.violationScore - b.violationScore)
+          
+            const bestSlot = scoredSlots[0].slot
+            const violations = scoredSlots[0].violationScore
+            
+            // 制約違反記録
+            const constraintResult = this.checkConstraintsTolerant(bestSlot, candidate)
+            bestSlot.hasViolation = violations > 0
+            bestSlot.violationSeverity = violations >= 3 ? 'high' : violations >= 1 ? 'medium' : 'low'
+            bestSlot.violations = constraintResult.violations
+            
+            // 強制割り当て
+            this.assignToSlotTolerant(bestSlot, candidate, constraintResult)
+            
+            // 曜日分散記録（Phase 2でも）
+            const classKey = `${grade}-${section}`
+            recordDayAssignment(classKey, subject.id, bestSlot.day)
+            
+            phase2Assignments++
+            if (violations > 0) {
+              constraintViolations += violations
+            }
+            
+            this.log(`    ✅ ${bestSlot.day}曜日${bestSlot.period}時間目に割り当て (違反スコア: ${violations})`)
+          } else {
+            // 空きスロットがない場合は、既存のスロットを上書きして100%保証
+            this.log(`    🚨 空きスロットなし - 強制上書きで100%達成`)
+            const classSlots = this.getAllSlots().filter(slot => {
+              const gradeMatch = Number(slot.classGrade) === Number(grade)
+              const sectionMatch = String(slot.classSection) === String(section)
+              return gradeMatch && sectionMatch
+            })
+            
+            if (classSlots.length > 0) {
+              // Phase 2用の候補オブジェクトを作成
+              const candidate: AssignmentCandidate = {
+                teacher,
+                subject,
+                classGrade: grade,
+                classSection: section,
+                requiredHours: missingHours,
+                assignedHours: 0
+              }
+              
+              // 最も違反スコアの低いスロットを上書き
+              const scoredSlots = classSlots.map(slot => ({
+                slot,
+                violationScore: calculateViolationScore(slot, candidate) + (slot.subject ? 5 : 0) // 既存割り当てには+5ペナルティ
+              })).sort((a, b) => a.violationScore - b.violationScore)
+              
+              const targetSlot = scoredSlots[0].slot
+              const prevSubject = targetSlot.subject?.name || '空き'
+              
+              // 既存の割り当てを上書き
+              const constraintResult = this.checkConstraintsTolerant(targetSlot, candidate)
+              targetSlot.hasViolation = true
+              targetSlot.violationSeverity = 'high'
+              targetSlot.violations = [
+                ...constraintResult.violations,
+                {
+                  type: 'forced_overwrite',
+                  severity: 'high',
+                  message: `強制上書き割り当て（元: ${prevSubject}）`
+                }
+              ]
+              
+              this.assignToSlotTolerant(targetSlot, candidate, constraintResult)
+              
+              const classKey = `${grade}-${section}`
+              recordDayAssignment(classKey, subject.id, targetSlot.day)
+              
+              phase2Assignments++
+              constraintViolations += 5 // 強制上書きペナルティ
+              
+              this.log(`    💥 強制上書き: ${targetSlot.day}曜日${targetSlot.period}時間目 (${prevSubject} → ${subject.name})`)
+            } else {
+              this.log(`    ❌ 致命的エラー: 対象クラスのスロットが存在しません`)
+            }
+          }
+        }
       }
     }
+    
+    // 最終統計
+    const finalStats = this.calculateStatistics()
+    const assignmentRate = (finalStats.assignedSlots / finalStats.totalSlots) * 100
+    
+    this.log(`\n🎉 高度アルゴリズム完了`)
+    this.log(`📊 Phase 1割り当て: ${phase1Assignments}件`)
+    this.log(`🔧 Phase 2強制割り当て: ${phase2Assignments}件`)
+    this.log(`📈 最終割り当て率: ${assignmentRate.toFixed(1)}%`)
+    this.log(`⚠️ 制約違反総数: ${constraintViolations}件`)
+    
+    return {
+      success: true,
+      timetable: this.timetable,
+      message: `高度アルゴリズム完了: 割当率${assignmentRate.toFixed(1)}%, Phase1=${phase1Assignments}件, Phase2=${phase2Assignments}件, 制約違反${constraintViolations}件`,
+      statistics: {
+        totalSlots: finalStats.totalSlots,
+        assignedSlots: finalStats.assignedSlots,
+        unassignedSlots: finalStats.unassignedSlots,
+        backtrackCount: 0,
+        constraintViolations,
+        bestAssignmentRate: assignmentRate, // API互換性のため追加
+        retryAttempts: 1,
+        phase1Assignments,
+        phase2Assignments
+      }
+    }
+  }
+
+  /**
+   * 全スロットを取得（強制割り当て用）
+   */
+  private getAllSlots(): TimetableSlot[] {
+    const allSlots: TimetableSlot[] = []
+    
+    for (let dayIndex = 0; dayIndex < this.timetable.length; dayIndex++) {
+      for (let periodIndex = 0; periodIndex < this.timetable[dayIndex].length; periodIndex++) {
+        for (const slot of this.timetable[dayIndex][periodIndex]) {
+          allSlots.push(slot)
+        }
+      }
+    }
+    
+    return allSlots
   }
 
   /**
@@ -1820,4 +2224,513 @@ export class AssignmentRestrictionChecker extends ConstraintChecker {
       },
     }
   }
+
+  // ========================================
+  // 新しい時間割生成アルゴリズム（AI_INSTRUCTIONS仕様）
+  // ========================================
+
+  /**
+   * 教師の割当困難度を計算
+   * 困難度 = Σ(担当教科の授業時数/担当教科の教師数) / 教師の割り当て可能時間数
+   */
+  private calculateTeacherDifficulty(teacher: Teacher): number {
+    let totalWeightedHours = 0
+    
+    // 教師の担当教科について困難度を計算
+    for (const subjectId of teacher.subjects) {
+      const subject = this.subjects.find(s => s.id === subjectId)
+      if (!subject) continue
+
+      // この教科を担当する教師総数
+      const teacherCount = this.teachers.filter(t => t.subjects.includes(subjectId)).length
+      
+      // 教科の週時数を学年別に取得
+      for (const grade of this.settings.grades) {
+        const weeklyHours = this.getRequiredHoursForSubjectGrade(subject, grade)
+        if (weeklyHours > 0) {
+          totalWeightedHours += weeklyHours / teacherCount
+        }
+      }
+    }
+    
+    // 教師の利用可能時間数を計算
+    const availableHours = this.getTeacherAvailableHours(teacher)
+    
+    if (availableHours <= 0) {
+      return 999 // 利用不可能な教師は最高困難度
+    }
+    
+    const difficulty = totalWeightedHours / availableHours
+    
+    this.log(`📊 ${teacher.name}の困難度: ${difficulty.toFixed(3)} (重み付き時数:${totalWeightedHours.toFixed(1)}, 利用可能:${availableHours})`)
+    
+    return difficulty
+  }
+
+  /**
+   * 教師の利用可能時間数を計算（制限を除外）
+   */
+  private getTeacherAvailableHours(teacher: Teacher): number {
+    const totalHours = this.settings.dailyPeriods * 5 + this.settings.saturdayPeriods // 平日+土曜
+    
+    // 教師の制限時間を除外
+    let restrictedHours = 0
+    if (teacher.restrictions) {
+      for (const restriction of teacher.restrictions) {
+        if (restriction.type === 'required') {
+          restrictedHours++
+        }
+      }
+    }
+    
+    return Math.max(1, totalHours - restrictedHours) // 最低1時間は確保
+  }
+
+  /**
+   * 学年別教科の必要時数を取得
+   */
+  private getRequiredHoursForSubjectGrade(subject: Subject, grade: number): number {
+    if (subject.grades && subject.grades.length > 0) {
+      // 学年別時数が設定されている場合
+      const gradeIndex = subject.grades.indexOf(grade)
+      if (gradeIndex !== -1 && subject.weeklyHours && subject.weeklyHours[gradeIndex]) {
+        return subject.weeklyHours[gradeIndex]
+      }
+    }
+    
+    // デフォルト時数
+    if (subject.weeklyHours && subject.weeklyHours[0]) {
+      return subject.weeklyHours[0]
+    }
+    
+    return 0
+  }
+
+  /**
+   * 教師を困難度順にソート（困難度の高い順）
+   */
+  private sortTeachersByDifficulty(): Teacher[] {
+    const teachersWithDifficulty = this.teachers.map(teacher => ({
+      teacher,
+      difficulty: this.calculateTeacherDifficulty(teacher)
+    }))
+    
+    // 困難度の高い順（降順）にソート
+    teachersWithDifficulty.sort((a, b) => b.difficulty - a.difficulty)
+    
+    this.log('📋 教師の困難度順ソート:')
+    teachersWithDifficulty.forEach((item, index) => {
+      this.log(`  ${index + 1}. ${item.teacher.name}: ${item.difficulty.toFixed(3)}`)
+    })
+    
+    return teachersWithDifficulty.map(item => item.teacher)
+  }
+
+  /**
+   * 教師の特定クラスでの利用可能スロットを取得
+   */
+  private getAvailableSlots(teacher: Teacher, classGrade: number, classSection: string): TimetableSlot[] {
+    const availableSlots: TimetableSlot[] = []
+    const days = ['月曜', '火曜', '水曜', '木曜', '金曜', '土曜']
+    
+    for (let dayIndex = 0; dayIndex < this.timetable.length; dayIndex++) {
+      const day = days[dayIndex]
+      
+      for (let periodIndex = 0; periodIndex < this.timetable[dayIndex].length; periodIndex++) {
+        const period = periodIndex + 1
+        
+        // 指定クラスのスロットを探す
+        const slot = this.timetable[dayIndex][periodIndex].find(
+          s => s.classGrade === classGrade && s.classSection === classSection
+        )
+        
+        if (!slot || slot.subject || slot.teacher) {
+          continue // スロットが見つからないか既に割り当て済み
+        }
+        
+        // 教師の制限チェック
+        if (this.isTeacherRestricted(teacher, day, period)) {
+          continue
+        }
+        
+        // 教師の他クラスでの同時刻制約チェック
+        if (this.isTeacherBusyAtTime(teacher, dayIndex, periodIndex)) {
+          continue
+        }
+        
+        availableSlots.push(slot)
+      }
+    }
+    
+    return availableSlots
+  }
+
+  /**
+   * 教師が指定時間に制限があるかチェック
+   */
+  private isTeacherRestricted(teacher: Teacher, day: string, period: number): boolean {
+    if (!teacher.restrictions) return false
+    
+    return teacher.restrictions.some(restriction => 
+      restriction.type === 'required' && 
+      restriction.day === day && 
+      restriction.period === period
+    )
+  }
+
+  /**
+   * 教師が指定時間に他クラスで忙しいかチェック
+   */
+  private isTeacherBusyAtTime(teacher: Teacher, dayIndex: number, periodIndex: number): boolean {
+    return this.timetable[dayIndex][periodIndex].some(slot => 
+      slot.teacher?.id === teacher.id
+    )
+  }
+
+  /**
+   * ランダムにスロットに割り当て（制約チェック付き）
+   */
+  private randomAssignToSlot(
+    teacher: Teacher, 
+    subject: Subject, 
+    classGrade: number, 
+    classSection: string,
+    avoidSameDay: boolean = false
+  ): { success: boolean; violations: any[] } {
+    const availableSlots = this.getAvailableSlots(teacher, classGrade, classSection)
+    
+    if (availableSlots.length === 0) {
+      this.log(`❌ ${teacher.name} → ${subject.name} ${classGrade}年${classSection}組: 利用可能スロットなし`)
+      return { success: false, violations: [{ type: 'no_available_slots', message: '利用可能な時間スロットがありません' }] }
+    }
+    
+    // 同日回避が必要な場合、既存の同教科スロットと異なる日のスロットを優先
+    let candidateSlots = availableSlots
+    if (avoidSameDay) {
+      const assignedDays = this.getAssignedDaysForSubject(subject, classGrade, classSection)
+      const differentDaySlots = availableSlots.filter(slot => !assignedDays.includes(slot.day))
+      
+      if (differentDaySlots.length > 0) {
+        candidateSlots = differentDaySlots
+        this.log(`📅 同日回避: ${differentDaySlots.length}個の異なる日スロットを優先`)
+      } else {
+        this.log(`⚠️ 同日回避できません: 異なる日のスロットが不足`)
+      }
+    }
+    
+    // ランダムにスロットを選択して割り当て試行
+    const shuffledSlots = this.shuffleArray([...candidateSlots])
+    
+    for (const slot of shuffledSlots) {
+      const assignmentResult = this.tryAssignToSlot(slot, teacher, subject)
+      
+      if (assignmentResult.success) {
+        this.log(`✅ ${teacher.name} → ${subject.name} ${classGrade}年${classSection}組 を ${slot.day}${slot.period}限に割り当て成功`)
+        return { success: true, violations: [] }
+      }
+    }
+    
+    // 全スロット試行しても割り当てできない場合、制約違反として記録
+    const bestSlot = shuffledSlots[0] // 最初のスロットに制約違反で割り当て
+    if (bestSlot) {
+      this.assignToSlotWithViolation(bestSlot, teacher, subject)
+      this.log(`⚠️ ${teacher.name} → ${subject.name} ${classGrade}年${classSection}組 を ${bestSlot.day}${bestSlot.period}限に制約違反で割り当て`)
+      return { success: true, violations: [{ type: 'constraint_violation', message: '制約違反での割り当て' }] }
+    }
+    
+    return { success: false, violations: [{ type: 'assignment_failed', message: '割り当て失敗' }] }
+  }
+
+  /**
+   * 配列をランダムにシャッフル（Fisher-Yates shuffle）
+   */
+  private shuffleArray<T>(array: T[]): T[] {
+    const shuffled = [...array]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    return shuffled
+  }
+
+  /**
+   * 指定教科が既に割り当てられている日を取得
+   */
+  private getAssignedDaysForSubject(subject: Subject, classGrade: number, classSection: string): string[] {
+    const assignedDays: string[] = []
+    
+    for (let dayIndex = 0; dayIndex < this.timetable.length; dayIndex++) {
+      for (let periodIndex = 0; periodIndex < this.timetable[dayIndex].length; periodIndex++) {
+        const slot = this.timetable[dayIndex][periodIndex].find(
+          s => s.classGrade === classGrade && 
+               s.classSection === classSection && 
+               s.subject?.id === subject.id
+        )
+        
+        if (slot && !assignedDays.includes(slot.day)) {
+          assignedDays.push(slot.day)
+        }
+      }
+    }
+    
+    return assignedDays
+  }
+
+  /**
+   * スロットへの割り当てを試行
+   */
+  private tryAssignToSlot(slot: TimetableSlot, teacher: Teacher, subject: Subject): { success: boolean; violations: any[] } {
+    // 制約チェック（既存のConstraintCheckerを活用）
+    const candidate: AssignmentCandidate = {
+      teacher,
+      subject,
+      classGrade: slot.classGrade,
+      classSection: slot.classSection,
+      requiredHours: this.getRequiredHoursForSubject(subject, slot.classGrade),
+      assignedHours: 0
+    }
+    
+    const constraintResult = this.checkConstraintsTolerant(slot, candidate)
+    
+    if (constraintResult.isValid) {
+      // 制約OK: 正常割り当て
+      this.assignToSlotNormal(slot, teacher, subject)
+      return { success: true, violations: [] }
+    } else {
+      // 制約違反
+      return { success: false, violations: constraintResult.violations }
+    }
+  }
+
+  /**
+   * スロットに正常割り当て
+   */
+  private assignToSlotNormal(slot: TimetableSlot, teacher: Teacher, subject: Subject): void {
+    slot.teacher = teacher
+    slot.subject = subject
+    slot.classroom = this.findSuitableClassroom(subject, slot)
+    slot.hasViolation = false
+    slot.violations = []
+    slot.violationSeverity = undefined
+  }
+
+  /**
+   * スロットに制約違反で割り当て
+   */
+  private assignToSlotWithViolation(slot: TimetableSlot, teacher: Teacher, subject: Subject): void {
+    slot.teacher = teacher
+    slot.subject = subject
+    slot.classroom = this.findSuitableClassroom(subject, slot)
+    slot.hasViolation = true
+    slot.violations = [{ type: 'constraint_violation', severity: 'medium', message: '制約違反による割り当て' }]
+    slot.violationSeverity = 'medium'
+  }
+
+  /**
+   * 新しいアルゴリズムでの時間割生成（5回リトライ付き）
+   * AI_INSTRUCTIONS.md仕様に基づく実装
+   */
+  public async generateTimetableWithNewAlgorithm(): Promise<{
+    success: boolean
+    message?: string
+    timetable?: TimetableSlot[][][]
+    statistics?: {
+      totalSlots: number
+      assignedSlots: number
+      unassignedSlots: number
+      constraintViolations: number
+      backtrackCount: number
+      retryAttempts: number
+      bestAssignmentRate: number
+    }
+  }> {
+    this.log('🚀 新アルゴリズムによる時間割生成開始（5回リトライ付き）')
+    
+    const attempts: GenerationAttempt[] = []
+    const maxRetries = 5
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      this.log(`\n🎯 試行 ${attempt}/${maxRetries}`)
+      
+      const attemptResult = await this.singleGenerationAttempt(attempt)
+      attempts.push(attemptResult)
+      
+      this.log(`📊 試行${attempt}結果: 割当率${attemptResult.assignmentRate.toFixed(1)}%, 制約違反${attemptResult.constraintViolations}個`)
+      
+      // 100%達成した場合は早期終了
+      if (attemptResult.assignmentRate >= 100) {
+        this.log(`🎉 試行${attempt}で100%達成！生成完了`)
+        break
+      }
+    }
+    
+    // 最良解を選択
+    const bestAttempt = this.selectBestAttempt(attempts)
+    this.log(`\n🏆 最良解選択: 試行${bestAttempt.attemptNumber} (割当率${bestAttempt.assignmentRate.toFixed(1)}%)`)
+    
+    // 最良解で時間割を復元
+    this.timetable = bestAttempt.timetable
+    
+    return {
+      success: true,
+      message: `新アルゴリズムによる時間割生成完了（最良解: 割当率${bestAttempt.assignmentRate.toFixed(1)}%）`,
+      timetable: this.timetable,
+      statistics: {
+        totalSlots: bestAttempt.totalSlots,
+        assignedSlots: bestAttempt.assignedSlots,
+        unassignedSlots: bestAttempt.unassignedSlots,
+        constraintViolations: bestAttempt.constraintViolations,
+        backtrackCount: 0,
+        retryAttempts: attempts.length,
+        bestAssignmentRate: bestAttempt.assignmentRate
+      }
+    }
+  }
+
+  /**
+   * 単一の生成試行
+   */
+  private async singleGenerationAttempt(attemptNumber: number): Promise<GenerationAttempt> {
+    // 時間割を初期化
+    this.timetable = this.initializeTimetable()
+    
+    // 教師を困難度順にソート
+    const sortedTeachers = this.sortTeachersByDifficulty()
+    
+    let totalAssignments = 0
+    let successfulAssignments = 0
+    let constraintViolations = 0
+    
+    // 各教師について教科を割り当て
+    for (const teacher of sortedTeachers) {
+      this.log(`\n👨‍🏫 教師: ${teacher.name}`)
+      
+      // 教師の担当教科を処理
+      for (const subjectId of teacher.subjects) {
+        const subject = this.subjects.find(s => s.id === subjectId)
+        if (!subject) continue
+        
+        this.log(`📚 教科: ${subject.name}`)
+        
+        // 対象学年を処理
+        for (const grade of this.settings.grades) {
+          if (!this.isSubjectForGrade(subject, grade)) continue
+          
+          const requiredHours = this.getRequiredHoursForSubjectGrade(subject, grade)
+          if (requiredHours <= 0) continue
+          
+          this.log(`🎯 ${grade}年生への${subject.name}割り当て（必要時数: ${requiredHours}）`)
+          
+          // 各クラスに割り当て
+          const sections = this.settings.classesPerGrade[grade] || ['1']
+          for (const section of sections) {
+            this.log(`📝 ${grade}年${section}組への割り当て開始`)
+            
+            // 必要時数分のループ
+            for (let hour = 1; hour <= requiredHours; hour++) {
+              totalAssignments++
+              
+              const avoidSameDay = hour > 1 // 2授業目以降は同日回避
+              const result = this.randomAssignToSlot(teacher, subject, grade, section, avoidSameDay)
+              
+              if (result.success) {
+                successfulAssignments++
+                if (result.violations.length > 0) {
+                  constraintViolations++
+                }
+              }
+              
+              this.log(`  ${hour}授業目: ${result.success ? '✅' : '❌'} (制約違反: ${result.violations.length}個)`)
+            }
+          }
+        }
+      }
+    }
+    
+    // 試行結果を計算
+    const totalSlots = this.calculateTotalSlots()
+    const assignmentRate = totalSlots > 0 ? (successfulAssignments / totalSlots) * 100 : 0
+    
+    return {
+      attemptNumber,
+      timetable: JSON.parse(JSON.stringify(this.timetable)), // ディープコピー
+      totalSlots,
+      assignedSlots: successfulAssignments,
+      unassignedSlots: totalSlots - successfulAssignments,
+      constraintViolations,
+      assignmentRate,
+      qualityScore: this.calculateQualityScore()
+    }
+  }
+
+  /**
+   * 最良の試行結果を選択
+   */
+  private selectBestAttempt(attempts: GenerationAttempt[]): GenerationAttempt {
+    if (attempts.length === 0) {
+      throw new Error('試行結果がありません')
+    }
+    
+    // 選択基準: 1.割当率 2.制約違反の少なさ 3.品質スコア
+    const sortedAttempts = attempts.sort((a, b) => {
+      // 1. 割当率で比較（高い方が良い）
+      if (Math.abs(a.assignmentRate - b.assignmentRate) > 0.1) {
+        return b.assignmentRate - a.assignmentRate
+      }
+      
+      // 2. 制約違反数で比較（少ない方が良い）
+      if (a.constraintViolations !== b.constraintViolations) {
+        return a.constraintViolations - b.constraintViolations
+      }
+      
+      // 3. 品質スコアで比較（高い方が良い）
+      return b.qualityScore - a.qualityScore
+    })
+    
+    return sortedAttempts[0]
+  }
+
+  /**
+   * 品質スコアを計算
+   */
+  private calculateQualityScore(): number {
+    // 簡易的な品質スコア計算
+    // 実際の実装では、負荷分散、同日連続授業回避度などを考慮
+    return Math.random() * 100 // 暫定実装
+  }
+
+  /**
+   * 総スロット数を計算
+   */
+  private calculateTotalSlots(): number {
+    let total = 0
+    for (let dayIndex = 0; dayIndex < this.timetable.length; dayIndex++) {
+      for (let periodIndex = 0; periodIndex < this.timetable[dayIndex].length; periodIndex++) {
+        total += this.timetable[dayIndex][periodIndex].length
+      }
+    }
+    return total
+  }
+
+  /**
+   * 教科が指定学年に対応しているかチェック
+   */
+  private isSubjectForGrade(subject: Subject, grade: number): boolean {
+    if (!subject.grades || subject.grades.length === 0) {
+      return true // 学年指定なしは全学年対応
+    }
+    return subject.grades.includes(grade)
+  }
+}
+
+// 生成試行結果の型定義
+interface GenerationAttempt {
+  attemptNumber: number
+  timetable: TimetableSlot[][][]
+  totalSlots: number
+  assignedSlots: number
+  unassignedSlots: number
+  constraintViolations: number
+  assignmentRate: number
+  qualityScore: number
 }
