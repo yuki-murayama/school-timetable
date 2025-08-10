@@ -395,6 +395,9 @@ export const TeachersSection = memo(function TeachersSection({
                                     variant='ghost'
                                     size='sm'
                                     onClick={() => handleEditTeacher(teacher)}
+                                    data-testid={`edit-teacher-${teacher.id}`}
+                                    aria-label={`教師「${teacher.name}」を編集`}
+                                    title={`教師「${teacher.name}」を編集`}
                                   >
                                     <Edit className='w-4 h-4' />
                                   </Button>
@@ -402,6 +405,9 @@ export const TeachersSection = memo(function TeachersSection({
                                     variant='ghost'
                                     size='sm'
                                     onClick={() => teacher.id && handleDeleteTeacher(teacher.id)}
+                                    data-testid={`delete-teacher-${teacher.id}`}
+                                    aria-label={`教師「${teacher.name}」を削除`}
+                                    title={`教師「${teacher.name}」を削除`}
                                   >
                                     <Trash2 className='w-4 h-4' />
                                   </Button>

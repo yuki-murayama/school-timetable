@@ -611,7 +611,7 @@ test.describe('Authenticated CRUD Operations', () => {
           // Find the newly created subject row and click edit button
           const subjectRow = page.locator(`tr:has-text("${testData.subject.name}")`).first();
           if (await subjectRow.count() > 0) {
-            const editButton = subjectRow.locator('button[aria-label*="edit"], button:has-text("編集"), button svg').first();
+            const editButton = subjectRow.locator('button[data-testid^="edit-subject-"], button[aria-label*="編集"]').first();
             if (await editButton.count() > 0) {
               await editButton.click();
               await page.waitForTimeout(1000);
@@ -703,7 +703,7 @@ test.describe('Authenticated CRUD Operations', () => {
                     // TEST DELETE operation
                     console.log('🗑️ Testing DELETE operation...');
                     
-                    const deleteButton = updatedRow.locator('button[aria-label*="delete"], button:has-text("削除"), button svg').last();
+                    const deleteButton = updatedRow.locator('button[data-testid^="delete-subject-"], button[aria-label*="削除"]').first();
                     if (await deleteButton.count() > 0) {
                       await deleteButton.click();
                       await page.waitForTimeout(1000);
@@ -912,7 +912,7 @@ test.describe('Authenticated CRUD Operations', () => {
                   // Find the newly created classroom row and click edit button
                   const classroomRow = page.locator(`tr:has-text("${testData.classroom.name}")`).first();
                   if (await classroomRow.count() > 0) {
-                    const editButton = classroomRow.locator('button[aria-label*="edit"], button:has-text("編集"), button svg').first();
+                    const editButton = classroomRow.locator('button[data-testid^="edit-classroom-"], button[aria-label*="編集"]').first();
                     if (await editButton.count() > 0) {
                       await editButton.click();
                       await page.waitForTimeout(1000);
@@ -939,7 +939,7 @@ test.describe('Authenticated CRUD Operations', () => {
                             // TEST DELETE operation
                             console.log('🗑️ Testing DELETE operation...');
                             
-                            const deleteButton = updatedRow.locator('button[aria-label*="delete"], button:has-text("削除"), button svg').last();
+                            const deleteButton = updatedRow.locator('button[data-testid^="delete-classroom-"], button[aria-label*="削除"]').first();
                             if (await deleteButton.count() > 0) {
                               await deleteButton.click();
                               await page.waitForTimeout(1000);

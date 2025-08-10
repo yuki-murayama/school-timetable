@@ -322,6 +322,9 @@ export function ClassroomsSection({ token, getFreshToken }: ClassroomsSectionPro
                                 variant='ghost'
                                 size='sm'
                                 onClick={() => handleEditClassroom(classroom)}
+                                data-testid={`edit-classroom-${classroom.id}`}
+                                aria-label={`教室「${classroom.name}」を編集`}
+                                title={`教室「${classroom.name}」を編集`}
                               >
                                 <Edit className='w-4 h-4' />
                               </Button>
@@ -329,6 +332,9 @@ export function ClassroomsSection({ token, getFreshToken }: ClassroomsSectionPro
                                 variant='ghost'
                                 size='sm'
                                 onClick={() => classroom.id && handleDeleteClassroom(classroom.id)}
+                                data-testid={`delete-classroom-${classroom.id}`}
+                                aria-label={`教室「${classroom.name}」を削除`}
+                                title={`教室「${classroom.name}」を削除`}
                               >
                                 <Trash2 className='w-4 h-4' />
                               </Button>

@@ -508,6 +508,9 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
                                   variant='ghost'
                                   size='sm'
                                   onClick={() => handleEditSubject(subject)}
+                                  data-testid={`edit-subject-${subject.id}`}
+                                  aria-label={`教科「${subject.name}」を編集`}
+                                  title={`教科「${subject.name}」を編集`}
                                 >
                                   <Edit className='w-4 h-4' />
                                 </Button>
@@ -515,6 +518,9 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
                                   variant='ghost'
                                   size='sm'
                                   onClick={() => subject.id && handleDeleteSubject(subject.id)}
+                                  data-testid={`delete-subject-${subject.id}`}
+                                  aria-label={`教科「${subject.name}」を削除`}
+                                  title={`教科「${subject.name}」を削除`}
                                 >
                                   <Trash2 className='w-4 h-4' />
                                 </Button>

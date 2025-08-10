@@ -63,7 +63,7 @@ test.describe('教科学年選択の永続化テスト', () => {
     
     // 編集ボタンをクリックして編集ダイアログを開く
     console.log('🔧 編集ボタンをクリック')
-    const editButton = page.locator(`tr:has-text("${testSubjectName}") td:last-child button`).first()
+    const editButton = page.locator(`tr:has-text("${testSubjectName}") button[data-testid^="edit-subject-"], tr:has-text("${testSubjectName}") button[aria-label*="編集"]`).first()
     await editButton.click()
     
     // 編集ダイアログが開くのを待つ
@@ -109,7 +109,7 @@ test.describe('教科学年選択の永続化テスト', () => {
     
     // 再度編集ダイアログを開いて状態を確認
     console.log('🔧 再度編集ボタンをクリック')
-    const editButtonAgain = page.locator(`tr:has-text("${testSubjectName}") td:last-child button`).first()
+    const editButtonAgain = page.locator(`tr:has-text("${testSubjectName}") button[data-testid^="edit-subject-"], tr:has-text("${testSubjectName}") button[aria-label*="編集"]`).first()
     await editButtonAgain.click()
     
     // 編集ダイアログが開くのを待つ
@@ -127,7 +127,7 @@ test.describe('教科学年選択の永続化テスト', () => {
     
     // クリーンアップ：テスト用教科を削除
     console.log('🧹 クリーンアップ: テスト用教科を削除')
-    const deleteButton = page.locator(`tr:has-text("${testSubjectName}") td:last-child button`).nth(1)
+    const deleteButton = page.locator(`tr:has-text("${testSubjectName}") button[data-testid^="delete-subject-"], tr:has-text("${testSubjectName}") button[aria-label*="削除"]`).first()
     await deleteButton.click()
     
     // 削除確認があれば承認
