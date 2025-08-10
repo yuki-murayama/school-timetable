@@ -98,133 +98,130 @@ export function DataManagementPage() {
     })
   }, [])
 
-  // Load school settings
-  useEffect(() => {
-    const loadSettings = async () => {
-      console.log('loadSettings called, token:', !!token)
+  // 学校設定読み込み関数をメモ化
+  const loadSettings = useCallback(async () => {
+    console.log('loadSettings called, token:', !!token)
 
-      if (!token) {
-        console.log('No token available, skipping API call')
-        setIsLoading(false)
-        return
-      }
+    if (!token) {
+      console.log('No token available, skipping API call')
+      setIsLoading(false)
+      return
+    }
 
-      setIsLoading(true)
+    setIsLoading(true)
+    setShowOfflineButton(false)
+
+    // 5秒後にオフラインボタンを表示
+    const offlineButtonTimer = setTimeout(() => {
+      setShowOfflineButton(true)
+    }, 5000)
+
+    // 10秒のタイムアウトを設定（一度だけ実行）
+    const timeoutId = setTimeout(() => {
+      console.warn('API call timeout after 10 seconds')
+      setIsLoading(false)
       setShowOfflineButton(false)
-
-      // 5秒後にオフラインボタンを表示
-      const offlineButtonTimer = setTimeout(() => {
-        setShowOfflineButton(true)
-      }, 5000)
-
-      // 10秒のタイムアウトを設定（一度だけ実行）
-      const timeoutId = setTimeout(() => {
-        console.warn('API call timeout after 10 seconds')
-        setIsLoading(false)
-        setShowOfflineButton(false)
-        if (!hasShownTimeoutError) {
-          setHasShownTimeoutError(true)
-          toast({
-            title: '接続タイムアウト',
-            description: 'デフォルト設定を使用します',
-            variant: 'destructive',
-          })
-        }
-      }, 10000)
-
-      try {
-        console.log('Calling schoolApi.getSettings...')
-
-        const settings = (await Promise.race([
-          schoolApi.getSettings({ token, getFreshToken }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 8000)),
-        ])) as Promise<SchoolSettings>
-
-        clearTimeout(timeoutId)
-        clearTimeout(offlineButtonTimer)
-        setClassSettings(settings)
-        console.log('Settings loaded successfully:', settings)
-      } catch (error: unknown) {
-        clearTimeout(timeoutId)
-        clearTimeout(offlineButtonTimer)
-        console.error('Failed to load settings:', error)
-
-        let errorDescription = 'デフォルト設定を使用します。'
-        if (error.message.includes('timeout')) {
-          errorDescription += ' バックエンドAPIがタイムアウトしました。'
-        } else if (error.message.includes('500')) {
-          errorDescription += ' バックエンドAPIが500エラーを返しました。'
-        } else if (error.message.includes('CORS')) {
-          errorDescription += ' CORS設定に問題があります。'
-        } else {
-          errorDescription += ` エラー: ${error.message}`
-        }
-
-        if (!hasShownTimeoutError) {
-          setHasShownTimeoutError(true)
-          toast({
-            title: '設定読み込みエラー',
-            description: errorDescription,
-            variant: 'destructive',
-          })
-        }
-
-        // エラー時はデフォルト値を設定
-        setClassSettings({
-          grade1Classes: 4,
-          grade2Classes: 4,
-          grade3Classes: 3,
-          dailyPeriods: 6,
-          saturdayPeriods: 4,
-        })
-      } finally {
-        setIsLoading(false)
-        setShowOfflineButton(false)
+      if (!hasShownTimeoutError) {
+        setHasShownTimeoutError(true)
+        // Remove toast to prevent infinite loop
+        console.error('接続タイムアウト: デフォルト設定を使用します')
       }
+    }, 10000)
+
+    try {
+      console.log('Calling schoolApi.getSettings...')
+
+      const settings = (await Promise.race([
+        schoolApi.getSettings({ token, getFreshToken }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 8000)),
+      ])) as Promise<SchoolSettings>
+
+      clearTimeout(timeoutId)
+      clearTimeout(offlineButtonTimer)
+      setClassSettings(settings)
+      console.log('Settings loaded successfully:', settings)
+    } catch (error: unknown) {
+      clearTimeout(timeoutId)
+      clearTimeout(offlineButtonTimer)
+      console.error('Failed to load settings:', error)
+
+      let errorDescription = 'デフォルト設定を使用します。'
+      if (error.message.includes('timeout')) {
+        errorDescription += ' バックエンドAPIがタイムアウトしました。'
+      } else if (error.message.includes('500')) {
+        errorDescription += ' バックエンドAPIが500エラーを返しました。'
+      } else if (error.message.includes('CORS')) {
+        errorDescription += ' CORS設定に問題があります。'
+      } else {
+        errorDescription += ` エラー: ${error.message}`
+      }
+
+      if (!hasShownTimeoutError) {
+        setHasShownTimeoutError(true)
+        // Remove toast to prevent infinite loop
+        console.error('設定読み込みエラー:', errorDescription)
+      }
+
+      // エラー時はデフォルト値を設定
+      setClassSettings({
+        grade1Classes: 4,
+        grade2Classes: 4,
+        grade3Classes: 3,
+        dailyPeriods: 6,
+        saturdayPeriods: 4,
+      })
+    } finally {
+      setIsLoading(false)
+      setShowOfflineButton(false)
     }
+  }, [token, getFreshToken, hasShownTimeoutError]) // 必要な依存関係を全て含めてメモ化
 
-    loadSettings()
-  }, [token, getFreshToken])
-
-  // Load teachers
+  // Load school settings useEffect
   useEffect(() => {
-    const loadTeachers = async () => {
-      if (!token) {
-        setIsTeachersLoading(false)
-        return
-      }
+    if (token) {
+      loadSettings()
+    }
+  }, [token, loadSettings]) // loadSettingsを依存関係に含める
 
-      setIsTeachersLoading(true)
-
-      try {
-        const teachersData = await teacherApi.getTeachers({ token, getFreshToken })
-        const teachers = Array.isArray(teachersData) ? teachersData : []
-        const normalizedTeachers = normalizeTeachers(teachers)
-
-        // Sort by order field, then by name if no order
-        const sortedTeachers = normalizedTeachers.sort((a, b) => {
-          if (a.order != null && b.order != null) {
-            return a.order - b.order
-          }
-          if (a.order != null) return -1
-          if (b.order != null) return 1
-          return a.name.localeCompare(b.name)
-        })
-        setTeachers(sortedTeachers)
-      } catch (error) {
-        console.error('Error loading teachers:', error)
-        toast({
-          title: '教師情報の読み込みエラー',
-          description: '教師情報の読み込みに失敗しました',
-          variant: 'destructive',
-        })
-      } finally {
-        setIsTeachersLoading(false)
-      }
+  // 教師読み込み関数をメモ化
+  const loadTeachers = useCallback(async () => {
+    if (!token) {
+      setIsTeachersLoading(false)
+      return
     }
 
-    loadTeachers()
-  }, [token, getFreshToken])
+    setIsTeachersLoading(true)
+
+    try {
+      const teachersData = await teacherApi.getTeachers({ token, getFreshToken })
+      const teachers = Array.isArray(teachersData) ? teachersData : []
+      const normalizedTeachers = normalizeTeachers(teachers)
+
+      // Sort by order field, then by name if no order
+      const sortedTeachers = normalizedTeachers.sort((a, b) => {
+        if (a.order != null && b.order != null) {
+          return a.order - b.order
+        }
+        if (a.order != null) return -1
+        if (b.order != null) return 1
+        return a.name.localeCompare(b.name)
+      })
+      setTeachers(sortedTeachers)
+    } catch (error) {
+      console.error('Error loading teachers:', error)
+      // Remove toast to prevent infinite loop
+      console.error('教師情報の読み込みに失敗しました')
+    } finally {
+      setIsTeachersLoading(false)
+    }
+  }, [token, getFreshToken, normalizeTeachers]) // 必要な依存関係を全て含めてメモ化
+
+  // Load teachers useEffect
+  useEffect(() => {
+    if (token) {
+      loadTeachers()
+    }
+  }, [token, loadTeachers]) // loadTeachersを依存関係に含める
 
   const handleOfflineMode = () => {
     setIsLoading(false)

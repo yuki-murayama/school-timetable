@@ -3,7 +3,8 @@ import { test, expect } from '@playwright/test';
 test.describe('時間割表示バリデーション', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('h1:has-text("時間割管理")')).toBeVisible();
+    // 現在のUIでは「時間割システム」がサイドバーのタイトルとして使用される
+    await expect(page.locator('span:has-text("時間割システム")')).toBeVisible();
   });
 
   test('時間割詳細画面でのUI表示確認', async ({ page }) => {
@@ -17,8 +18,10 @@ test.describe('時間割表示バリデーション', () => {
       console.log(`🎯 [BROWSER LOG] ${text}`);
     });
 
-    // 時間割参照画面に移動
-    await page.click('a[href="/timetable"]');
+    // 時間割参照画面に移動（実際のUI構造に合わせて修正）
+    const timetableReferenceButton = page.getByRole('button', { name: '時間割参照' });
+    await expect(timetableReferenceButton).toBeVisible({ timeout: 10000 });
+    await timetableReferenceButton.click();
     await page.waitForLoadState('networkidle');
     
     // 詳細ボタンを探す

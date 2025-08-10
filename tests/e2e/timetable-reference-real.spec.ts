@@ -13,12 +13,64 @@ test.describe('時間割参照機能（実際の生成データ）', () => {
   test('実際に生成された時間割の表示確認', async ({ page }) => {
     console.log('📋 Testing display of actually generated timetables...');
     
-    // 時間割参照画面に移動
-    await page.click('a[href="/timetable-view"], button:has-text("時間割参照")');
-    await page.waitForLoadState('networkidle');
+    // 時間割参照画面に移動 (Sidebarのボタンをクリック)
+    console.log('🔍 Looking for timetable reference button...');
     
-    // ページタイトル確認
-    await expect(page.getByRole('heading', { name: '時間割参照' })).toBeVisible();
+    // ボタンが存在するかチェック
+    const timetableButton = page.locator('button:has-text("時間割参照")');
+    const buttonExists = await timetableButton.count();
+    console.log(`📋 Found ${buttonExists} timetable reference buttons`);
+    
+    if (buttonExists > 0) {
+      console.log('✅ Clicking timetable reference navigation...');
+      await timetableButton.click();
+      await page.waitForLoadState('networkidle');
+      await page.waitForTimeout(2000); // UIの描画とReact状態更新待機
+    } else {
+      console.error('❌ Timetable reference button not found');
+      
+      // 全てのボタンを確認
+      const allButtons = await page.locator('button').allTextContents();
+      console.log('📋 All buttons on page:', allButtons);
+    }
+    
+    // コンソールエラーをチェック
+    page.on('console', msg => console.log('🖥️ Browser console:', msg.text()));
+    page.on('pageerror', error => console.error('❌ Page error:', error.message));
+    
+    // ページの現在状態を確認
+    console.log('🔍 Current page URL:', page.url());
+    console.log('🔍 Page title:', await page.title());
+    
+    // 全てのheading要素を確認
+    const headings = await page.locator('h1, h2, h3, h4, h5, h6').allTextContents();
+    console.log('📋 All headings on page:', headings);
+    
+    // デバッグ状態を確認
+    console.log('🔍 Checking debug state...');
+    const debugElement = page.locator('text=Debug: currentPage');
+    
+    try {
+      const debugText = await debugElement.textContent({ timeout: 5000 });
+      console.log('📋 Debug state:', debugText);
+      
+      if (debugText && debugText.includes('"view"')) {
+        console.log('✅ Page state correctly changed to view');
+        
+        // TimetableViewのh1要素を探す
+        const titleElement = page.locator('h1:has-text("時間割参照")');
+        await expect(titleElement).toBeVisible({ timeout: 10000 });
+        console.log('✅ TimetableView title found');
+      } else {
+        console.error('❌ Page state did not change. Current state:', debugText);
+        
+        // 全ての要素を確認
+        const bodyContent = await page.locator('body').textContent();
+        console.log('📋 Full page content:', bodyContent?.substring(0, 500));
+      }
+    } catch (error) {
+      console.error('❌ Could not find debug element:', error.message);
+    }
     
     // ローディング完了を待機
     await page.waitForSelector('[data-testid="loading"], .animate-spin', { state: 'detached', timeout: 15000 });

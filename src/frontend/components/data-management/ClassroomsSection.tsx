@@ -14,7 +14,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { Edit, Loader2, Plus, Save, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useToast } from '../../hooks/use-toast'
 import { type Classroom, classroomApi } from '../../lib/api'
 import { Badge } from '../ui/badge'
@@ -57,49 +57,47 @@ export function ClassroomsSection({ token, getFreshToken }: ClassroomsSectionPro
     }
   }, [])
 
-  // Load classrooms data
-  useEffect(() => {
-    const loadClassrooms = async () => {
-      if (!token) {
-        setIsClassroomsLoading(false)
-        return
-      }
-
-      setIsClassroomsLoading(true)
-
-      try {
-        const classroomsData = await classroomApi.getClassrooms({ token, getFreshToken })
-
-        console.log('Classrooms response:', classroomsData)
-        console.log('Is array?', Array.isArray(classroomsData))
-
-        const classrooms = Array.isArray(classroomsData) ? classroomsData : []
-
-        // Sort by order field, then by name if no order
-        const sortedClassrooms = classrooms.sort((a, b) => {
-          if (a.order != null && b.order != null) {
-            return a.order - b.order
-          }
-          if (a.order != null) return -1
-          if (b.order != null) return 1
-          return a.name.localeCompare(b.name)
-        })
-
-        setClassrooms(sortedClassrooms)
-      } catch (_error) {
-        console.error('Error loading classrooms:', error)
-        toast({
-          title: '教室情報の読み込みエラー',
-          description: '教室情報の読み込みに失敗しました',
-          variant: 'destructive',
-        })
-      } finally {
-        setIsClassroomsLoading(false)
-      }
+  // 教室読み込み関数をメモ化
+  const loadClassrooms = useCallback(async () => {
+    if (!token) {
+      setIsClassroomsLoading(false)
+      return
     }
 
+    setIsClassroomsLoading(true)
+
+    try {
+      const classroomsData = await classroomApi.getClassrooms({ token, getFreshToken })
+
+      console.log('Classrooms response:', classroomsData)
+      console.log('Is array?', Array.isArray(classroomsData))
+
+      const classrooms = Array.isArray(classroomsData) ? classroomsData : []
+
+      // Sort by order field, then by name if no order
+      const sortedClassrooms = classrooms.sort((a, b) => {
+        if (a.order != null && b.order != null) {
+          return a.order - b.order
+        }
+        if (a.order != null) return -1
+        if (b.order != null) return 1
+        return a.name.localeCompare(b.name)
+      })
+
+      setClassrooms(sortedClassrooms)
+    } catch (_error) {
+      console.error('Error loading classrooms:', _error)
+      // Remove toast to prevent infinite loop
+      console.error('教室情報の読み込みに失敗しました')
+    } finally {
+      setIsClassroomsLoading(false)
+    }
+  }, [token, getFreshToken]) // 必要な依存関係を全て含めてメモ化
+
+  // Load classrooms useEffect
+  useEffect(() => {
     loadClassrooms()
-  }, [token, getFreshToken])
+  }, [loadClassrooms]) // loadClassroomsを依存関係に含める
 
   const handleAddClassroom = () => {
     setEditingClassroom(null)
@@ -245,7 +243,7 @@ export function ClassroomsSection({ token, getFreshToken }: ClassroomsSectionPro
                 })
               }
             } catch (_error) {
-              console.error('教室順序保存エラー:', error)
+              console.error('教室順序保存エラー:', _error)
               toast({
                 title: '順序保存エラー',
                 description: '教室の順序保存に失敗しました',

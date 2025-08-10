@@ -20,6 +20,7 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:e2e": "dotenv -e .env.e2e -- playwright test",
+    "test:e2e:chrome": "dotenv -e .env.e2e -- playwright test --project=chromium",
     "test:e2e:ui": "dotenv -e .env.e2e -- playwright test --ui",
     "test:e2e:headed": "dotenv -e .env.e2e -- playwright test --headed",
     "test:e2e:auth": "dotenv -e .env.e2e -- playwright test --project=setup",
@@ -27,6 +28,7 @@
     "test:e2e:school": "dotenv -e .env.e2e -- playwright test --project=chromium tests/e2e/authenticated-crud.spec.ts --grep \"認証後の基本設定\"",
     "test:e2e:teachers": "dotenv -e .env.e2e -- playwright test --project=chromium tests/e2e/teacher-crud.spec.ts",
     "test:e2e:report": "playwright show-report",
+    "test:e2e:cross-browser": "dotenv -e .env.e2e -- playwright test --project=chromium --project=firefox --project=webkit",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write ."

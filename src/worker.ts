@@ -5,7 +5,6 @@ import apiApp from './backend/index'
 type Env = {
   DB: D1Database
   ASSETS?: unknown
-  GROQ_API_KEY: string
   AUTH0_DOMAIN: string
   AUTH0_AUDIENCE: string
   AUTH0_CLIENT_ID: string

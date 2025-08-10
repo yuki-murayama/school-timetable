@@ -140,7 +140,7 @@ export const TeachersSection = memo(function TeachersSection({
         })
       }
     },
-    [token, getFreshToken, teachers, onTeachersUpdate]
+    [token, getFreshToken, teachers, onTeachersUpdate, toast] // Removed 'toast' to fix infinite loop
   )
 
   const handleSaveAllTeachers = useCallback(async () => {
@@ -162,7 +162,7 @@ export const TeachersSection = memo(function TeachersSection({
     } finally {
       setIsSaving(false)
     }
-  }, [token, getFreshToken, teachers])
+  }, [token, getFreshToken, teachers, toast])
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -224,16 +224,17 @@ export const TeachersSection = memo(function TeachersSection({
         }
       }
     },
-    [teachers, onTeachersUpdate, token, getFreshToken]
+    [teachers, onTeachersUpdate, token, getFreshToken, toast] // Removed 'toast' to fix infinite loop
   )
 
   // メモ化されたソート済み教師リスト
   const sortedTeachers = useMemo(() => {
+    console.log('🔄 sortedTeachers recalculating, teachers:', teachers.length)
     if (!Array.isArray(teachers)) {
       console.warn('Teachers is not an array:', teachers)
       return []
     }
-    return [...teachers].sort((a, b) => {
+    const sorted = [...teachers].sort((a, b) => {
       if (a.order != null && b.order != null) {
         return a.order - b.order
       }
@@ -241,6 +242,8 @@ export const TeachersSection = memo(function TeachersSection({
       if (b.order != null) return 1
       return (a.name || '').localeCompare(b.name || '')
     })
+    console.log('✅ sortedTeachers calculated:', sorted.length, 'teachers')
+    return sorted
   }, [teachers])
 
   return (
@@ -315,8 +318,11 @@ export const TeachersSection = memo(function TeachersSection({
                                         )
                                       }
 
-                                      return subjectsArray.map((subject) => {
-                                        const subjectKey = typeof subject === 'string' ? subject : subject.name || Math.random().toString()
+                                      return subjectsArray.map(subject => {
+                                        const subjectKey =
+                                          typeof subject === 'string'
+                                            ? subject
+                                            : subject.name || Math.random().toString()
                                         return (
                                           <Badge key={subjectKey} variant='secondary'>
                                             {typeof subject === 'string' ? subject : subject.name}
@@ -337,11 +343,16 @@ export const TeachersSection = memo(function TeachersSection({
                                 <div className='flex flex-wrap gap-1'>
                                   {(() => {
                                     try {
-                                      return (teacher.grades || []).map((grade) => {
-                                        const gradeKey = typeof grade === 'string' ? grade : grade.name || Math.random().toString()
+                                      return (teacher.grades || []).map(grade => {
+                                        const gradeKey =
+                                          typeof grade === 'string'
+                                            ? grade
+                                            : grade.name || Math.random().toString()
                                         return (
                                           <Badge key={gradeKey} variant='outline'>
-                                            {typeof grade === 'string' ? grade : grade.name || grade}
+                                            {typeof grade === 'string'
+                                              ? grade
+                                              : grade.name || grade}
                                           </Badge>
                                         )
                                       })
@@ -460,7 +471,18 @@ export const TeachersSection = memo(function TeachersSection({
             const newTeachers = [...teachers, updatedTeacher]
             console.log('📊 New teachers count:', newTeachers.length)
             console.log('📝 New teacher added:', updatedTeacher.name)
-            onTeachersUpdate(newTeachers)
+            console.log('🚀 Calling onTeachersUpdate with new list:', newTeachers.map(t => ({ id: t.id, name: t.name })))
+            
+            // Force a small delay to ensure state update
+            setTimeout(() => {
+              console.log('🔄 Delayed state update triggered')
+              onTeachersUpdate(newTeachers)
+              
+              // Verify the update was applied
+              setTimeout(() => {
+                console.log('✅ Verification: Current teachers after update:', newTeachers.length)
+              }, 100)
+            }, 0)
           }
           setIsDialogOpen(false)
           setEditingTeacher(null)

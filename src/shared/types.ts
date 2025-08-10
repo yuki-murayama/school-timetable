@@ -106,6 +106,7 @@ export interface TimetableSlot {
   classroom?: Classroom
   // 制約違反情報
   hasViolation?: boolean
+  isViolation?: boolean // 新仕様での制約違反フラグ
   violationSeverity?: 'high' | 'medium' | 'low'
   violations?: Array<{
     type: string

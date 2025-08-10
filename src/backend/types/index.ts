@@ -37,30 +37,6 @@ export interface Timetable {
   updated_at?: string
 }
 
-export interface GenerationSession {
-  id: string
-  status: 'active' | 'completed' | 'failed'
-  current_day: string
-  current_class_index: number
-  completed_steps: number
-  total_steps: number
-  error_count?: number
-  final_timetable_id?: string
-  created_at: string
-  updated_at: string
-}
-
-export interface GenerationStep {
-  id: string
-  session_id: string
-  day: string
-  class_id: string
-  grade: number
-  class_number: number
-  step_data: string
-  created_at: string
-}
-
 export interface TimetableConditions {
   constraints?: string[]
   preferences?: Record<string, unknown>

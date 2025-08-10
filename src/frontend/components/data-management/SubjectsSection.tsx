@@ -14,7 +14,7 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { Edit, Loader2, Plus, Save, Trash2 } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useToast } from '../../hooks/use-toast'
 import { type Subject, subjectApi } from '../../lib/api'
 import { Badge } from '../ui/badge'
@@ -47,183 +47,162 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
 
   // Debounce ref for order updates
   const orderUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  // Flag to prevent infinite useEffect loops
+  const hasLoadedRef = useRef(false)
 
-  // Add debug logging for state changes
-  console.log(
-    '🔍 SubjectsSection render - subjects:',
-    subjects,
-    'is array:',
-    Array.isArray(subjects),
-    'loading:',
-    isSubjectsLoading,
-    'count:',
-    subjects?.length || 0,
-    'token:',
-    !!token
-  )
+  // Removed debug logging to fix infinite rendering
 
   // Helper function to format target grades for display
-  const formatGrades = (targetGrades?: number[] | unknown) => {
-    console.log(
-      '🎯 formatGrades called with:',
-      targetGrades,
-      'isArray:',
-      Array.isArray(targetGrades),
-      'length:',
-      targetGrades?.length
-    )
+  const formatGrades = (subject: Subject) => {
+    // 統一型定義のgradesフィールドを優先し、フォールバックでtargetGradesを使用
+    const grades = subject.grades || subject.targetGrades || subject.target_grades || []
 
     // Ensure we have a valid array
-    if (!Array.isArray(targetGrades) || targetGrades.length === 0) {
-      console.log('🎯 formatGrades returning "全学年" - not valid array or empty')
+    if (!Array.isArray(grades) || grades.length === 0) {
       return '全学年'
     }
 
     // Double check that we can safely map over the array
     try {
-      const result = targetGrades.map(grade => `${grade}年`).join(', ')
-      console.log('🎯 formatGrades returning specific grades:', result)
-      return result
+      return grades.map(grade => `${grade}年`).join(', ')
     } catch (error) {
-      console.error('Error in formatGrades:', error, 'targetGrades:', targetGrades)
+      console.error('Error in formatGrades:', error, 'grades:', grades, 'subject:', subject)
       return '全学年'
     }
   }
 
-  // Load subjects data
-  useEffect(() => {
-    const loadSubjects = async () => {
-      console.log('🎯 SubjectsSection loadSubjects called, token:', !!token, 'getFreshToken:', !!getFreshToken)
+  // 教科読み込み関数をメモ化
+  const loadSubjects = useCallback(async () => {
+    // loadSubjects called
 
-      if (!token) {
-        console.log('🚫 No token available for subjects, setting loading to false')
+    if (!token) {
+      // No token available
+      setIsSubjectsLoading(false)
+      return
+    }
+
+    if (hasLoadedRef.current) {
+      // Already loaded, skipping
+      return
+    }
+
+    hasLoadedRef.current = true
+
+    setIsSubjectsLoading(true)
+    // Starting subjects data load
+
+    // タイムアウト機能を追加
+    const timeoutId = setTimeout(() => {
+      console.warn('Subjects loading timeout - forcing loading to false')
+      setIsSubjectsLoading(false)
+      setSubjects([])
+      // Remove toast from timeout to prevent infinite loop
+    }, 15000) // 15秒でタイムアウト
+
+    try {
+      // Calling subjectApi.getSubjects
+
+      let subjectsData: Subject[]
+      try {
+        subjectsData = await subjectApi.getSubjects({ token, getFreshToken })
+        // API response received
+      } catch (apiError) {
+        console.error('API call failed:', apiError)
+        throw apiError
+      }
+
+      // Processing subjects response
+
+      // Ensure we always have an array
+      let subjects = Array.isArray(subjectsData) ? subjectsData : []
+      // Subjects array processed
+
+      // Double check and force array if needed
+      if (!Array.isArray(subjects)) {
+        console.warn('Subjects is not an array, forcing to empty array:', subjects)
+        subjects = []
+      }
+
+      // Final subjects array prepared
+
+      // Normalize subject data (parse targetGrades if it's a JSON string)
+      // Extra safety check before map
+      if (!Array.isArray(subjects)) {
+        console.error('Subjects is not an array after all checks, aborting:', subjects)
+        setSubjects([])
         setIsSubjectsLoading(false)
+        clearTimeout(timeoutId)
         return
       }
 
-      setIsSubjectsLoading(true)
-      console.log('🔄 Starting subjects data load...')
+      const normalizedSubjects = subjects.map(subject => {
+        let targetGrades = []
 
-      // タイムアウト機能を追加
-      const timeoutId = setTimeout(() => {
-        console.warn('Subjects loading timeout - forcing loading to false')
-        setIsSubjectsLoading(false)
+        if (Array.isArray(subject.targetGrades)) {
+          targetGrades = subject.targetGrades
+        } else if (typeof subject.targetGrades === 'string') {
+          try {
+            targetGrades = JSON.parse(subject.targetGrades || '[]')
+          } catch (_e) {
+            console.warn('Failed to parse subject targetGrades:', subject.targetGrades)
+            targetGrades = []
+          }
+        }
+
+        return {
+          ...subject,
+          targetGrades,
+        }
+      })
+
+      // Sort by order field, then by name if no order
+      const sortedSubjects = normalizedSubjects.sort((a, b) => {
+        if (a.order != null && b.order != null) {
+          return a.order - b.order
+        }
+        if (a.order != null) return -1
+        if (b.order != null) return 1
+        return a.name.localeCompare(b.name)
+      })
+
+      // Final safety check before setting state
+      if (Array.isArray(sortedSubjects)) {
+        // Setting subjects state
+        setSubjects(sortedSubjects)
+      } else {
+        console.error('❌ sortedSubjects is not an array, setting empty array:', sortedSubjects)
         setSubjects([])
-        toast({
-          title: '読み込みタイムアウト',
-          description:
-            '教科情報の読み込みに時間がかかりすぎています。ページを再読み込みしてください。',
-          variant: 'destructive',
-        })
-      }, 15000) // 15秒でタイムアウト
-
-      try {
-        console.log('Calling subjectApi.getSubjects...')
-
-        let subjectsData: Subject[]
-        try {
-          subjectsData = await subjectApi.getSubjects({ token, getFreshToken })
-          console.log('Subjects API response received:', subjectsData)
-        } catch (apiError) {
-          console.error('API call failed:', apiError)
-          throw apiError
-        }
-
-        console.log('Subjects response:', subjectsData)
-        console.log('Is array?', Array.isArray(subjectsData))
-
-        // Ensure we always have an array
-        let subjects = Array.isArray(subjectsData) ? subjectsData : []
-        console.log('Processed subjects array:', subjects)
-        console.log('Type of subjects:', typeof subjects)
-        console.log('Is subjects array?', Array.isArray(subjects))
-
-        // Double check and force array if needed
-        if (!Array.isArray(subjects)) {
-          console.warn('Subjects is not an array, forcing to empty array:', subjects)
-          subjects = []
-        }
-
-        console.log('Final subjects array:', subjects, 'length:', subjects.length)
-
-        // Normalize subject data (parse targetGrades if it's a JSON string)
-        // Extra safety check before map
-        if (!Array.isArray(subjects)) {
-          console.error('Subjects is not an array after all checks, aborting:', subjects)
-          setSubjects([])
-          setIsSubjectsLoading(false)
-          clearTimeout(timeoutId)
-          return
-        }
-
-        const normalizedSubjects = subjects.map(subject => {
-          let targetGrades = []
-
-          if (Array.isArray(subject.targetGrades)) {
-            targetGrades = subject.targetGrades
-          } else if (typeof subject.targetGrades === 'string') {
-            try {
-              targetGrades = JSON.parse(subject.targetGrades || '[]')
-            } catch (_e) {
-              console.warn('Failed to parse subject targetGrades:', subject.targetGrades)
-              targetGrades = []
-            }
-          }
-
-          return {
-            ...subject,
-            targetGrades,
-          }
-        })
-
-        // Sort by order field, then by name if no order
-        const sortedSubjects = normalizedSubjects.sort((a, b) => {
-          if (a.order != null && b.order != null) {
-            return a.order - b.order
-          }
-          if (a.order != null) return -1
-          if (b.order != null) return 1
-          return a.name.localeCompare(b.name)
-        })
-
-        // Final safety check before setting state
-        if (Array.isArray(sortedSubjects)) {
-          console.log('✅ Setting subjects state with', sortedSubjects.length, 'items')
-          setSubjects(sortedSubjects)
-        } else {
-          console.error('❌ sortedSubjects is not an array, setting empty array:', sortedSubjects)
-          setSubjects([])
-        }
-
-        // 成功時にタイムアウトをクリア
-        clearTimeout(timeoutId)
-      } catch (error) {
-        clearTimeout(timeoutId)
-
-        console.error('Error loading subjects:', error)
-        console.error('Error details:', JSON.stringify(error, null, 2))
-
-        // エラー時は空配列をセット
-        setSubjects([])
-
-        toast({
-          title: '教科情報の読み込みエラー',
-          description: `教科情報の読み込みに失敗しました: ${error instanceof Error ? error.message : 'Unknown error'}`,
-          variant: 'destructive',
-        })
-      } finally {
-        console.log('🏁 SubjectsSection: Setting subjects loading to false')
-        setIsSubjectsLoading(false)
       }
+
+      // 成功時にタイムアウトをクリア
+      clearTimeout(timeoutId)
+    } catch (error) {
+      clearTimeout(timeoutId)
+      hasLoadedRef.current = false // Reset to allow retry on error
+
+      console.error('Error loading subjects:', error)
+      console.error('Error details:', JSON.stringify(error, null, 2))
+
+      // エラー時は空配列をセット
+      setSubjects([])
+
+      // Remove toast from error handler to prevent infinite loop - log error instead
+      console.error(
+        '教科情報の読み込みに失敗しました:',
+        error instanceof Error ? error.message : 'Unknown error'
+      )
+    } finally {
+      // Setting loading to false
+      setIsSubjectsLoading(false)
     }
+  }, [token, getFreshToken]) // 必要な依存関係を全て含めてメモ化
 
-    loadSubjects()
-  }, [token, getFreshToken])
-
-  // Monitor loading state changes
+  // Load subjects useEffect
   useEffect(() => {
-    console.log('🚦 SubjectsSection loading state changed:', isSubjectsLoading)
-  }, [isSubjectsLoading])
+    loadSubjects()
+  }, [loadSubjects]) // loadSubjectsを依存関係に含める
+
+  // Loading state monitoring removed to prevent infinite renders
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -454,10 +433,10 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
               <CardTitle>教科情報管理</CardTitle>
               <CardDescription>教科名と専用教室の紐づけを管理します</CardDescription>
             </div>
-            <Button 
-              onClick={handleAddSubject} 
+            <Button
+              onClick={handleAddSubject}
               disabled={isSubjectsLoading}
-              data-testid="add-subject-button"
+              data-testid='add-subject-button'
             >
               <Plus className='w-4 h-4 mr-2' />
               教科を追加
@@ -509,9 +488,7 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
                           <SortableRow key={subject.id} id={subject.id || ''}>
                             <TableCell className='font-medium'>{subject.name}</TableCell>
                             <TableCell>
-                              <Badge variant='secondary'>
-                                {formatGrades(subject.targetGrades)}
-                              </Badge>
+                              <Badge variant='secondary'>{formatGrades(subject)}</Badge>
                             </TableCell>
                             <TableCell>
                               {subject.specialClassroom ? (

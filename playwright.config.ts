@@ -32,14 +32,14 @@ export default defineConfig({
     video: 'retain-on-failure',
 
     /* Timeout settings */
-    actionTimeout: 15000,
-    navigationTimeout: 30000,
+    actionTimeout: 10000, // 10 seconds for individual actions
+    navigationTimeout: 20000, // 20 seconds for page navigation
   },
 
-  /* Global test timeout - Extended for complex CRUD operations */
-  timeout: 180000, // 3 minutes per test
+  /* Global test timeout - Reduced for faster feedback */
+  timeout: 60000, // 1 minute per test
 
-  /* Configure projects for major browsers */
+  /* Default project configuration - Chrome only for fastest execution */
   projects: [
     // Setup project for authentication
     {
@@ -47,7 +47,7 @@ export default defineConfig({
       testMatch: /.*\.setup\.ts/,
     },
 
-    // Authenticated tests
+    // Default authenticated tests (Chrome only - primary development browser)
     {
       name: 'chromium',
       use: {
@@ -58,6 +58,17 @@ export default defineConfig({
       dependencies: ['setup'],
     },
 
+    // Unauthenticated tests (for API testing, etc.)
+    {
+      name: 'chromium-unauthenticated',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /.*api.*\.spec\.ts/,
+    },
+
+    // ===== CROSS-BROWSER PROJECTS (For final verification only) =====
+    // These are commented out by default to speed up development
+    // Uncomment or use explicit --project flags for cross-browser testing
+    /*
     {
       name: 'firefox',
       use: {
@@ -75,13 +86,7 @@ export default defineConfig({
       },
       dependencies: ['setup'],
     },
-
-    // Unauthenticated tests (for API testing, etc.)
-    {
-      name: 'chromium-unauthenticated',
-      use: { ...devices['Desktop Chrome'] },
-      testMatch: /.*api.*\.spec\.ts/,
-    },
+    */
   ],
 
   /* Commented out local dev server for now - using deployed URL instead */
