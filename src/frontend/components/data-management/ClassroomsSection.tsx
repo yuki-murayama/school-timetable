@@ -326,7 +326,7 @@ export function ClassroomsSection({ token, getFreshToken }: ClassroomsSectionPro
                                 aria-label={`教室「${classroom.name}」を編集`}
                                 title={`教室「${classroom.name}」を編集`}
                               >
-                                <Edit className='w-4 h-4' />
+                                <Edit className='w-4 h-4 text-gray-600 hover:text-gray-900' />
                               </Button>
                               <Button
                                 variant='ghost'
@@ -336,7 +336,7 @@ export function ClassroomsSection({ token, getFreshToken }: ClassroomsSectionPro
                                 aria-label={`教室「${classroom.name}」を削除`}
                                 title={`教室「${classroom.name}」を削除`}
                               >
-                                <Trash2 className='w-4 h-4' />
+                                <Trash2 className='w-4 h-4 text-red-500 hover:text-red-700' />
                               </Button>
                             </div>
                           </TableCell>

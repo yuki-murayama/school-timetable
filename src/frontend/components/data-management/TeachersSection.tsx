@@ -399,7 +399,7 @@ export const TeachersSection = memo(function TeachersSection({
                                     aria-label={`教師「${teacher.name}」を編集`}
                                     title={`教師「${teacher.name}」を編集`}
                                   >
-                                    <Edit className='w-4 h-4' />
+                                    <Edit className='w-4 h-4 text-gray-600 hover:text-gray-900' />
                                   </Button>
                                   <Button
                                     variant='ghost'
@@ -409,7 +409,7 @@ export const TeachersSection = memo(function TeachersSection({
                                     aria-label={`教師「${teacher.name}」を削除`}
                                     title={`教師「${teacher.name}」を削除`}
                                   >
-                                    <Trash2 className='w-4 h-4' />
+                                    <Trash2 className='w-4 h-4 text-red-500 hover:text-red-700' />
                                   </Button>
                                 </div>
                               </TableCell>
