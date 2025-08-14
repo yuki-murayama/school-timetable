@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { LogCollector } from './utils/log-collector';
+import { TestDataCleanup } from './utils/test-data-cleanup';
 
 // Configure CRUD tests to run serially to avoid data conflicts
 test.describe.configure({ mode: 'serial' });
@@ -39,7 +40,8 @@ const generateTestData = () => {
   };
 };
 
-// Remove global TEST_DATA - each test will generate its own unique data
+// テストデータクリーンアップのグローバル管理
+let globalCleanup: TestDataCleanup | null = null;
 
 // データ登録画面にナビゲートするヘルパー関数（認証済み）
 async function navigateToDataPage(page: Page): Promise<boolean> {
@@ -311,8 +313,14 @@ test.describe('Authenticated CRUD Operations', () => {
   test('認証後の教師情報CRUD', async ({ page }) => {
     const logger = new LogCollector(page, 'authenticated-teachers');
     const testData = generateTestData(); // Generate unique data for this test
+    const cleanup = new TestDataCleanup(page);
     
     console.log('👨‍🏫 Starting authenticated teachers test...');
+    
+    // テスト前に既存のテストデータパターンをクリーンアップ
+    await cleanup.cleanupByPattern([
+      { type: 'teacher', pattern: /テスト教師_\d+_[a-z0-9]{6}/i }
+    ]);
     
     const navSuccess = await navigateToDataPage(page);
     expect(navSuccess, 'Could not navigate to data registration page').toBe(true);
@@ -449,6 +457,13 @@ test.describe('Authenticated CRUD Operations', () => {
           
           // 教師数の増加を確認
           const newCount = await teacherRows.count();
+          
+          // 作成した教師データをクリーンアップに記録
+          if (newCount > initialCount) {
+            console.log('📝 教師作成成功、クリーンアップに記録');
+            // 作成した教師のIDを特定して記録
+            await cleanup.autoDetectAndRecord('teacher', testData.teacher.name);
+          }
           const countIncreased = newCount > initialCount;
           console.log(`📊 Teacher count: ${initialCount} → ${newCount} (increased: ${countIncreased})`);
           
@@ -483,6 +498,11 @@ test.describe('Authenticated CRUD Operations', () => {
       logger.addCustomLog('error', `Teacher test setup failed: ${setupError}`);
     }
     
+    // テスト終了時にクリーンアップを実行
+    console.log('🧹 教師テストデータクリーンアップ実行中...');
+    console.log(cleanup.getCleanupSummary());
+    await cleanup.cleanupAll();
+    
     logger.printLogs();
     await logger.saveLogsToFile();
   });
@@ -492,8 +512,14 @@ test.describe('Authenticated CRUD Operations', () => {
     test.setTimeout(240000); // 4 minutes
     const logger = new LogCollector(page, 'authenticated-subjects');
     const testData = generateTestData(); // Generate unique data for this test
+    const cleanup = new TestDataCleanup(page);
     
     console.log('📚 Starting authenticated subjects test...');
+    
+    // テスト前に既存のテストデータパターンをクリーンアップ
+    await cleanup.cleanupByPattern([
+      { type: 'subject', pattern: /テスト科目_\d+_[a-z0-9]{6}/i }
+    ]);
     
     // Listen to console messages for debugging
     page.on('console', msg => {
@@ -604,6 +630,10 @@ test.describe('Authenticated CRUD Operations', () => {
         const newCount = await subjectRows.count();
         if (newCount > initialCount) {
           console.log('✅ CREATE: Subject added successfully');
+          
+          // 作成した教科データをクリーンアップに記録
+          console.log('📝 教科作成成功、クリーンアップに記録');
+          await cleanup.autoDetectAndRecord('subject', testData.subject.name);
           
           // TEST UPDATE (EDIT) operation
           console.log('✏️ Testing UPDATE operation...');
@@ -750,6 +780,11 @@ test.describe('Authenticated CRUD Operations', () => {
       }
     }
     
+    // テスト終了時にクリーンアップを実行
+    console.log('🧹 教科テストデータクリーンアップ実行中...');
+    console.log(cleanup.getCleanupSummary());
+    await cleanup.cleanupAll();
+    
     logger.printLogs();
     await logger.saveLogsToFile();
   });
@@ -759,8 +794,14 @@ test.describe('Authenticated CRUD Operations', () => {
     test.setTimeout(240000); // 4 minutes
     const logger = new LogCollector(page, 'authenticated-classrooms');
     const testData = generateTestData(); // Generate unique data for this test
+    const cleanup = new TestDataCleanup(page);
     
     console.log('🏫 Starting authenticated classrooms test...');
+    
+    // テスト前に既存のテストデータパターンをクリーンアップ
+    await cleanup.cleanupByPattern([
+      { type: 'classroom', pattern: /テスト教室_\d+_[a-z0-9]{6}/i }
+    ]);
     
     const navSuccess = await navigateToDataPage(page);
     expect(navSuccess, 'Could not navigate to data registration page').toBe(true);
@@ -901,6 +942,10 @@ test.describe('Authenticated CRUD Operations', () => {
                 operationSuccess = true;
                 console.log('✅ CREATE: Classroom added successfully');
                 
+                // 作成した教室データをクリーンアップに記録
+                console.log('📝 教室作成成功、クリーンアップに記録');
+                await cleanup.autoDetectAndRecord('classroom', testData.classroom.name);
+                
                 // 新しく追加された教室がリストに表示されているか確認
                 const newClassroom = page.locator(`text="${testData.classroom.name}"`);
                 if (await newClassroom.count() > 0) {
@@ -1023,6 +1068,11 @@ test.describe('Authenticated CRUD Operations', () => {
       console.log(`❌ CLASSROOM TEST SETUP ERROR: ${setupError}`);
       logger.addCustomLog('error', `Classroom test setup failed: ${setupError}`);
     }
+    
+    // テスト終了時にクリーンアップを実行
+    console.log('🧹 教室テストデータクリーンアップ実行中...');
+    console.log(cleanup.getCleanupSummary());
+    await cleanup.cleanupAll();
     
     logger.printLogs();
     await logger.saveLogsToFile();

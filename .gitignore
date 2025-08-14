@@ -58,5 +58,5 @@ __pycache__/
 # Python virtual environment
 *.egg-info/
 
-AI_INSTRUCTIONS.md
+AI_INSTRUCTIONS*
 wrangler.toml

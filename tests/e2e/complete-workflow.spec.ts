@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { TestDataCleanup } from './utils/test-data-cleanup';
 
 // 認証済みユーザーでテストを実行
 test.use({ storageState: 'tests/e2e/.auth/user.json' });
@@ -13,7 +14,15 @@ test.describe('完全ワークフロー: データ確認と基本機能テスト
   });
 
   test('簡易ワークフロー実行', async ({ page }) => {
+    const cleanup = new TestDataCleanup(page);
     console.log('🔄 Executing simplified complete workflow...');
+    
+    // テスト前に既存のテストデータパターンをクリーンアップ
+    await cleanup.cleanupByPattern([
+      { type: 'teacher', pattern: /テスト.*_\d+_[a-z0-9]{6}/i },
+      { type: 'subject', pattern: /テスト.*_\d+_[a-z0-9]{6}/i },
+      { type: 'classroom', pattern: /テスト.*_\d+_[a-z0-9]{6}/i }
+    ]);
     
     // ========================================
     // PHASE 1: 既存データ確認
@@ -120,6 +129,11 @@ test.describe('完全ワークフロー: データ確認と基本機能テスト
     // ワークフローテスト完了
     workflowCompleted = true;
     console.log('🎉 Complete workflow test completed successfully!');
+    
+    // テスト終了時にクリーンアップを実行
+    console.log('🧹 ワークフローテストデータクリーンアップ実行中...');
+    console.log(cleanup.getCleanupSummary());
+    await cleanup.cleanupAll();
     
     // 最終確認：基本テストの成功
     expect(sufficientData).toBe(true);

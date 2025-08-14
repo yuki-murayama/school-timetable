@@ -36,10 +36,12 @@ export class TimetableAnalyzer {
   calculateConstraintViolations(timetable: TimetableSlot[][][]): number {
     let violationCount = 0
 
-    for (const daySlots of timetable) {
-      for (const periodSlots of daySlots) {
-        for (const slot of periodSlots) {
-          if (slot.hasViolation && slot.violations && slot.violations.length > 0) {
+    for (const gradeSlots of timetable) {
+      if (!gradeSlots) continue
+      for (const classSlots of gradeSlots) {
+        if (!classSlots) continue
+        for (const slot of classSlots) {
+          if (slot && slot.hasViolation && slot.violations && slot.violations.length > 0) {
             violationCount += slot.violations.length
           }
         }
@@ -54,9 +56,11 @@ export class TimetableAnalyzer {
    */
   calculateTotalSlots(timetable: TimetableSlot[][][]): number {
     let total = 0
-    for (const daySlots of timetable) {
-      for (const periodSlots of daySlots) {
-        total += periodSlots.length
+    for (const gradeSlots of timetable) {
+      if (!gradeSlots) continue
+      for (const classSlots of gradeSlots) {
+        if (!classSlots) continue
+        total += classSlots.length
       }
     }
     return total
@@ -67,10 +71,12 @@ export class TimetableAnalyzer {
    */
   calculateAssignedSlots(timetable: TimetableSlot[][][]): number {
     let assigned = 0
-    for (const daySlots of timetable) {
-      for (const periodSlots of daySlots) {
-        for (const slot of periodSlots) {
-          if (slot.teacher && slot.subject) {
+    for (const gradeSlots of timetable) {
+      if (!gradeSlots) continue
+      for (const classSlots of gradeSlots) {
+        if (!classSlots) continue
+        for (const slot of classSlots) {
+          if (slot && slot.teacher && slot.subject) {
             assigned++
           }
         }

@@ -174,7 +174,7 @@ export function DataManagementPage() {
       setIsLoading(false)
       setShowOfflineButton(false)
     }
-  }, [token, getFreshToken, hasShownTimeoutError]) // 必要な依存関係を全て含めてメモ化
+  }, [token, hasShownTimeoutError]) // getFreshTokenは最新値を参照するため除外
 
   // Load school settings useEffect
   useEffect(() => {
@@ -214,7 +214,7 @@ export function DataManagementPage() {
     } finally {
       setIsTeachersLoading(false)
     }
-  }, [token, getFreshToken, normalizeTeachers]) // 必要な依存関係を全て含めてメモ化
+  }, [token]) // getFreshTokenとnormalizeTeachersは最新値を参照するため除外
 
   // Load teachers useEffect
   useEffect(() => {

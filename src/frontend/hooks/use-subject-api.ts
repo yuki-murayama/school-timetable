@@ -35,7 +35,7 @@ export const useSubjectApi = (
     } finally {
       setIsLoading(false)
     }
-  }, [token, getFreshToken])
+  }, [token])
 
   // 教科保存
   const saveSubject = useCallback(
@@ -80,13 +80,13 @@ export const useSubjectApi = (
         setIsSaving(false)
       }
     },
-    [token, getFreshToken, toast]
+    [token]
   )
 
   // 初期化
   useEffect(() => {
     loadInitialData()
-  }, [loadInitialData])
+  }, [])
 
   return {
     // データ

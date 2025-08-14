@@ -41,7 +41,7 @@ export const useTeacherApi = (
     } finally {
       setIsLoading(false)
     }
-  }, [token, getFreshToken]) // 必要な依存関係を全て含めてメモ化
+  }, [token]) // getFreshTokenは最新値を参照するため依存配列から除外
 
   // 教師保存
   const saveTeacher = useCallback(
@@ -86,7 +86,7 @@ export const useTeacherApi = (
         setIsSaving(false)
       }
     },
-    [token, getFreshToken, toast] // 必要な依存関係を全て含める
+    [token] // getFreshTokenとtoastは最新値を参照するため除外
   )
 
   // 初期化
@@ -94,7 +94,7 @@ export const useTeacherApi = (
     if (token) {
       loadInitialData()
     }
-  }, [token, loadInitialData]) // loadInitialDataも依存関係に含める
+  }, [token]) // loadInitialDataは安定化されたため除外
 
   return {
     // データ

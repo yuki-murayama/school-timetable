@@ -14,10 +14,10 @@ export class TimetableInitializer {
   ) {}
 
   /**
-   * 時間割スロット初期化
+   * 時間割スロット初期化 - [grade][class][timeSlot]構造
    */
   initializeTimetable(): TimetableSlot[][][] {
-    console.log('🔧 initializeTimetable詳細チェック開始')
+    console.log('🔧 initializeTimetable修正版開始 - [grade][class][timeSlot]構造')
 
     if (!this.settings) {
       console.log('❌ CRITICAL: settingsがundefinedです')
@@ -32,47 +32,59 @@ export class TimetableInitializer {
       2: ['1', '2', '3', '4'],
       3: ['1', '2', '3'],
     }
-    const dailyPeriods = this.settings?.dailyPeriods || 6
-    const saturdayPeriods = this.settings?.saturdayPeriods || 6
+    // 安全な数値変換関数
+    const safeNumber = (value: unknown, defaultValue: number): number => {
+      try {
+        if (value === null || value === undefined) return defaultValue
+        const parsed = Number(value)
+        return isNaN(parsed) ? defaultValue : parsed
+      } catch {
+        return defaultValue
+      }
+    }
 
-    console.log('Safe values:', { days: days.length, grades: grades.length })
+    const dailyPeriods = safeNumber(this.settings?.dailyPeriods, 6)
+    const saturdayPeriods = safeNumber(this.settings?.saturdayPeriods, 6)
 
+    console.log('Safe values:', { days: days.length, grades: grades.length, dailyPeriods, saturdayPeriods })
+
+    // 新構造: [grade][class][timeSlot]
     const timetable: TimetableSlot[][][] = []
 
-    for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
-      const day = days[dayIndex]
-      timetable[dayIndex] = []
+    // 総時間枠数を計算
+    const totalTimeSlots = (dailyPeriods * 5) + saturdayPeriods // 月〜金 + 土曜日
+    console.log(`📊 総時間枠数: ${totalTimeSlots}`)
 
-      const periodsForDay = day === '土曜' ? saturdayPeriods : dailyPeriods
+    for (const grade of grades) {
+      const gradeIndex = grade - 1
+      timetable[gradeIndex] = []
+      
+      const sections = classesPerGrade[grade] || ['1']
+      for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+        const section = sections[sectionIndex]
+        timetable[gradeIndex][sectionIndex] = []
 
-      for (let period = 1; period <= periodsForDay; period++) {
-        timetable[dayIndex][period - 1] = []
-
-        for (const grade of grades) {
-          const sections = classesPerGrade[grade] || ['A']
-          for (const section of sections) {
-            const slot = {
-              classGrade: grade,
-              classSection: section,
-              day,
-              period,
-            }
-            timetable[dayIndex][period - 1].push(slot)
-
-            // デバッグ: スロット作成を記録（初回のみ）
-            if (dayIndex === 0 && period === 1) {
-              console.log(`📝 スロット作成: ${grade}年${section}組`, {
-                classGrade: slot.classGrade,
-                classSection: slot.classSection,
-                gradeType: typeof slot.classGrade,
-                sectionType: typeof slot.classSection,
-              })
+        // 各時間枠を初期化
+        let slotIndex = 0
+        for (let dayIndex = 0; dayIndex < days.length; dayIndex++) {
+          const day = days[dayIndex]
+          const periodsForDay = day === '土曜' ? saturdayPeriods : dailyPeriods
+          
+          for (let period = 1; period <= periodsForDay; period++) {
+            // 空のスロットを作成（後で割当される）
+            timetable[gradeIndex][sectionIndex][slotIndex] = null
+            slotIndex++
+            
+            // デバッグ: スロット構造を記録（初回のみ）
+            if (gradeIndex === 0 && sectionIndex === 0 && slotIndex <= 3) {
+              console.log(`📝 スロット構造: [${gradeIndex}][${sectionIndex}][${slotIndex-1}] = ${grade}年${section}組 ${day}${period}時限目`)
             }
           }
         }
       }
     }
 
+    console.log(`✅ 新構造での初期化完了: ${timetable.length}学年 x 各クラス x ${totalTimeSlots}時間枠`)
     return timetable
   }
 
@@ -98,9 +110,13 @@ export class TimetableInitializer {
     // 教師と教科の組み合わせで候補を生成
     for (const teacher of this.teachers) {
       const teacherSubjects = teacher.subjects || []
-      for (const subjectId of teacherSubjects) {
-        const subject = this.subjects.find(s => s.id === subjectId)
-        if (!subject) continue
+      for (const subjectName of teacherSubjects) {
+        // 教科を名前で検索（IDではなく名前ベース）
+        const subject = this.subjects.find(s => s.name === subjectName)
+        if (!subject) {
+          console.log(`⚠️ 教科が見つかりません: ${subjectName} (教師: ${teacher.name})`)
+          continue
+        }
 
         for (const grade of safeGrades) {
           if (!this.canSubjectBeTeachedToGrade(subject, grade)) continue
@@ -137,11 +153,26 @@ export class TimetableInitializer {
   /**
    * 教科・学年の必要時数を取得
    */
-  private getRequiredHoursForSubject(subject: Subject, _grade: number): number {
-    if (subject.weeklyHours?.[0]) {
-      return subject.weeklyHours[0]
+  private getRequiredHoursForSubject(subject: Subject, grade: number): number {
+    try {
+      if (!subject || subject.weeklyHours === null || subject.weeklyHours === undefined) {
+        return 0
+      }
+      
+      if (typeof subject.weeklyHours === 'object' && subject.weeklyHours) {
+        return subject.weeklyHours[grade] || 0
+      }
+      
+      // 互換性のため数値形式も対応
+      if (typeof subject.weeklyHours === 'number') {
+        return subject.weeklyHours
+      }
+      
+      return 0
+    } catch (error) {
+      console.log(`❌ getRequiredHoursForSubject エラー (${subject?.name || 'unknown'}):`, error)
+      return 0
     }
-    return 0
   }
 
   /**
@@ -159,7 +190,8 @@ export class TimetableInitializer {
       }
 
       for (const grade of subject.grades) {
-        if (subject.weeklyHours?.[0]) {
+        const hours = this.getRequiredHoursForSubject(subject, grade)
+        if (hours > 0) {
           expandedSubjects.push({
             ...subject,
             grades: [grade], // 学年ごとに分解

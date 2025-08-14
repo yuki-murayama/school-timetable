@@ -13,6 +13,7 @@ type Env = {
 
 import schoolRoutes from './routes/school'
 import timetableProgramRoutes from './routes/timetableProgram'
+import dataCleanupRoutes from './routes/data-cleanup'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -66,6 +67,7 @@ app.get('/auth/health', c => {
 // ルーティング
 app.route('/frontend/school', schoolRoutes)
 app.route('/timetable/program', timetableProgramRoutes)
+app.route('/data-cleanup', dataCleanupRoutes)
 
 // レガシーエンドポイントは削除済み
 // 全てのエンドポイントは適切なルートファイルで管理

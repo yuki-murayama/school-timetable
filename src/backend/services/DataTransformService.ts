@@ -75,25 +75,36 @@ export class DataTransformService {
   }
 
   parseSettings(settingsResult: Record<string, unknown>): SchoolSettings {
+    // 安全な数値変換関数
+    const safeNumber = (value: unknown, defaultValue: number): number => {
+      try {
+        if (value === null || value === undefined) return defaultValue
+        const parsed = Number(value)
+        return isNaN(parsed) ? defaultValue : parsed
+      } catch {
+        return defaultValue
+      }
+    }
+
+    const grade1Classes = safeNumber(settingsResult.grade1Classes, 4)
+    const grade2Classes = safeNumber(settingsResult.grade2Classes, 4)  
+    const grade3Classes = safeNumber(settingsResult.grade3Classes, 3)
+    const dailyPeriods = safeNumber(settingsResult.dailyPeriods, 6)
+    const saturdayPeriods = safeNumber(settingsResult.saturdayPeriods, 4)
+
     return {
       id: settingsResult.id,
-      grade1Classes: Number(settingsResult.grade1Classes) || 4,
-      grade2Classes: Number(settingsResult.grade2Classes) || 4,
-      grade3Classes: Number(settingsResult.grade3Classes) || 3,
-      dailyPeriods: Number(settingsResult.dailyPeriods) || 6,
-      saturdayPeriods: Number(settingsResult.saturdayPeriods) || 4,
+      grade1Classes,
+      grade2Classes,
+      grade3Classes,
+      dailyPeriods,
+      saturdayPeriods,
       days: ['月曜', '火曜', '水曜', '木曜', '金曜', '土曜'],
       grades: [1, 2, 3],
       classesPerGrade: {
-        1: Array.from({ length: Number(settingsResult.grade1Classes) || 4 }, (_, i) =>
-          String(i + 1)
-        ),
-        2: Array.from({ length: Number(settingsResult.grade2Classes) || 4 }, (_, i) =>
-          String(i + 1)
-        ),
-        3: Array.from({ length: Number(settingsResult.grade3Classes) || 3 }, (_, i) =>
-          String(i + 1)
-        ),
+        1: Array.from({ length: grade1Classes }, (_, i) => String(i + 1)),
+        2: Array.from({ length: grade2Classes }, (_, i) => String(i + 1)),
+        3: Array.from({ length: grade3Classes }, (_, i) => String(i + 1)),
       },
       created_at: settingsResult.created_at,
       updated_at: settingsResult.updated_at,
@@ -172,8 +183,22 @@ export class DataTransformService {
         }
       }
 
-      // weeklyHours の設定
-      const weeklyHoursValue = Number(s.weekly_hours) || 1
+      // weeklyHours の安全な設定（NaNエラー対策）
+      let weeklyHoursValue = 1 // デフォルト値
+      
+      try {
+        if (s.weekly_hours !== null && s.weekly_hours !== undefined) {
+          const parsed = Number(s.weekly_hours)
+          if (!isNaN(parsed) && parsed > 0 && parsed <= 10) {
+            weeklyHoursValue = parsed
+          } else {
+            console.log(`⚠️ 教科 ${s.name} の週間時数が不正: ${s.weekly_hours}, デフォルト値 1 を使用`)
+          }
+        }
+      } catch (error) {
+        console.log(`❌ 教科 ${s.name} の週間時数解析エラー:`, error)
+      }
+      
       const weeklyHours = {
         1: weeklyHoursValue,
         2: weeklyHoursValue,
@@ -194,11 +219,22 @@ export class DataTransformService {
   }
 
   transformClassrooms(classroomsData: DatabaseClassroom[]): Classroom[] {
+    // 安全な数値変換関数
+    const safeNumber = (value: unknown, defaultValue: number): number => {
+      try {
+        if (value === null || value === undefined) return defaultValue
+        const parsed = Number(value)
+        return isNaN(parsed) ? defaultValue : parsed
+      } catch {
+        return defaultValue
+      }
+    }
+
     return classroomsData.map(
       (c: DatabaseClassroom): Classroom => ({
         id: c.id,
         name: c.name,
-        capacity: Number(c.capacity) || 0,
+        capacity: safeNumber(c.capacity, 0),
         classroomType: c.type || c.classroom_type || 'normal',
         created_at: c.created_at,
         updated_at: c.updated_at,

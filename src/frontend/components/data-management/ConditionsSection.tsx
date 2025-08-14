@@ -41,7 +41,7 @@ export function ConditionsSection({ token, getFreshToken }: ConditionsSectionPro
     }
 
     loadConditions()
-  }, [token, getFreshToken])
+  }, [token])
 
   const handleSaveConditions = async () => {
     if (!token) {

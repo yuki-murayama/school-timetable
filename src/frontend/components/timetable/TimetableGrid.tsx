@@ -1,6 +1,5 @@
 import type React from 'react'
 import type { TimetableSlotData } from '../../hooks/use-timetable-data'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table'
 
 interface TimetableGridProps {
   timetableData: TimetableSlotData[]
@@ -37,9 +36,20 @@ export function TimetableGrid({
     const highSeverity = violations.some(v => v.severity === 'high')
     const mediumSeverity = violations.some(v => v.severity === 'medium')
 
-    if (highSeverity) return 'bg-red-100 border-red-300'
-    if (mediumSeverity) return 'bg-yellow-100 border-yellow-300'
-    return 'bg-blue-100 border-blue-300'
+    if (highSeverity) return 'bg-red-50 border-red-500 border-2'
+    if (mediumSeverity) return 'bg-yellow-50 border-yellow-500 border-2' 
+    return 'bg-gray-50 border-gray-400 border-2'
+  }
+  
+  const getCellBorderStyle = (violations: TimetableSlotData['violations']) => {
+    if (!violations || violations.length === 0) return 'border-gray-300'
+
+    const highSeverity = violations.some(v => v.severity === 'high')
+    const mediumSeverity = violations.some(v => v.severity === 'medium')
+
+    if (highSeverity) return 'border-red-500 border-2 shadow-red-200 shadow-sm'
+    if (mediumSeverity) return 'border-yellow-500 border-2 shadow-yellow-200 shadow-sm'
+    return 'border-gray-500 border-2'
   }
 
   const getAutoFillStyle = (isAutoFilled?: boolean) => {
@@ -47,32 +57,36 @@ export function TimetableGrid({
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead className='w-16'>時限</TableHead>
-          <TableHead>月曜日</TableHead>
-          <TableHead>火曜日</TableHead>
-          <TableHead>水曜日</TableHead>
-          <TableHead>木曜日</TableHead>
-          <TableHead>金曜日</TableHead>
-          <TableHead>土曜日</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
+    <div className='border border-gray-300 rounded-lg overflow-hidden bg-white'>
+      {/* ヘッダー */}
+      <div className='grid grid-cols-7 bg-gray-50 border-b border-gray-300'>
+        <div className='px-3 py-2 text-center font-medium text-gray-700 border-r border-gray-300'>時限</div>
+        <div className='px-3 py-2 text-center font-medium text-gray-700 border-r border-gray-300'>月曜日</div>
+        <div className='px-3 py-2 text-center font-medium text-gray-700 border-r border-gray-300'>火曜日</div>
+        <div className='px-3 py-2 text-center font-medium text-gray-700 border-r border-gray-300'>水曜日</div>
+        <div className='px-3 py-2 text-center font-medium text-gray-700 border-r border-gray-300'>木曜日</div>
+        <div className='px-3 py-2 text-center font-medium text-gray-700 border-r border-gray-300'>金曜日</div>
+        <div className='px-3 py-2 text-center font-medium text-gray-700'>土曜日</div>
+      </div>
+      
+      {/* データ行 */}
+      <div>
         {timetableData.map(period => (
-          <TableRow key={period.period}>
-            <TableCell className='font-medium'>{period.period}</TableCell>
-            {['mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map(day => {
+          <div key={period.period} className='grid grid-cols-7 border-b border-gray-200 last:border-b-0'>
+            <div className='px-3 py-2 font-medium text-gray-700 bg-gray-50 border-r border-gray-300 flex items-center justify-center'>
+              {period.period}
+            </div>
+            {['mon', 'tue', 'wed', 'thu', 'fri', 'sat'].map((day, dayIndex) => {
               const cellData = period[day as keyof TimetableSlotData] as any
               const hasData = cellData?.subject && cellData?.teacher
 
               return (
-                <TableCell
+                <div
                   key={day}
                   className={`
-                    relative min-h-[80px] align-top border-2 border-dashed border-gray-200 
-                    transition-colors duration-200
+                    relative min-h-[80px] p-2 transition-all duration-200
+                    ${dayIndex < 5 ? 'border-r border-gray-300' : ''}
+                    ${getCellBorderStyle(cellData?.violations)}
                     ${currentView === 'edit' ? 'hover:bg-gray-50' : ''}
                     ${getViolationStyle(cellData?.violations)}
                     ${getAutoFillStyle(cellData?.isAutoFilled)}
@@ -87,10 +101,17 @@ export function TimetableGrid({
                   {hasData ? (
                     <div
                       className={`
-                        space-y-1 p-2 rounded border 
-                        ${currentView === 'edit' ? 'cursor-move hover:shadow-md' : 'cursor-default'}
-                        ${cellData?.violations?.length > 0 ? 'border-red-300' : 'border-gray-300'}
-                        ${cellData?.isAutoFilled ? 'border-green-300' : ''}
+                        space-y-1 p-2 rounded transition-all duration-200
+                        ${currentView === 'edit' ? 'cursor-move hover:shadow-md hover:scale-105' : 'cursor-default'}
+                        ${cellData?.violations?.length > 0 
+                          ? cellData.violations.some((v: any) => v.severity === 'high')
+                            ? 'bg-red-50 border border-red-300'
+                            : cellData.violations.some((v: any) => v.severity === 'medium')
+                            ? 'bg-yellow-50 border border-yellow-300'
+                            : 'bg-gray-50 border border-gray-300'
+                          : 'border border-gray-200 bg-white'
+                        }
+                        ${cellData?.isAutoFilled ? 'bg-green-50 border-green-300' : ''}
                       `}
                       draggable={currentView === 'edit'}
                       onDragStart={
@@ -108,9 +129,9 @@ export function TimetableGrid({
                           : undefined
                       }
                     >
-                      <div className='font-medium text-sm text-blue-600'>{cellData.subject}</div>
+                      <div className='font-medium text-sm text-gray-800'>{cellData.subject}</div>
                       <div
-                        className='text-xs text-gray-600 cursor-pointer hover:text-blue-600'
+                        className='text-xs text-gray-600 cursor-pointer hover:text-gray-800'
                         onClick={
                           onTeacherClick ? () => onTeacherClick(cellData.teacher) : undefined
                         }
@@ -121,8 +142,24 @@ export function TimetableGrid({
                         <div className='text-xs text-gray-500'>{cellData.classroom}</div>
                       )}
                       {cellData?.violations?.length > 0 && (
-                        <div className='text-xs text-red-600 mt-1'>
-                          ⚠️ {cellData.violations.length}件の問題
+                        <div className='mt-1 space-y-1'>
+                          {cellData.violations.map((violation: any, idx: number) => (
+                            <div 
+                              key={idx} 
+                              className={`text-xs px-2 py-1 rounded-md flex items-center gap-1 ${
+                                violation.severity === 'high' 
+                                  ? 'bg-red-100 text-red-800 border border-red-300'
+                                  : violation.severity === 'medium'
+                                  ? 'bg-yellow-100 text-yellow-800 border border-yellow-300'
+                                  : 'bg-gray-100 text-gray-700 border border-gray-300'
+                              }`}
+                            >
+                              <span className='flex-shrink-0'>
+                                {violation.severity === 'high' ? '🚨' : violation.severity === 'medium' ? '⚠️' : 'ℹ️'}
+                              </span>
+                              <span className='truncate'>{violation.message || '制約違反'}</span>
+                            </div>
+                          ))}
                         </div>
                       )}
                       {cellData?.isAutoFilled && (
@@ -130,16 +167,29 @@ export function TimetableGrid({
                       )}
                     </div>
                   ) : (
-                    <div className='h-full min-h-[60px] flex items-center justify-center text-gray-400 text-sm'>
-                      {currentView === 'edit' ? 'ここにドロップ' : '空き'}
+                    <div className={`
+                      h-full min-h-[60px] flex items-center justify-center text-sm transition-colors duration-200
+                      ${currentView === 'edit' 
+                        ? 'text-gray-500 hover:text-gray-700 hover:bg-gray-100 border-2 border-dashed border-gray-300 rounded'
+                        : 'text-gray-400'
+                      }
+                    `}>
+                      {currentView === 'edit' ? (
+                        <div className='text-center'>
+                          <div className='text-lg mb-1'>📚</div>
+                          <div>ここにドロップ</div>
+                        </div>
+                      ) : (
+                        '空き'
+                      )}
                     </div>
                   )}
-                </TableCell>
+                </div>
               )
             })}
-          </TableRow>
+          </div>
         ))}
-      </TableBody>
-    </Table>
+      </div>
+    </div>
   )
 }

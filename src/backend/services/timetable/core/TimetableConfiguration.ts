@@ -44,14 +44,25 @@ export class TimetableConfiguration {
       return this.getDefaultSettings()
     }
 
+    // 安全な数値変換関数
+    const safeNumber = (value: unknown, defaultValue: number): number => {
+      try {
+        if (value === null || value === undefined) return defaultValue
+        const parsed = Number(value)
+        return isNaN(parsed) ? defaultValue : parsed
+      } catch {
+        return defaultValue
+      }
+    }
+
     // 各プロパティを安全に設定
     const safeSettings: SchoolSettings = {
       id: settings.id || 'default',
-      grade1Classes: Number(settings.grade1Classes) || 4,
-      grade2Classes: Number(settings.grade2Classes) || 4,
-      grade3Classes: Number(settings.grade3Classes) || 3,
-      dailyPeriods: Number(settings.dailyPeriods) || 6,
-      saturdayPeriods: Number(settings.saturdayPeriods) || 4,
+      grade1Classes: safeNumber(settings.grade1Classes, 4),
+      grade2Classes: safeNumber(settings.grade2Classes, 4),
+      grade3Classes: safeNumber(settings.grade3Classes, 3),
+      dailyPeriods: safeNumber(settings.dailyPeriods, 6),
+      saturdayPeriods: safeNumber(settings.saturdayPeriods, 4),
       days:
         settings.days && Array.isArray(settings.days) && settings.days.length > 0
           ? settings.days
@@ -64,13 +75,13 @@ export class TimetableConfiguration {
         settings.classesPerGrade && typeof settings.classesPerGrade === 'object'
           ? settings.classesPerGrade
           : {
-              1: Array.from({ length: Number(settings.grade1Classes) || 4 }, (_, i) =>
+              1: Array.from({ length: safeNumber(settings.grade1Classes, 4) }, (_, i) =>
                 String(i + 1)
               ),
-              2: Array.from({ length: Number(settings.grade2Classes) || 4 }, (_, i) =>
+              2: Array.from({ length: safeNumber(settings.grade2Classes, 4) }, (_, i) =>
                 String(i + 1)
               ),
-              3: Array.from({ length: Number(settings.grade3Classes) || 3 }, (_, i) =>
+              3: Array.from({ length: safeNumber(settings.grade3Classes, 3) }, (_, i) =>
                 String(i + 1)
               ),
             },

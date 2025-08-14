@@ -69,7 +69,7 @@ export function TeacherScheduleView({
       <CardHeader>
         <div className='flex items-center justify-between'>
           <div className='flex items-center space-x-2'>
-            <User className='h-5 w-5 text-blue-600' />
+            <User className='h-5 w-5 text-gray-800' />
             <div>
               <CardTitle>{selectedTeacher}先生の時間割</CardTitle>
               <CardDescription>週間スケジュール</CardDescription>
@@ -105,8 +105,8 @@ export function TeacherScheduleView({
                   return (
                     <TableCell key={day} className='min-h-[60px] align-top'>
                       {assignment ? (
-                        <div className='space-y-1 p-2 bg-blue-50 rounded border border-blue-200'>
-                          <div className='font-medium text-sm text-blue-600'>
+                        <div className='space-y-1 p-2 bg-gray-50 rounded border border-gray-200'>
+                          <div className='font-medium text-sm text-gray-800'>
                             {assignment.subject}
                           </div>
                           <div className='text-xs text-gray-600'>

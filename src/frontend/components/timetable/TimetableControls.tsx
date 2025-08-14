@@ -64,7 +64,7 @@ export function TimetableControls({
 
         {currentView === 'detail' && selectedTimetable && (
           <div className='flex items-center space-x-2'>
-            <Calendar className='h-5 w-5 text-blue-600' />
+            <Calendar className='h-5 w-5 text-gray-800' />
             {editingTitle ? (
               <div className='flex items-center space-x-2'>
                 <Input

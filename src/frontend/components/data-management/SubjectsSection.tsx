@@ -195,12 +195,12 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
       // Setting loading to false
       setIsSubjectsLoading(false)
     }
-  }, [token, getFreshToken]) // 必要な依存関係を全て含めてメモ化
+  }, [token]) // getFreshTokenは最新値を参照するため除外
 
   // Load subjects useEffect
   useEffect(() => {
     loadSubjects()
-  }, [loadSubjects]) // loadSubjectsを依存関係に含める
+  }, []) // loadSubjectsは安定化されたため除外
 
   // Loading state monitoring removed to prevent infinite renders
 
@@ -505,24 +505,26 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
                             <TableCell>
                               <div className='flex space-x-2'>
                                 <Button
-                                  variant='ghost'
+                                  variant='outline'
                                   size='sm'
                                   onClick={() => handleEditSubject(subject)}
                                   data-testid={`edit-subject-${subject.id}`}
                                   aria-label={`教科「${subject.name}」を編集`}
                                   title={`教科「${subject.name}」を編集`}
+                                  className='h-8 w-8 p-0'
                                 >
-                                  <Edit className='w-4 h-4 text-gray-600 hover:text-gray-900' />
+                                  <Edit className='h-4 w-4' />
                                 </Button>
                                 <Button
-                                  variant='ghost'
+                                  variant='outline'
                                   size='sm'
                                   onClick={() => subject.id && handleDeleteSubject(subject.id)}
                                   data-testid={`delete-subject-${subject.id}`}
                                   aria-label={`教科「${subject.name}」を削除`}
                                   title={`教科「${subject.name}」を削除`}
+                                  className='h-8 w-8 p-0'
                                 >
-                                  <Trash2 className='w-4 h-4 text-red-500 hover:text-red-700' />
+                                  <Trash2 className='h-4 w-4' />
                                 </Button>
                               </div>
                             </TableCell>

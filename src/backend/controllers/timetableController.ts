@@ -302,6 +302,13 @@ export class TimetableController {
       const result = await persistence.saveTimetable({
         name: metadata?.name || `時間割_${new Date().toISOString().split('T')[0]}`,
         timetable,
+        statistics: {
+          assignmentRate: statistics.assignmentRate,
+          bestAssignmentRate: statistics.bestAssignmentRate,
+          totalAssignments: statistics.totalAssignments,
+          totalSlots: statistics.totalSlots,
+          assignedSlots: statistics.assignedSlots,
+        },
       })
 
       return c.json({
@@ -309,11 +316,9 @@ export class TimetableController {
         message: '時間割の保存が完了しました',
         data: {
           timetableId: result.timetableId,
-          assignmentRate:
-            statistics.bestAssignmentRate ||
-            (statistics.totalAssignments / statistics.totalSlots) * 100,
+          assignmentRate: result.assignmentRate,
           totalSlots: statistics.totalSlots || 0,
-          assignedSlots: statistics.totalAssignments || 0,
+          assignedSlots: statistics.assignedSlots || statistics.totalAssignments || 0,
           savedAt: new Date().toISOString(),
         },
       })
@@ -333,14 +338,16 @@ export class TimetableController {
   async getSavedProgramTimetables(c: Context<{ Bindings: Env }>) {
     try {
       const persistence = this.getTimetablePersistenceService(c)
-      const timetables = await persistence.getSavedTimetables()
+      
+      // クエリパラメータからページングパラメータを取得
+      const page = parseInt(c.req.query('page') || '1', 10)
+      const limit = parseInt(c.req.query('limit') || '20', 10)
+
+      const result = await persistence.getSavedTimetables(page, limit)
 
       return c.json({
         success: true,
-        data: {
-          timetables,
-          count: timetables.length,
-        },
+        data: result,
       })
     } catch (error) {
       console.error('❌ 保存済み時間割一覧取得エラー:', error)

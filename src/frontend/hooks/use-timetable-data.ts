@@ -86,7 +86,7 @@ export const useTimetableData = () => {
     } catch (error) {
       console.error('学校設定の取得に失敗:', error)
     }
-  }, [token, getFreshToken])
+  }, [token])
 
   // 教師・教科データを取得
   const loadValidationData = useCallback(async () => {
@@ -105,7 +105,7 @@ export const useTimetableData = () => {
     } catch (error) {
       console.error('検証用データの取得に失敗:', error)
     }
-  }, [token, getFreshToken])
+  }, [token])
 
   // 時間割一覧を取得
   const loadTimetables = useCallback(async () => {
@@ -181,7 +181,7 @@ export const useTimetableData = () => {
     console.log('📊 合計時間割数:', combinedTimetables.length)
     setTimetables(combinedTimetables)
     setIsLoadingTimetables(false)
-  }, [token, getFreshToken])
+  }, [token])
 
   return {
     // 状態

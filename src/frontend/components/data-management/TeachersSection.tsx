@@ -140,7 +140,7 @@ export const TeachersSection = memo(function TeachersSection({
         })
       }
     },
-    [token, getFreshToken, teachers, onTeachersUpdate, toast] // Removed 'toast' to fix infinite loop
+    [token, teachers, onTeachersUpdate] // getFreshTokenとtoastは最新値を参照するため除外
   )
 
   const handleSaveAllTeachers = useCallback(async () => {
@@ -162,7 +162,7 @@ export const TeachersSection = memo(function TeachersSection({
     } finally {
       setIsSaving(false)
     }
-  }, [token, getFreshToken, teachers, toast])
+  }, [token, teachers])
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -224,7 +224,7 @@ export const TeachersSection = memo(function TeachersSection({
         }
       }
     },
-    [teachers, onTeachersUpdate, token, getFreshToken, toast] // Removed 'toast' to fix infinite loop
+    [teachers, onTeachersUpdate, token] // getFreshTokenとtoastは最新値を参照するため除外
   )
 
   // メモ化されたソート済み教師リスト
@@ -375,7 +375,7 @@ export const TeachersSection = memo(function TeachersSection({
                                         return <span className='text-gray-400'>割当制限なし</span>
                                       }
                                       return (
-                                        <span className='text-blue-600 font-medium'>
+                                        <span className='text-gray-800 font-medium'>
                                           割当制限あり
                                         </span>
                                       )

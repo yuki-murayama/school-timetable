@@ -92,7 +92,7 @@ export function ClassroomsSection({ token, getFreshToken }: ClassroomsSectionPro
     } finally {
       setIsClassroomsLoading(false)
     }
-  }, [token, getFreshToken]) // 必要な依存関係を全て含めてメモ化
+  }, [token]) // getFreshTokenは最新値を参照するため除外
 
   // Load classrooms useEffect
   useEffect(() => {

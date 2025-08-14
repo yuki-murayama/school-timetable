@@ -1,6 +1,7 @@
 import type { SchoolSettings } from '../../shared/types'
 import { defaultSettings } from '../config'
 import { DatabaseService } from './database'
+import { SubjectValidationService, type CleanSubjectData } from './SubjectValidationService'
 
 export interface Teacher {
   id: string
@@ -285,79 +286,110 @@ export class SchoolService {
 
   // 教科関連
   async getAllSubjects(): Promise<Subject[]> {
+    console.log('📚 教科データ取得開始 - 型検証を適用')
     const result = await this.db.prepare('SELECT * FROM subjects ORDER BY name').all()
 
-    return (result.results || []).map((row: Record<string, unknown>): Subject => {
-      // target_gradesフィールドから学年データを取得
-      const grades =
-        row.target_grades || row.targetGrades
-          ? JSON.parse(row.target_grades || row.targetGrades || '[]')
-          : []
+    const rawSubjects = result.results || []
+    console.log(`📊 DBから${rawSubjects.length}件の教科データを取得`)
 
-      return {
-        id: row.id,
-        name: row.name,
-        color: row.color,
-        // 統一型定義のgradesフィールド（メインフィールド）
-        grades: grades,
-        // 互換性フィールド
-        targetGrades: grades,
-        target_grades: grades,
-        // 追加フィールド
-        weeklyHours: row.weeklyHours || row.weekly_hours || 1,
-        weekly_hours: row.weeklyHours || row.weekly_hours || 1,
-        order: row.order || 0,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
+    const validatedSubjects: Subject[] = []
+    const errors: Array<{ id: string; error: string }> = []
+
+    for (const row of rawSubjects) {
+      try {
+        // 型検証とクリーンアップを適用
+        const cleanData = SubjectValidationService.validateAndCleanSubject(row)
+        
+        validatedSubjects.push({
+          id: cleanData.id,
+          name: cleanData.name,
+          color: (row as any).color || '#3B82F6',
+          // 統一型定義のgradesフィールド（メインフィールド）
+          grades: cleanData.targetGrades,
+          // 互換性フィールド
+          targetGrades: cleanData.targetGrades,
+          target_grades: cleanData.targetGrades,
+          // 週間授業数（型検証済み）
+          weeklyHours: cleanData.weeklyHours,
+          weekly_hours: cleanData.weeklyHours,
+          order: cleanData.order || 0,
+          created_at: (row as any).created_at,
+          updated_at: (row as any).updated_at,
+        })
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown validation error'
+        console.error(`❌ 教科ID ${row.id} の検証に失敗:`, errorMessage)
+        errors.push({ 
+          id: String(row.id), 
+          error: errorMessage
+        })
       }
-    })
+    }
+
+    if (errors.length > 0) {
+      console.warn(`⚠️ 型検証エラーにより${errors.length}件の教科データをスキップしました`)
+      // 管理者向けの詳細ログ
+      console.log('🔍 検証エラー詳細:', errors)
+    }
+
+    console.log(`✅ 型検証完了: ${validatedSubjects.length}件の有効な教科データを返します`)
+    return validatedSubjects
   }
 
   async createSubject(
     subject: Omit<Subject, 'id' | 'created_at' | 'updated_at'>
   ): Promise<Subject> {
+    console.log('📚 新規教科作成開始 - 型検証を適用')
+    
+    // 型検証とクリーンアップを適用
     const subjectId = `subject-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`
+    const cleanData = SubjectValidationService.validateAndCleanSubject({
+      id: subjectId,
+      name: subject.name,
+      weekly_hours: subject.weeklyHours || subject.weekly_hours || 1,
+      targetGrades: subject.targetGrades || subject.grades || [1, 2, 3],
+      order: subject.order || 0
+    })
 
-    // 学年データを統合処理
-    const grades = subject.targetGrades || subject.grades || []
+    // データベース用の形式に変換
+    const dbData = SubjectValidationService.validateForDatabase(cleanData)
 
     await this.db
       .prepare(`
-        INSERT INTO subjects (id, name, color, target_grades, weekly_hours, \`order\`, school_id, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        INSERT INTO subjects (id, name, color, target_grades, weeklyHours, \`order\`, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       `)
       .bind(
-        subjectId,
-        subject.name,
+        dbData.id,
+        dbData.name,
         subject.color || '#3B82F6',
-        JSON.stringify(grades),
-        JSON.stringify({
-          1: subject.weeklyHours || subject.weekly_hours || 1,
-          2: subject.weeklyHours || subject.weekly_hours || 1,
-          3: subject.weeklyHours || subject.weekly_hours || 1,
-        }),
-        subject.order || 0,
-        'school-1'
+        dbData.targetGrades, // JSON文字列
+        dbData.weeklyHours, // INTEGER
+        dbData.order || 0
       )
       .run()
 
+    console.log(`✅ 教科「${cleanData.name}」を作成しました（週${cleanData.weeklyHours}時間）`)
+
     return {
-      id: subjectId,
-      name: subject.name,
-      color: subject.color,
+      id: cleanData.id,
+      name: cleanData.name,
+      color: subject.color || '#3B82F6',
       // 統一型定義のgradesフィールド（メインフィールド）
-      grades: grades,
+      grades: cleanData.targetGrades,
       // 互換性フィールド
-      targetGrades: grades,
-      target_grades: grades,
-      // 追加フィールド
-      weeklyHours: subject.weeklyHours || subject.weekly_hours || 1,
-      weekly_hours: subject.weeklyHours || subject.weekly_hours || 1,
-      order: subject.order || 0,
+      targetGrades: cleanData.targetGrades,
+      target_grades: cleanData.targetGrades,
+      // 週間授業数（型検証済み）
+      weeklyHours: cleanData.weeklyHours,
+      weekly_hours: cleanData.weeklyHours,
+      order: cleanData.order || 0,
     }
   }
 
   async updateSubject(subjectId: string, updates: Partial<Subject>): Promise<Subject> {
+    console.log(`📚 教科更新開始 - ID: ${subjectId} - 型検証を適用`)
+    
     const existing = await this.db
       .prepare('SELECT * FROM subjects WHERE id = ?')
       .bind(subjectId)
@@ -367,12 +399,26 @@ export class SchoolService {
       throw new Error('Subject not found')
     }
 
+    // 既存データと更新データを統合して型検証
+    const mergedData = {
+      id: subjectId,
+      name: updates.name || existing.name,
+      weekly_hours: updates.weeklyHours || updates.weekly_hours || existing.weeklyHours || existing.weekly_hours || 1,
+      targetGrades: updates.targetGrades || updates.grades || updates.target_grades || 
+        (existing.target_grades ? JSON.parse(existing.target_grades) : [1, 2, 3]),
+      order: updates.order !== undefined ? updates.order : (existing.order || 0)
+    }
+
+    // 型検証とクリーンアップを適用
+    const cleanData = SubjectValidationService.validateAndCleanSubject(mergedData)
+    const dbData = SubjectValidationService.validateForDatabase(cleanData)
+
     const updateFields: string[] = []
     const updateValues: unknown[] = []
 
     if (updates.name !== undefined) {
       updateFields.push('name = ?')
-      updateValues.push(updates.name)
+      updateValues.push(dbData.name)
     }
 
     if (updates.color !== undefined) {
@@ -380,25 +426,21 @@ export class SchoolService {
       updateValues.push(updates.color)
     }
 
-    // 学年データの更新（複数フィールドから統合）
-    const grades = updates.targetGrades || updates.grades || updates.target_grades
-    if (grades !== undefined) {
+    // 学年データの更新（型検証済み）
+    if (updates.targetGrades || updates.grades || updates.target_grades) {
       updateFields.push('target_grades = ?')
-      updateValues.push(JSON.stringify(grades))
+      updateValues.push(dbData.targetGrades) // JSON文字列
     }
 
-    // 週間授業数の更新
-    const weeklyHours = updates.weeklyHours || updates.weekly_hours
-    if (weeklyHours !== undefined) {
-      updateFields.push('weekly_hours = ?')
-      updateValues.push(JSON.stringify({ 1: weeklyHours, 2: weeklyHours, 3: weeklyHours }))
+    // 週間授業数の更新（型検証済み）
+    if (updates.weeklyHours !== undefined || updates.weekly_hours !== undefined) {
+      updateFields.push('weeklyHours = ?')
+      updateValues.push(dbData.weeklyHours) // INTEGER
     }
-
-    // 専用教室関連はDBスキーマに存在しないため削除
 
     if (updates.order !== undefined) {
       updateFields.push('`order` = ?')
-      updateValues.push(updates.order)
+      updateValues.push(dbData.order)
     }
 
     updateFields.push('updated_at = CURRENT_TIMESTAMP')
@@ -408,25 +450,29 @@ export class SchoolService {
       .bind(...updateValues, subjectId)
       .run()
 
+    // 更新後データの型検証付き取得
     const updated = await this.db
       .prepare('SELECT * FROM subjects WHERE id = ?')
       .bind(subjectId)
       .first()
 
-    const resultGrades = updated.target_grades ? JSON.parse(updated.target_grades) : []
+    const validatedUpdated = SubjectValidationService.validateAndCleanSubject(updated)
+
+    console.log(`✅ 教科「${validatedUpdated.name}」を更新しました（週${validatedUpdated.weeklyHours}時間）`)
+
     return {
-      id: updated.id,
-      name: updated.name,
-      color: updated.color,
+      id: validatedUpdated.id,
+      name: validatedUpdated.name,
+      color: updated.color || '#3B82F6',
       // 統一型定義のgradesフィールド（メインフィールド）
-      grades: resultGrades,
+      grades: validatedUpdated.targetGrades,
       // 互換性フィールド
-      targetGrades: resultGrades,
-      target_grades: resultGrades,
-      // 追加フィールド
-      weeklyHours: updated.weeklyHours || updated.weekly_hours || 1,
-      weekly_hours: updated.weeklyHours || updated.weekly_hours || 1,
-      order: updated.order || 0,
+      targetGrades: validatedUpdated.targetGrades,
+      target_grades: validatedUpdated.targetGrades,
+      // 週間授業数（型検証済み）
+      weeklyHours: validatedUpdated.weeklyHours,
+      weekly_hours: validatedUpdated.weeklyHours,
+      order: validatedUpdated.order || 0,
       created_at: updated.created_at,
       updated_at: updated.updated_at,
     }

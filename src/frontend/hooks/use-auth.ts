@@ -22,24 +22,19 @@ export function useAuth() {
   // Fresh token getter with automatic refresh
   const getFreshToken = useCallback(async (): Promise<string | null> => {
     if (!isSignedIn || !user) {
-      console.log('❌ getFreshToken: ユーザーが認証されていません')
       return null
     }
 
     try {
-      console.log('🔄 Clerkから新しいトークンを取得中...')
       const freshToken = await getToken()
       if (freshToken) {
-        console.log('✅ 新しいトークン取得成功')
         setToken(freshToken)
         tokenRef.current = freshToken
         return freshToken
       } else {
-        console.log('❌ Clerkからトークンが取得できませんでした')
         return null
       }
     } catch (error) {
-      console.error('❌ トークン取得エラー:', error)
       return null
     }
   }, [isSignedIn, user, getToken])
@@ -50,7 +45,6 @@ export function useAuth() {
         try {
           // 初期トークン取得
           const accessToken = await getFreshToken()
-          console.log('🔑 初期トークン取得:', accessToken ? 'Success' : 'Failed')
 
           // Get roles from Clerk metadata or default to school_admin
           const clerkRoles = (user.publicMetadata?.roles as string[]) || ['school_admin']
@@ -83,13 +77,7 @@ export function useAuth() {
           }
 
           setAuthUser(userInfo)
-
-          console.log('Auth user loaded:', {
-            roles: clerkRoles,
-            permissions: userInfo.permissions.slice(0, 3),
-          })
         } catch (error) {
-          console.error('Failed to load user data:', error)
           // トークン取得失敗時はトークンをクリア
           setToken(null)
           tokenRef.current = null
@@ -102,7 +90,7 @@ export function useAuth() {
     }
 
     loadUserData()
-  }, [isSignedIn, user, getFreshToken])
+  }, [isSignedIn, user])
 
   const login = () => {
     window.location.href = '/sign-in'
@@ -112,7 +100,6 @@ export function useAuth() {
     try {
       await signOut({ redirectUrl: '/' })
     } catch (error) {
-      console.error('ログアウトに失敗しました:', error)
       window.location.href = '/'
     }
   }

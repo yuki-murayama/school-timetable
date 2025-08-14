@@ -155,16 +155,30 @@ export class TimetableValidator {
    * 教科・学年の必要時数を取得
    */
   getRequiredHoursForSubject(subject: Subject, grade: number): number {
-    // 学年別時数設定がある場合
-    if (typeof subject.weeklyHours === 'object' && subject.weeklyHours[grade]) {
-      return subject.weeklyHours[grade]
-    }
+    try {
+      if (!subject || subject.weeklyHours === null || subject.weeklyHours === undefined) {
+        return 0
+      }
 
-    // デフォルト時数
-    if (subject.weeklyHours?.[0]) {
-      return subject.weeklyHours[0]
-    }
+      // 学年別時数設定がある場合
+      if (typeof subject.weeklyHours === 'object' && subject.weeklyHours && subject.weeklyHours[grade]) {
+        return subject.weeklyHours[grade]
+      }
 
-    return 0
+      // デフォルト時数
+      if (typeof subject.weeklyHours === 'object' && subject.weeklyHours && subject.weeklyHours[0]) {
+        return subject.weeklyHours[0]
+      }
+
+      // 互換性のため数値形式も対応
+      if (typeof subject.weeklyHours === 'number') {
+        return subject.weeklyHours
+      }
+
+      return 0
+    } catch (error) {
+      console.log(`❌ TimetableValidator getRequiredHoursForSubject エラー (${subject?.name || 'unknown'}):`, error)
+      return 0
+    }
   }
 }

@@ -4,6 +4,7 @@ import { Sidebar } from './Sidebar'
 import { TimetableGenerate } from './TimetableGenerate'
 import { DataManagementPage } from '../pages/DataManagementPage'
 import { TimetableView } from './TimetableView'
+import { TimetableDetailView } from './timetable/TimetableDetailView'
 
 // Lazy load heavy components for code splitting (commented out for debugging)
 // const TimetableGenerate = lazy(() =>
@@ -22,11 +23,24 @@ interface MainAppProps {
 
 export function MainApp({ onLogout }: MainAppProps) {
   const [currentPage, setCurrentPage] = useState('generate')
+  const [timetableDetailId, setTimetableDetailId] = useState<string | null>(null)
   
-  // デバッグ用: ページ変更をログ出力
   const handlePageChange = (page: string) => {
-    console.log(`🔄 Page change requested: ${currentPage} -> ${page}`)
     setCurrentPage(page)
+    // 詳細表示状態をリセット
+    if (page !== 'view') {
+      setTimetableDetailId(null)
+    }
+  }
+
+  // 時間割詳細表示ハンドラ
+  const handleViewTimetableDetail = (id: string) => {
+    setTimetableDetailId(id)
+  }
+
+  // 詳細表示から一覧に戻るハンドラ
+  const handleBackToList = () => {
+    setTimetableDetailId(null)
   }
 
   const renderCurrentPage = () => {
@@ -37,21 +51,25 @@ export function MainApp({ onLogout }: MainAppProps) {
       </div>
     )
 
-    console.log(`🎯 Rendering page: ${currentPage}`)
-    
-    // 直接レンダリング (Suspenseなし)
     switch (currentPage) {
       case 'generate':
-        console.log('📊 Rendering TimetableGenerate')
         return <TimetableGenerate />
       case 'data':
-        console.log('📋 Rendering DataManagementPage')
         return <DataManagementPage />
       case 'view':
-        console.log('👁️ Rendering TimetableView')
-        return <TimetableView />
+        // 詳細表示モードかどうかチェック
+        if (timetableDetailId) {
+          return (
+            <TimetableDetailView 
+              key={timetableDetailId} 
+              timetableId={timetableDetailId}
+              onBackToList={handleBackToList} 
+            />
+          )
+        } else {
+          return <TimetableView onViewDetail={handleViewTimetableDetail} />
+        }
       default:
-        console.log('🔄 Rendering default (TimetableGenerate)')
         return <TimetableGenerate />
     }
   }
@@ -60,10 +78,6 @@ export function MainApp({ onLogout }: MainAppProps) {
     <div className='flex h-screen bg-gray-50'>
       <Sidebar currentPage={currentPage} onPageChange={handlePageChange} onLogout={onLogout} />
       <main className='flex-1 overflow-auto'>
-        {/* デバッグ用の状態表示 */}
-        <div className='bg-yellow-100 p-2 text-sm font-mono'>
-          Debug: currentPage = "{currentPage}"
-        </div>
         <div className='p-6'>{renderCurrentPage()}</div>
       </main>
     </div>

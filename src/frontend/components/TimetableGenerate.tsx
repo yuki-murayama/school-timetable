@@ -48,18 +48,42 @@ export function TimetableGenerate() {
     setGenerationResult(null)
 
     try {
-      console.log('🔧 プログラム型時間割生成開始...')
-
       const result = await timetableApi.generateProgramTimetable({ token })
 
       // APIクライアントはdata部分のみを返すため、timetableとstatisticsの存在で成功判定
       if (result?.timetable && result.statistics) {
-        console.log('✅ プログラム型生成成功:', result.statistics)
 
-        toast({
-          title: '生成完了',
-          description: `時間割生成が完了しました（生成時間: ${result.statistics.generationTime || '不明'}, 割当数: ${result.statistics.totalAssignments || 0}）`,
-        })
+        // 時間割を自動保存
+        try {
+          const saveResult = await timetableApi.saveProgramTimetable(
+            result.timetable,
+            result.statistics,
+            {
+              name: `時間割_${new Date().toLocaleDateString()}_${new Date().toLocaleTimeString().replace(/:/g, '-')}`
+            },
+            { token }
+          )
+
+          // apiClient.postは成功時にdataオブジェクトのみを返す
+          if (saveResult && saveResult.timetableId) {
+            toast({
+              title: '生成・保存完了',
+              description: `時間割生成と保存が完了しました（割当率: ${saveResult.assignmentRate || 0}%）`,
+            })
+          } else {
+            toast({
+              title: '生成完了（保存失敗）',
+              description: `時間割生成が完了しましたが、保存に失敗しました`,
+              variant: 'destructive',
+            })
+          }
+        } catch (saveError) {
+          toast({
+            title: '生成完了（保存エラー）',
+            description: `時間割生成が完了しましたが、保存中にエラーが発生しました: ${saveError.message || '不明なエラー'}`,
+            variant: 'destructive',
+          })
+        }
 
         setGenerationResult({
           success: true,
@@ -75,7 +99,6 @@ export function TimetableGenerate() {
           },
         })
       } else {
-        console.log('❌ プログラム型生成失敗: 予期しないレスポンス形式')
 
         toast({
           title: '生成失敗',
@@ -92,7 +115,6 @@ export function TimetableGenerate() {
         }
       }
     } catch (error) {
-      console.error('❌ プログラム型生成エラー:', error)
 
       toast({
         title: '生成エラー',
