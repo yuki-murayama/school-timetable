@@ -13,7 +13,7 @@ const createHeaders = (token?: string): Record<string, string> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     'X-Requested-With': 'XMLHttpRequest', // CSRF保護
-    'X-CSRF-Token': generateCSRFToken(), // CSRF保護トークン
+    'X-CSRF-Token': getCSRFToken(), // セッション単位でキャッシュ
   }
 
   if (token) {
@@ -23,112 +23,61 @@ const createHeaders = (token?: string): Record<string, string> => {
   return headers
 }
 
-// 簡易的なCSRFトークン生成（実際の実装では、サーバーから取得することが推奨）
-function generateCSRFToken(): string {
-  return Array.from(crypto.getRandomValues(new Uint8Array(32)))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('')
+// セッション単位でCSRFトークンをキャッシュ
+let sessionCSRFToken: string | null = null
+
+function getCSRFToken(): string {
+  if (!sessionCSRFToken) {
+    sessionCSRFToken = Array.from(crypto.getRandomValues(new Uint8Array(16)))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+  }
+  return sessionCSRFToken
 }
 
-// Helper function to handle API requests with automatic token refresh
+// Helper function to handle API requests with simplified token management
 const makeApiRequest = async (
   url: string,
   options: RequestInit,
   apiOptions?: ApiOptions
 ): Promise<Response> => {
-  // Pre-emptive token refresh check for expired tokens
-  let currentToken = apiOptions?.token
-  if (currentToken && apiOptions?.getFreshToken) {
-    try {
-      // Check if token is expired by attempting to decode JWT
-      const tokenParts = currentToken.split('.')
-      if (tokenParts.length === 3) {
-        const payload = JSON.parse(atob(tokenParts[1]))
-        const currentTime = Date.now() / 1000
-
-        // If token expires within next 5 minutes, refresh proactively (reduced frequency)
-        if (payload.exp && payload.exp - currentTime < 300) {
-          console.log('🔄 トークンが間もなく期限切れ、事前更新中... (期限:', new Date(payload.exp * 1000).toISOString(), ')')
-          const freshToken = await apiOptions.getFreshToken()
-          if (freshToken) {
-            console.log('✅ 事前トークン更新成功')
-            currentToken = freshToken
-            // Update headers with fresh token
-            options.headers = {
-              ...options.headers,
-              ...createHeaders(freshToken),
-            }
-          }
-        }
-      }
-    } catch (preCheckError) {
-      // If pre-check fails, continue with original token
-      console.log('ℹ️ トークン事前チェックスキップ:', preCheckError.message)
-    }
-  }
+  // シンプルなアプローチ: 1セッション1トークン、期限チェック不要
+  const currentToken = apiOptions?.token
 
   let response = await fetch(url, options)
 
-  // If we get a 401 and have a token refresh function, try to refresh and retry
+  // If we get a 401 and have a token refresh function, try once to refresh and retry
   if (response.status === 401 && apiOptions?.getFreshToken) {
     console.log('🔄 401エラー検出、トークン更新を試行中...')
     try {
-      let freshToken = await apiOptions.getFreshToken()
+      const freshToken = await apiOptions.getFreshToken()
       if (freshToken) {
         console.log('✅ トークン更新成功、リクエスト再試行中...')
-
-        // Retry with maximum 2 attempts to prevent infinite loops
-        let retryCount = 0
-        const maxRetries = 2
-
-        while (retryCount < maxRetries) {
-          // Update headers with fresh token
-          const newHeaders = {
-            ...options.headers,
-            ...createHeaders(freshToken),
-          }
-          response = await fetch(url, { ...options, headers: newHeaders })
-          console.log(`🔄 再試行 ${retryCount + 1}: ${response.status}`)
-
-          if (response.status !== 401) {
-            // Success or non-auth error, break retry loop
-            break
-          }
-
-          retryCount++
-          if (retryCount < maxRetries) {
-            console.log('⚠️ 再試行後も401、追加のトークン更新を試行...')
-            // Wait a bit before retry to avoid race conditions
-            await new Promise(resolve => setTimeout(resolve, 100))
-
-            // Try to get another fresh token
-            const newerToken = await apiOptions.getFreshToken()
-            if (!newerToken) {
-              console.error('❌ 追加トークン取得失敗')
-              break
-            }
-            console.log('🔄 新しいトークンで再度試行中...')
-            // Use the newer token for next retry
-            freshToken = newerToken
-          }
+        
+        // 1回のみ再試行（シンプル化）
+        const newHeaders = {
+          ...options.headers,
+          ...createHeaders(freshToken),
         }
+        response = await fetch(url, { ...options, headers: newHeaders })
+        console.log(`🔄 再試行結果: ${response.status}`)
 
-        // If still 401 after all retries, the authentication is fundamentally broken
+        // まだ401の場合は認証の根本的な問題
         if (response.status === 401) {
-          console.error('⚠️ 全再試行後も401エラー、認証システムに問題があります')
+          console.error('⚠️ 再試行後も401エラー、認証システムに問題があります')
           throw new Error('認証に失敗しました。ページを再読み込みして再度ログインしてください。')
         }
       } else {
         console.error('❌ トークン更新失敗: 新しいトークンが取得できませんでした')
         throw new Error('認証トークンの更新に失敗しました。再度ログインしてください。')
       }
-    } catch (refreshError) {
+    } catch (refreshError: unknown) {
       console.error('❌ トークン更新処理でエラー:', refreshError)
-      // Re-throw the error but don't wrap it again if it's already a proper error message
       if (refreshError instanceof Error && refreshError.message.includes('認証')) {
         throw refreshError
       }
-      throw new Error(`認証エラー: ${refreshError.message || '不明なエラー'}`)
+      const errorMessage = refreshError instanceof Error ? refreshError.message : '不明なエラー'
+      throw new Error(`認証エラー: ${errorMessage}`)
     }
   }
 
