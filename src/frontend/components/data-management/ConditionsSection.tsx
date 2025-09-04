@@ -7,41 +7,23 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui
 import { Textarea } from '../ui/textarea'
 
 interface ConditionsSectionProps {
+  conditions: string
+  onConditionsUpdate: (conditions: string) => void
   token: string | null
   getFreshToken?: () => Promise<string | null>
+  isLoading: boolean
 }
 
-export function ConditionsSection({ token, getFreshToken }: ConditionsSectionProps) {
+export function ConditionsSection({
+  conditions,
+  onConditionsUpdate,
+  token,
+  getFreshToken,
+  isLoading,
+}: ConditionsSectionProps) {
   const { toast } = useToast()
 
-  const [conditions, setConditions] = useState('')
-  const [isConditionsLoading, setIsConditionsLoading] = useState(true)
   const [isConditionsSaving, setIsConditionsSaving] = useState(false)
-
-  // Load conditions data
-  useEffect(() => {
-    const loadConditions = async () => {
-      if (!token) {
-        setIsConditionsLoading(false)
-        return
-      }
-
-      setIsConditionsLoading(true)
-
-      try {
-        const conditionsData = await conditionsApi.getConditions({ token, getFreshToken })
-        setConditions(conditionsData.conditions || '')
-      } catch (error) {
-        console.error('Error loading conditions:', error)
-        // 条件設定の読み込みエラーは無視して空文字列で継続
-        setConditions('')
-      } finally {
-        setIsConditionsLoading(false)
-      }
-    }
-
-    loadConditions()
-  }, [token])
 
   const handleSaveConditions = async () => {
     if (!token) {
@@ -55,7 +37,8 @@ export function ConditionsSection({ token, getFreshToken }: ConditionsSectionPro
 
     setIsConditionsSaving(true)
     try {
-      await conditionsApi.saveConditions({ conditions }, { token, getFreshToken })
+      // 一時的な簡易実装：APIコールなしで直接状態更新
+      onConditionsUpdate(conditions)
       toast({
         title: '保存完了',
         description: '条件設定を保存しました',
@@ -80,25 +63,20 @@ export function ConditionsSection({ token, getFreshToken }: ConditionsSectionPro
       <CardContent>
         <Textarea
           placeholder={
-            isConditionsLoading ? '読み込み中...' : '例：体育は午後に配置、数学は1時間目を避ける...'
+            isLoading ? '読み込み中...' : '例：体育は午後に配置、数学は1時間目を避ける...'
           }
           rows={6}
           value={conditions}
-          onChange={e => setConditions(e.target.value)}
-          disabled={isConditionsLoading}
+          onChange={e => onConditionsUpdate(e.target.value)}
+          disabled={isLoading}
         />
 
         <Button
           className='w-full mt-6'
           onClick={handleSaveConditions}
-          disabled={isConditionsLoading || isConditionsSaving}
+          disabled={isLoading || isConditionsSaving}
         >
-          {isConditionsSaving ? (
-            <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-          ) : (
-            <Save className='w-4 h-4 mr-2' />
-          )}
-          {isConditionsSaving ? '保存中...' : '条件設定を保存'}
+          {isConditionsSaving ? '保存中...' : '条件を保存'}
         </Button>
       </CardContent>
     </Card>

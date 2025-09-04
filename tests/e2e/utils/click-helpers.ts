@@ -189,6 +189,57 @@ export class ClickHelpers {
   }
   
   /**
+   * 開いているモーダルを閉じる
+   */
+  static async closeAnyOpenModal(page: Page): Promise<void> {
+    try {
+      // モーダルオーバーレイが表示されているかチェック
+      const overlaySelector = 'div[data-state="open"][aria-hidden="true"]';
+      const dialogSelector = 'div[role="dialog"][data-state="open"]';
+      
+      if (await page.locator(overlaySelector).count() > 0 || 
+          await page.locator(dialogSelector).count() > 0) {
+        console.log('🔄 モーダルが開いています。閉じる処理を実行中...');
+        
+        // 1. Escapeキーで閉じる
+        await page.keyboard.press('Escape');
+        await page.waitForTimeout(500);
+        
+        // 2. まだ開いている場合は閉じるボタンを探してクリック
+        if (await page.locator(overlaySelector).count() > 0) {
+          const closeButtons = [
+            'button[data-testid*="close"]',
+            'button:has-text("キャンセル")',
+            'button:has-text("閉じる")',
+            'button:has-text("×")',
+            '[data-dismiss]',
+            '[aria-label*="close" i]',
+            '[aria-label*="閉じる"]'
+          ];
+          
+          for (const selector of closeButtons) {
+            if (await page.locator(selector).count() > 0) {
+              await page.click(selector);
+              await page.waitForTimeout(500);
+              break;
+            }
+          }
+        }
+        
+        // 3. 最後の手段：オーバーレイの外をクリック
+        if (await page.locator(overlaySelector).count() > 0) {
+          await page.click('body', { position: { x: 0, y: 0 } });
+          await page.waitForTimeout(500);
+        }
+        
+        console.log('✅ モーダルクローズ処理完了');
+      }
+    } catch (error) {
+      console.warn('⚠️ モーダルクローズで軽微なエラー:', error);
+    }
+  }
+
+  /**
    * モーダルダイアログを開く
    */
   static async openModal(page: Page, triggerSelector: string, modalSelector: string, options?: {
@@ -200,6 +251,9 @@ export class ClickHelpers {
     console.log(`🪟 Opening ${description}...`);
     
     try {
+      // 既存のモーダルを閉じる
+      await this.closeAnyOpenModal(page);
+      
       // トリガーボタンをクリック
       const triggerClicked = await this.waitAndClick(page, triggerSelector, {
         timeout,

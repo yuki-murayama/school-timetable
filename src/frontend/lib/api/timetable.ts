@@ -1,32 +1,68 @@
 /**
- * 時間割関連API
+ * 型安全時間割関連API - Zodスキーマバリデーション統合
  */
 
 import type {
   TimetableDetail,
   TimetableGenerationResponse,
   TimetableListItem,
-} from '../../../shared/types'
+} from '@shared/schemas'
+import { z } from 'zod'
 import { type ApiOptions, apiClient } from './client'
+
+// APIリクエスト・レスポンス型定義
+const TimetableGenerationRequestSchema = z.object({
+  options: z.record(z.unknown()).optional(),
+})
+const TimetableGenerationResponseSchema = z.object({
+  success: z.boolean(),
+  id: z.string().optional(),
+  message: z.string().optional(),
+  data: z.unknown().optional(),
+  status: z.string().optional(),
+  error: z.string().optional(),
+})
+const TimetableListResponseSchema = z.array(
+  z.object({
+    id: z.string(),
+    title: z.string(),
+    createdAt: z.string(),
+    grade: z.number().optional(),
+    className: z.string().optional(),
+  })
+)
 
 export const timetableApi = {
   async generateTimetable(
-    request: { options?: Record<string, unknown> },
+    request: z.infer<typeof TimetableGenerationRequestSchema>,
     options?: ApiOptions
   ): Promise<TimetableGenerationResponse> {
-    return apiClient.post<TimetableGenerationResponse>(
+    return apiClient.post<
+      z.infer<typeof TimetableGenerationRequestSchema>,
+      TimetableGenerationResponse
+    >(
       '/frontend/timetable/generate',
       request,
+      TimetableGenerationRequestSchema,
+      TimetableGenerationResponseSchema,
       options
     )
   },
 
   async getTimetables(options?: ApiOptions): Promise<TimetableListItem[]> {
-    return apiClient.get<TimetableListItem[]>('/frontend/school/timetables', options)
+    return apiClient.get<TimetableListItem[]>(
+      '/frontend/school/timetables',
+      TimetableListResponseSchema,
+      options
+    )
   },
 
   // 生成された時間割の取得（ページネーション対応）
-  async getSavedTimetables(page: number = 1, limit: number = 20, options?: ApiOptions): Promise<{
+  async getSavedTimetables(
+    page: number = 1,
+    limit: number = 20,
+    options?: ApiOptions
+  ): Promise<{
     timetables: TimetableListItem[]
     totalCount: number
     currentPage: number
@@ -35,9 +71,9 @@ export const timetableApi = {
     hasPrevPage: boolean
   }> {
     console.log('🚀 getSavedTimetables 開始 - page:', page, 'limit:', limit, 'options:', options)
-    
+
     try {
-      const response = await apiClient.get<{ 
+      const response = await apiClient.get<{
         success: boolean
         data: {
           timetables: TimetableListItem[]
@@ -47,38 +83,45 @@ export const timetableApi = {
           hasNextPage: boolean
           hasPrevPage: boolean
         }
-      }>(
-        `/api/timetable/program/saved?page=${page}&limit=${limit}`,
-        options
-      )
+      }>(`/api/timetable/program/saved?page=${page}&limit=${limit}`, options)
 
       console.log('🔍 getSavedTimetables レスポンス:', response)
 
-    // ページネーション対応のレスポンス形式: {success: true, data: {timetables: [...], totalCount: N, ...}}
-    if (response && typeof response === 'object' && 'success' in response && response.success && 'data' in response) {
-      const data = response.data as {
-        timetables: TimetableListItem[]
-        totalCount: number
-        currentPage: number
-        totalPages: number
-        hasNextPage: boolean
-        hasPrevPage: boolean
+      // ページネーション対応のレスポンス形式: {success: true, data: {timetables: [...], totalCount: N, ...}}
+      if (
+        response &&
+        typeof response === 'object' &&
+        'success' in response &&
+        response.success &&
+        'data' in response
+      ) {
+        const data = response.data as {
+          timetables: TimetableListItem[]
+          totalCount: number
+          currentPage: number
+          totalPages: number
+          hasNextPage: boolean
+          hasPrevPage: boolean
+        }
+        if (data && 'timetables' in data && Array.isArray(data.timetables)) {
+          console.log(
+            '✅ ページネーション対応の時間割データを正常に抽出:',
+            data.timetables.length,
+            '件'
+          )
+          return data
+        }
       }
-      if (data && 'timetables' in data && Array.isArray(data.timetables)) {
-        console.log('✅ ページネーション対応の時間割データを正常に抽出:', data.timetables.length, '件')
-        return data
-      }
-    }
 
-    console.warn('⚠️ 予期しないレスポンス形式:', response)
-    return {
-      timetables: [],
-      totalCount: 0,
-      currentPage: 1,
-      totalPages: 0,
-      hasNextPage: false,
-      hasPrevPage: false
-    }
+      console.warn('⚠️ 予期しないレスポンス形式:', response)
+      return {
+        timetables: [],
+        totalCount: 0,
+        currentPage: 1,
+        totalPages: 0,
+        hasNextPage: false,
+        hasPrevPage: false,
+      }
     } catch (error) {
       console.error('❌ getSavedTimetables API呼び出しでエラー:', error)
       return {
@@ -87,7 +130,7 @@ export const timetableApi = {
         currentPage: 1,
         totalPages: 0,
         hasNextPage: false,
-        hasPrevPage: false
+        hasPrevPage: false,
       }
     }
   },
@@ -127,7 +170,11 @@ export const timetableApi = {
       message?: string
       data?: unknown
       statistics?: unknown
-    }>('/api/timetable/program/generate', { useOptimization: false, useNewAlgorithm: true }, options)
+    }>(
+      '/api/timetable/program/generate',
+      { useOptimization: false, useNewAlgorithm: true },
+      options
+    )
   },
 
   async getProgramConfig(options?: ApiOptions): Promise<{

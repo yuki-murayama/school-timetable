@@ -1,44 +1,28 @@
-import type { SchoolSettings } from '../../shared/types'
+/**
+ * 型安全学校管理サービス - Zodスキーマベース実装
+ */
+
+import {
+  type Classroom,
+  type SchoolSettings,
+  SchoolSettingsSchema,
+  type Subject,
+  type Teacher,
+  TeacherSchema,
+} from '@shared/schemas'
+import { z } from 'zod'
 import { defaultSettings } from '../config'
 import { DatabaseService } from './database'
-import { SubjectValidationService, type CleanSubjectData } from './SubjectValidationService'
+import { SubjectValidationUtils } from './SubjectValidationService'
 
-export interface Teacher {
-  id: string
-  name: string
-  email?: string
-  subjects?: string[]
-  grades?: number[]
-  assignmentRestrictions?: string[]
-  order?: number
-  created_at?: string
-  updated_at?: string
-}
+// データベース関連型定義（Zodベース）
+export const TeacherSubjectRelationSchema = z.object({
+  teacherId: z.string().uuid('有効なUUIDが必要です'),
+  subjectId: z.string().uuid('有効なUUIDが必要です'),
+  created_at: z.string().datetime().optional(),
+})
 
-export interface Subject {
-  id: string
-  name: string
-  color?: string
-  targetGrades?: number[]
-  order?: number
-  created_at?: string
-  updated_at?: string
-}
-
-export interface Classroom {
-  id: string
-  name: string
-  capacity?: number
-  equipment?: string[]
-  created_at?: string
-  updated_at?: string
-}
-
-export interface TeacherSubjectRelation {
-  teacherId: string
-  subjectId: string
-  created_at?: string
-}
+export type TeacherSubjectRelation = z.infer<typeof TeacherSubjectRelationSchema>
 
 export class SchoolService {
   constructor(private db: D1Database) {}
@@ -68,8 +52,15 @@ export class SchoolService {
   }
 
   async updateSchoolSettings(settings: Partial<SchoolSettings>): Promise<SchoolSettings> {
+    // 入力データの型安全性検証
+    const updateSchema = SchoolSettingsSchema.partial()
+    const validatedSettings = updateSchema.parse(settings)
+
     const currentSettings = await this.getSchoolSettings()
-    const newSettings = { ...currentSettings, ...settings }
+    const newSettings = SchoolSettingsSchema.parse({
+      ...currentSettings,
+      ...validatedSettings,
+    })
 
     await this.db
       .prepare(`
@@ -90,7 +81,7 @@ export class SchoolService {
     return newSettings
   }
 
-  // 教師関連
+  // 教師関連 - 型安全実装
   async getAllTeachers(): Promise<Teacher[]> {
     // テーブル構造確認
     const tableInfo = await this.db.prepare('PRAGMA table_info(teachers)').all()
@@ -112,47 +103,45 @@ export class SchoolService {
 
     const result = await this.db.prepare(query).all()
 
-    return (result.results || []).map((row: Record<string, unknown>): Teacher => {
-      let subjects: string[] = []
-      let grades: number[] = []
-      let assignmentRestrictions: string[] = []
-
-      try {
-        subjects = row.subjects ? JSON.parse(row.subjects) : []
-      } catch (_e) {
-        subjects = []
-      }
-
-      try {
-        grades = row.grades ? JSON.parse(row.grades) : []
-      } catch (_e) {
-        grades = []
-      }
-
-      try {
-        assignmentRestrictions = row.assignment_restrictions
-          ? JSON.parse(row.assignment_restrictions)
-          : []
-      } catch (_e) {
-        assignmentRestrictions = []
+    const rawTeachers = (result.results || []).map((row: Record<string, unknown>) => {
+      // JSON解析の型安全化
+      const parseJsonArray = (value: unknown, fallback: unknown[] = []): unknown[] => {
+        if (!value || typeof value !== 'string') return fallback
+        try {
+          const parsed = JSON.parse(value)
+          return Array.isArray(parsed) ? parsed : fallback
+        } catch {
+          return fallback
+        }
       }
 
       return {
-        id: row.id,
-        name: row.name,
-        email: row.email,
-        subjects,
-        grades,
-        assignmentRestrictions,
-        created_at: row.created_at,
-        updated_at: row.updated_at,
+        id: String(row.id || ''),
+        name: String(row.name || ''),
+        email: row.email ? String(row.email) : undefined,
+        subjects: parseJsonArray(row.subjects, []),
+        grades: parseJsonArray(row.grades, []),
+        assignmentRestrictions: parseJsonArray(row.assignment_restrictions, []),
+        created_at: row.created_at ? String(row.created_at) : new Date().toISOString(),
+        updated_at: row.updated_at ? String(row.updated_at) : new Date().toISOString(),
       }
     })
+
+    // 各教師データをZodスキーマで検証
+    return rawTeachers.map(teacher => TeacherSchema.parse(teacher))
   }
 
   async createTeacher(
-    teacher: Omit<Teacher, 'id' | 'created_at' | 'updated_at'>
+    teacherData: Omit<Teacher, 'id' | 'created_at' | 'updated_at'>
   ): Promise<Teacher> {
+    // 入力データの型安全性検証
+    const createSchema = TeacherSchema.omit({
+      id: true,
+      created_at: true,
+      updated_at: true,
+    })
+    const _validatedTeacher = createSchema.parse(teacherData)
+
     const teacherId = `teacher-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`
 
     // テーブル構造確認
@@ -175,11 +164,11 @@ export class SchoolService {
         `)
         .bind(
           teacherId,
-          teacher.name,
-          teacher.email || '',
-          JSON.stringify(teacher.grades || []),
-          JSON.stringify(teacher.assignmentRestrictions || []),
-          JSON.stringify(teacher.subjects || []),
+          teacherData.name,
+          teacherData.email || '',
+          JSON.stringify(teacherData.grades || []),
+          JSON.stringify(teacherData.assignmentRestrictions || []),
+          JSON.stringify(teacherData.subjects || []),
           'school-1'
         )
         .run()
@@ -190,17 +179,23 @@ export class SchoolService {
           INSERT INTO teachers (id, name, email, school_id, created_at, updated_at)
           VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         `)
-        .bind(teacherId, teacher.name, teacher.email || '', 'school-1')
+        .bind(teacherId, teacherData.name, teacherData.email || '', 'school-1')
         .run()
     }
 
     return {
       id: teacherId,
-      name: teacher.name,
-      email: teacher.email,
-      subjects: teacher.subjects || [],
-      grades: teacher.grades || [],
-      assignmentRestrictions: teacher.assignmentRestrictions || [],
+      name: teacherData.name,
+      email: teacherData.email,
+      subjects: teacherData.subjects || [],
+      grades: teacherData.grades || [],
+      assignmentRestrictions: teacherData.assignmentRestrictions || [],
+      maxWeeklyHours: teacherData.maxWeeklyHours || 25,
+      preferredTimeSlots: teacherData.preferredTimeSlots || [],
+      unavailableSlots: teacherData.unavailableSlots || [],
+      order: teacherData.order || 1,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
     }
   }
 
@@ -298,12 +293,12 @@ export class SchoolService {
     for (const row of rawSubjects) {
       try {
         // 型検証とクリーンアップを適用
-        const cleanData = SubjectValidationService.validateAndCleanSubject(row)
-        
+        const cleanData = SubjectValidationUtils.validateAndCleanSubject(row)
+
         validatedSubjects.push({
           id: cleanData.id,
           name: cleanData.name,
-          color: (row as any).color || '#3B82F6',
+          color: (row as Record<string, unknown>).color || '#3B82F6',
           // 統一型定義のgradesフィールド（メインフィールド）
           grades: cleanData.targetGrades,
           // 互換性フィールド
@@ -313,15 +308,15 @@ export class SchoolService {
           weeklyHours: cleanData.weeklyHours,
           weekly_hours: cleanData.weeklyHours,
           order: cleanData.order || 0,
-          created_at: (row as any).created_at,
-          updated_at: (row as any).updated_at,
+          created_at: (row as Record<string, unknown>).created_at,
+          updated_at: (row as Record<string, unknown>).updated_at,
         })
       } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown validation error'
         console.error(`❌ 教科ID ${row.id} の検証に失敗:`, errorMessage)
-        errors.push({ 
-          id: String(row.id), 
-          error: errorMessage
+        errors.push({
+          id: String(row.id),
+          error: errorMessage,
         })
       }
     }
@@ -340,19 +335,19 @@ export class SchoolService {
     subject: Omit<Subject, 'id' | 'created_at' | 'updated_at'>
   ): Promise<Subject> {
     console.log('📚 新規教科作成開始 - 型検証を適用')
-    
+
     // 型検証とクリーンアップを適用
     const subjectId = `subject-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`
-    const cleanData = SubjectValidationService.validateAndCleanSubject({
+    const cleanData = SubjectValidationUtils.validateAndCleanSubject({
       id: subjectId,
       name: subject.name,
       weekly_hours: subject.weeklyHours || subject.weekly_hours || 1,
       targetGrades: subject.targetGrades || subject.grades || [1, 2, 3],
-      order: subject.order || 0
+      order: subject.order || 0,
     })
 
     // データベース用の形式に変換
-    const dbData = SubjectValidationService.validateForDatabase(cleanData)
+    const dbData = SubjectValidationUtils.validateForDatabase(cleanData)
 
     await this.db
       .prepare(`
@@ -389,7 +384,7 @@ export class SchoolService {
 
   async updateSubject(subjectId: string, updates: Partial<Subject>): Promise<Subject> {
     console.log(`📚 教科更新開始 - ID: ${subjectId} - 型検証を適用`)
-    
+
     const existing = await this.db
       .prepare('SELECT * FROM subjects WHERE id = ?')
       .bind(subjectId)
@@ -403,15 +398,23 @@ export class SchoolService {
     const mergedData = {
       id: subjectId,
       name: updates.name || existing.name,
-      weekly_hours: updates.weeklyHours || updates.weekly_hours || existing.weeklyHours || existing.weekly_hours || 1,
-      targetGrades: updates.targetGrades || updates.grades || updates.target_grades || 
+      weekly_hours:
+        updates.weeklyHours ||
+        updates.weekly_hours ||
+        existing.weeklyHours ||
+        existing.weekly_hours ||
+        1,
+      targetGrades:
+        updates.targetGrades ||
+        updates.grades ||
+        updates.target_grades ||
         (existing.target_grades ? JSON.parse(existing.target_grades) : [1, 2, 3]),
-      order: updates.order !== undefined ? updates.order : (existing.order || 0)
+      order: updates.order !== undefined ? updates.order : existing.order || 0,
     }
 
     // 型検証とクリーンアップを適用
-    const cleanData = SubjectValidationService.validateAndCleanSubject(mergedData)
-    const dbData = SubjectValidationService.validateForDatabase(cleanData)
+    const cleanData = SubjectValidationUtils.validateAndCleanSubject(mergedData)
+    const dbData = SubjectValidationUtils.validateForDatabase(cleanData)
 
     const updateFields: string[] = []
     const updateValues: unknown[] = []
@@ -456,9 +459,11 @@ export class SchoolService {
       .bind(subjectId)
       .first()
 
-    const validatedUpdated = SubjectValidationService.validateAndCleanSubject(updated)
+    const validatedUpdated = SubjectValidationUtils.validateAndCleanSubject(updated)
 
-    console.log(`✅ 教科「${validatedUpdated.name}」を更新しました（週${validatedUpdated.weeklyHours}時間）`)
+    console.log(
+      `✅ 教科「${validatedUpdated.name}」を更新しました（週${validatedUpdated.weeklyHours}時間）`
+    )
 
     return {
       id: validatedUpdated.id,

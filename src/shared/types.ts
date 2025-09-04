@@ -6,10 +6,7 @@ export interface Env {
   DB: D1Database
   ASSETS?: unknown
   GROQ_API_KEY: string
-  AUTH0_DOMAIN: string
-  AUTH0_AUDIENCE: string
-  AUTH0_CLIENT_ID: string
-  VITE_CLERK_PUBLISHABLE_KEY: string
+  JWT_SECRET?: string
   NODE_ENV: string
 }
 

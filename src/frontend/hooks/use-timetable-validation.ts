@@ -1,5 +1,5 @@
+import type { Subject, Teacher } from '@shared/schemas'
 import { useCallback, useState } from 'react'
-import type { Subject, Teacher } from '../../shared/types'
 import { timetableUtils } from '../lib/api'
 import type { TimetableSlotData } from './use-timetable-data'
 

@@ -1,16 +1,23 @@
+import { z } from 'zod'
 import type { TimetableValidationResult } from './timetableGenerator'
 
-export interface TimetableDataRequest {
-  name: string
-  timetable: unknown
-  statistics?: {
-    assignmentRate?: number
-    bestAssignmentRate?: number
-    totalAssignments?: number
-    totalSlots?: number
-    assignedSlots?: number
-  }
-}
+// 時間割データ統計スキーマ
+const TimetableStatisticsSchema = z.object({
+  assignmentRate: z.number().min(0).max(100).optional(),
+  bestAssignmentRate: z.number().min(0).max(100).optional(),
+  totalAssignments: z.number().int().min(0).optional(),
+  totalSlots: z.number().int().min(0).optional(),
+  assignedSlots: z.number().int().min(0).optional(),
+})
+
+// 時間割データリクエストスキーマ
+const TimetableDataRequestSchema = z.object({
+  name: z.string().min(1, '時間割名は必須です').max(200, '時間割名は200文字以内です'),
+  timetable: z.unknown(), // 暫定的にunknownとし、後で詳細スキーマに変更
+  statistics: TimetableStatisticsSchema.optional(),
+})
+
+export type TimetableDataRequest = z.infer<typeof TimetableDataRequestSchema>
 
 export class TimetablePersistenceService {
   constructor(private db: D1Database) {}
@@ -18,11 +25,13 @@ export class TimetablePersistenceService {
   async saveTimetable(
     data: TimetableDataRequest
   ): Promise<{ timetableId: string; assignmentRate: number }> {
+    // リクエストデータを検証
+    const validatedData = TimetableDataRequestSchema.parse(data)
     const currentTime = new Date().toISOString()
     const timetableId = `timetable-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
     // 統計データから割当率を計算（複数のフォールバックを使用）
-    const assignmentRate = data.statistics
+    const assignmentRate = validatedData.statistics
       ? data.statistics.assignmentRate ||
         data.statistics.bestAssignmentRate ||
         (data.statistics.totalAssignments && data.statistics.totalSlots
@@ -38,10 +47,10 @@ export class TimetablePersistenceService {
 
     // 時間割データをJSONとして保存
     const timetableData = JSON.stringify(data.timetable)
-    const metadata = JSON.stringify({ 
+    const metadata = JSON.stringify({
       method: 'manual',
       name: data.name,
-      hasStatistics: !!data.statistics
+      hasStatistics: !!data.statistics,
     })
 
     await this.db
@@ -81,12 +90,15 @@ export class TimetablePersistenceService {
     }
   }
 
-  async getSavedTimetables(page: number = 1, limit: number = 20): Promise<{ 
-    timetables: unknown[],
-    totalCount: number,
-    currentPage: number,
-    totalPages: number,
-    hasNextPage: boolean,
+  async getSavedTimetables(
+    page: number = 1,
+    limit: number = 20
+  ): Promise<{
+    timetables: unknown[]
+    totalCount: number
+    currentPage: number
+    totalPages: number
+    hasNextPage: boolean
     hasPrevPage: boolean
   }> {
     const offset = (page - 1) * limit
@@ -95,8 +107,8 @@ export class TimetablePersistenceService {
     const countResult = await this.db
       .prepare('SELECT COUNT(*) as total FROM generated_timetables')
       .first()
-    
-    const totalCount = (countResult as any)?.total || 0
+
+    const totalCount = (countResult as { total: number } | undefined)?.total || 0
     const totalPages = Math.ceil(totalCount / limit)
 
     // ページネーション対応のデータ取得
@@ -133,7 +145,7 @@ export class TimetablePersistenceService {
       currentPage: page,
       totalPages,
       hasNextPage: page < totalPages,
-      hasPrevPage: page > 1
+      hasPrevPage: page > 1,
     }
   }
 

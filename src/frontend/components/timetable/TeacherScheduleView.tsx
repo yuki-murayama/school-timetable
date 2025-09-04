@@ -45,7 +45,7 @@ export function TeacherScheduleView({
       if (periodRow) {
         const days = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const
         days.forEach(day => {
-          const cellData = periodRow[day] as any
+          const cellData = periodRow[day] as Record<string, unknown>
           if (cellData?.teacher === teacherName) {
             scheduleEntry[day] = {
               grade: '1', // 現在選択中の学年

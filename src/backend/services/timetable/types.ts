@@ -2,7 +2,7 @@
  * 時間割生成システム用型定義
  */
 
-import type { Subject, Teacher, TimetableSlot } from '../../../shared/types'
+import type { Subject, Teacher, TimetableSlot } from '@shared/schemas'
 
 // 割当候補
 export interface AssignmentCandidate {

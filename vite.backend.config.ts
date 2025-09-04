@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { defineConfig } from 'vite'
 
 export default defineConfig({
@@ -18,7 +19,9 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      '@': '/src',
+      '@': path.resolve(__dirname, './src'),
+      '@shared': path.resolve(__dirname, './src/shared'),
+      '@shared/schemas': path.resolve(__dirname, './src/shared/schemas.ts'),
     },
   },
 })

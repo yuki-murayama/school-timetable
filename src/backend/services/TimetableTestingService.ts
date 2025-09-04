@@ -1,9 +1,27 @@
+import { z } from 'zod'
 import { type DatabaseSubject, DataTransformService } from './DataTransformService'
 import { TimetableGenerator } from './timetableGenerator'
 
-export interface ValidationRequest {
-  timetableData: unknown
-}
+// 時間割検証リクエストスキーマ
+const ValidationRequestSchema = z.object({
+  timetableData: z.unknown(), // 後で詳細なスキーマに変更
+})
+
+// 時間割検証結果スキーマ
+const ValidationResultSchema = z.object({
+  isValid: z.boolean(),
+  violations: z.array(
+    z.object({
+      type: z.string(),
+      message: z.string(),
+      severity: z.enum(['high', 'medium', 'low']),
+      location: z.string().optional(),
+    })
+  ),
+})
+
+export type ValidationRequest = z.infer<typeof ValidationRequestSchema>
+export type ValidationResult = z.infer<typeof ValidationResultSchema>
 
 export class TimetableTestingService {
   private dataTransform: DataTransformService
@@ -12,9 +30,9 @@ export class TimetableTestingService {
     this.dataTransform = new DataTransformService(db)
   }
 
-  async validateTimetable(
-    timetableData: unknown
-  ): Promise<{ isValid: boolean; violations: unknown[] }> {
+  async validateTimetable(timetableData: unknown): Promise<ValidationResult> {
+    // 入力データを検証
+    const _request = ValidationRequestSchema.parse({ timetableData })
     const violations = []
 
     // 教師重複チェック

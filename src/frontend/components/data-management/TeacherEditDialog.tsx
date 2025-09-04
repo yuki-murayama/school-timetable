@@ -1,9 +1,9 @@
+import type { Teacher } from '@shared/schemas'
 import { Save } from 'lucide-react'
 import { useEffect } from 'react'
 import { useTeacherApi } from '../../hooks/use-teacher-api'
 // モジュラー化されたフックとコンポーネントをインポート
 import { useTeacherForm } from '../../hooks/use-teacher-form'
-import type { Teacher } from '../../lib/api'
 import { AssignmentRestrictionsManager } from '../teacher/AssignmentRestrictionsManager'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
@@ -67,11 +67,11 @@ export function TeacherEditDialog({
   const handleSave = async () => {
     console.log('🚀 handleSave called')
     console.log('📝 Form data:', { name, selectedSubjects, selectedGrades })
-    
+
     const validationResult = validateForm()
     console.log('✅ Validation result:', validationResult)
     console.log('❌ Validation errors:', errors)
-    
+
     if (!validationResult) {
       console.log('❌ Validation failed, not proceeding with save')
       return
@@ -205,14 +205,16 @@ export function TeacherEditDialog({
           <Button variant='outline' onClick={onClose} disabled={isSaving}>
             キャンセル
           </Button>
-          <Button 
-            data-testid="teacher-save-button"
-            onClick={(e) => {
+          <Button
+            data-testid='teacher-save-button'
+            onClick={e => {
+              e.preventDefault()
+              e.stopPropagation()
               console.log('🖱️ Save button clicked - event:', e)
               console.log('🖱️ isSaving:', isSaving, 'isLoading:', isLoading)
               console.log('🖱️ About to call handleSave...')
               handleSave()
-            }} 
+            }}
             disabled={isSaving || isLoading}
           >
             {isSaving ? (

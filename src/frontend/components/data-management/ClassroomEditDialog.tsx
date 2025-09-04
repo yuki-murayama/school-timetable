@@ -1,6 +1,6 @@
+import type { Classroom } from '@shared/schemas'
 import { Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
-import type { Classroom } from '../../lib/api'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'

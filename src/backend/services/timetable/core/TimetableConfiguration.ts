@@ -2,7 +2,7 @@
  * 時間割設定管理クラス
  */
 
-import type { SchoolSettings } from '../../../../shared/types'
+import type { SchoolSettings } from '@shared/schemas'
 
 export class TimetableConfiguration {
   private settings: SchoolSettings
@@ -49,7 +49,7 @@ export class TimetableConfiguration {
       try {
         if (value === null || value === undefined) return defaultValue
         const parsed = Number(value)
-        return isNaN(parsed) ? defaultValue : parsed
+        return Number.isNaN(parsed) ? defaultValue : parsed
       } catch {
         return defaultValue
       }

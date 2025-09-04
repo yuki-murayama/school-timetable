@@ -1,5 +1,5 @@
+import type { Env } from '@shared/schemas'
 import type { Context } from 'hono'
-import type { Env } from '../../shared/types'
 import { SchoolService } from '../services/schoolService'
 
 export class SchoolController {

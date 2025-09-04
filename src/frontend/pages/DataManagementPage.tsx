@@ -1,3 +1,4 @@
+import type { Classroom, SchoolSettings, Subject, Teacher, EnhancedSchoolSettings } from '@shared/schemas'
 import { Upload } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { ClassroomsSection } from '../components/data-management/ClassroomsSection'
@@ -9,21 +10,14 @@ import { Button } from '../components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { useAuth } from '../hooks/use-auth'
 import { useToast } from '../hooks/use-toast'
-import {
-  type Classroom,
-  type SchoolSettings,
-  type Subject,
-  schoolApi,
-  type Teacher,
-  teacherApi,
-} from '../lib/api'
+import { schoolApi, teacherApi, subjectApi, classroomApi } from '../lib/api'
 
 export function DataManagementPage() {
   const { token, getFreshToken } = useAuth()
   const { toast } = useToast()
 
-  // School settings state
-  const [classSettings, setClassSettings] = useState<SchoolSettings>({
+  // School settings state  
+  const [classSettings, setClassSettings] = useState<EnhancedSchoolSettings | SchoolSettings>({
     grade1Classes: 0,
     grade2Classes: 0,
     grade3Classes: 0,
@@ -39,16 +33,16 @@ export function DataManagementPage() {
   const [isTeachersLoading, setIsTeachersLoading] = useState(true)
 
   // Subjects state
-  const [_subjects, _setSubjects] = useState<Subject[]>([])
-  const [_isSubjectsLoading, _setIsSubjectsLoading] = useState(true)
+  const [subjects, setSubjects] = useState<Subject[]>([])
+  const [isSubjectsLoading, setIsSubjectsLoading] = useState(true)
 
   // Classrooms state
-  const [_classrooms, _setClassrooms] = useState<Classroom[]>([])
-  const [_isClassroomsLoading, _setIsClassroomsLoading] = useState(true)
+  const [classrooms, setClassrooms] = useState<Classroom[]>([])
+  const [isClassroomsLoading, setIsClassroomsLoading] = useState(true)
 
   // Conditions state
-  const [_conditions, _setConditions] = useState('')
-  const [_isConditionsLoading, _setIsConditionsLoading] = useState(true)
+  const [conditions, setConditions] = useState('')
+  const [isConditionsLoading, setIsConditionsLoading] = useState(true)
 
   // Helper function to normalize teacher data
   const normalizeTeachers = useCallback((teachersData: Teacher[]) => {
@@ -146,14 +140,16 @@ export function DataManagementPage() {
       console.error('Failed to load settings:', error)
 
       let errorDescription = 'デフォルト設定を使用します。'
-      if (error.message.includes('timeout')) {
+      if (error instanceof Error && error.message.includes('timeout')) {
         errorDescription += ' バックエンドAPIがタイムアウトしました。'
-      } else if (error.message.includes('500')) {
+      } else if (error instanceof Error && error.message.includes('500')) {
         errorDescription += ' バックエンドAPIが500エラーを返しました。'
-      } else if (error.message.includes('CORS')) {
+      } else if (error instanceof Error && error.message.includes('CORS')) {
         errorDescription += ' CORS設定に問題があります。'
-      } else {
+      } else if (error instanceof Error) {
         errorDescription += ` エラー: ${error.message}`
+      } else {
+        errorDescription += ' 不明なエラーが発生しました。'
       }
 
       if (!hasShownTimeoutError) {
@@ -174,7 +170,7 @@ export function DataManagementPage() {
       setIsLoading(false)
       setShowOfflineButton(false)
     }
-  }, [token, hasShownTimeoutError]) // getFreshTokenは最新値を参照するため除外
+  }, [token, hasShownTimeoutError, getFreshToken])
 
   // Load school settings useEffect
   useEffect(() => {
@@ -193,8 +189,8 @@ export function DataManagementPage() {
     setIsTeachersLoading(true)
 
     try {
-      const teachersData = await teacherApi.getTeachers({ token, getFreshToken })
-      const teachers = Array.isArray(teachersData) ? teachersData : []
+      const teachersResponse = await teacherApi.getTeachers({ token, getFreshToken })
+      const teachers = Array.isArray(teachersResponse.teachers) ? teachersResponse.teachers : []
       const normalizedTeachers = normalizeTeachers(teachers)
 
       // Sort by order field, then by name if no order
@@ -214,7 +210,7 @@ export function DataManagementPage() {
     } finally {
       setIsTeachersLoading(false)
     }
-  }, [token]) // getFreshTokenとnormalizeTeachersは最新値を参照するため除外
+  }, [token, getFreshToken, normalizeTeachers])
 
   // Load teachers useEffect
   useEffect(() => {
@@ -222,6 +218,130 @@ export function DataManagementPage() {
       loadTeachers()
     }
   }, [token, loadTeachers]) // loadTeachersを依存関係に含める
+
+  // 教科読み込み関数をメモ化
+  const loadSubjects = useCallback(async () => {
+    if (!token) {
+      setIsSubjectsLoading(false)
+      return
+    }
+
+    setIsSubjectsLoading(true)
+
+    try {
+      const subjectsResponse = await subjectApi.getSubjects({ token })
+      const subjects = Array.isArray(subjectsResponse.subjects) ? subjectsResponse.subjects : []
+
+      // Normalize subject data
+      const normalizedSubjects = subjects.map(subject => {
+        let targetGrades = []
+        if (Array.isArray(subject.targetGrades)) {
+          targetGrades = subject.targetGrades
+        } else if (typeof subject.targetGrades === 'string') {
+          try {
+            targetGrades = JSON.parse(subject.targetGrades || '[]')
+          } catch (_e) {
+            console.warn('Failed to parse subject targetGrades:', subject.targetGrades)
+            targetGrades = []
+          }
+        }
+        return { ...subject, targetGrades }
+      })
+
+      // Sort by order field, then by name if no order
+      const sortedSubjects = normalizedSubjects.sort((a, b) => {
+        if (a.order != null && b.order != null) {
+          return a.order - b.order
+        }
+        if (a.order != null) return -1
+        if (b.order != null) return 1
+        return a.name.localeCompare(b.name)
+      })
+
+      setSubjects(sortedSubjects)
+    } catch (error) {
+      console.error('Error loading subjects:', error)
+      console.error('教科情報の読み込みに失敗しました')
+      setSubjects([])
+    } finally {
+      setIsSubjectsLoading(false)
+    }
+  }, [token])
+
+  // Load subjects useEffect
+  useEffect(() => {
+    if (token) {
+      loadSubjects()
+    }
+  }, [token, loadSubjects])
+
+  // 教室読み込み関数をメモ化
+  const loadClassrooms = useCallback(async () => {
+    if (!token) {
+      setIsClassroomsLoading(false)
+      return
+    }
+
+    setIsClassroomsLoading(true)
+
+    try {
+      const classroomsResponse = await classroomApi.getClassrooms({ token })
+      const classrooms = Array.isArray(classroomsResponse.classrooms) ? classroomsResponse.classrooms : []
+
+      // Sort by order field, then by name if no order
+      const sortedClassrooms = classrooms.sort((a, b) => {
+        if (a.order != null && b.order != null) {
+          return a.order - b.order
+        }
+        if (a.order != null) return -1
+        if (b.order != null) return 1
+        return a.name.localeCompare(b.name)
+      })
+
+      setClassrooms(sortedClassrooms)
+    } catch (error) {
+      console.error('Error loading classrooms:', error)
+      console.error('教室情報の読み込みに失敗しました')
+      setClassrooms([])
+    } finally {
+      setIsClassroomsLoading(false)
+    }
+  }, [token])
+
+  // Load classrooms useEffect
+  useEffect(() => {
+    if (token) {
+      loadClassrooms()
+    }
+  }, [token, loadClassrooms])
+
+  // 条件設定読み込み関数をメモ化
+  const loadConditions = useCallback(async () => {
+    if (!token) {
+      setIsConditionsLoading(false)
+      return
+    }
+
+    setIsConditionsLoading(true)
+
+    try {
+      // 一時的な簡易実装：デフォルト条件を設定
+      setConditions('体育は午後に配置、数学は1時間目を避ける')
+    } catch (error) {
+      console.error('Error loading conditions:', error)
+      console.error('条件設定の読み込みに失敗しました')
+      setConditions('')
+    } finally {
+      setIsConditionsLoading(false)
+    }
+  }, [token])
+
+  // Load conditions useEffect
+  useEffect(() => {
+    if (token) {
+      loadConditions()
+    }
+  }, [token, loadConditions])
 
   const handleOfflineMode = () => {
     setIsLoading(false)
@@ -277,32 +397,33 @@ export function DataManagementPage() {
         </TabsContent>
 
         <TabsContent value='subjects' className='space-y-6'>
-          {(() => {
-            try {
-              return <SubjectsSection token={token} getFreshToken={getFreshToken} />
-            } catch (error) {
-              console.error('SubjectsSection render error:', error)
-              return (
-                <div className='p-4 border rounded-md bg-red-50 border-red-200'>
-                  <h3 className='text-red-800 font-semibold'>教科情報の表示エラー</h3>
-                  <p className='text-red-600 text-sm mt-1'>
-                    教科情報の表示中にエラーが発生しました。ページを再読み込みしてください。
-                  </p>
-                  <p className='text-red-500 text-xs mt-2'>
-                    エラー詳細: {error instanceof Error ? error.message : 'Unknown error'}
-                  </p>
-                </div>
-              )
-            }
-          })()}
+          <SubjectsSection
+            subjects={subjects}
+            onSubjectsUpdate={setSubjects}
+            token={token}
+            getFreshToken={getFreshToken}
+            isLoading={isSubjectsLoading}
+          />
         </TabsContent>
 
         <TabsContent value='rooms' className='space-y-6'>
-          <ClassroomsSection token={token} getFreshToken={getFreshToken} />
+          <ClassroomsSection
+            classrooms={classrooms}
+            onClassroomsUpdate={setClassrooms}
+            token={token}
+            getFreshToken={getFreshToken}
+            isLoading={isClassroomsLoading}
+          />
         </TabsContent>
 
         <TabsContent value='conditions' className='space-y-6'>
-          <ConditionsSection token={token} getFreshToken={getFreshToken} />
+          <ConditionsSection
+            conditions={conditions}
+            onConditionsUpdate={setConditions}
+            token={token}
+            getFreshToken={getFreshToken}
+            isLoading={isConditionsLoading}
+          />
         </TabsContent>
       </Tabs>
     </div>

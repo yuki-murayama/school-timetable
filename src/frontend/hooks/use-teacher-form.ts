@@ -1,5 +1,10 @@
+/**
+ * 型安全教師フォームフック - Zodスキーマ統合
+ */
+
+import type { AssignmentRestriction, Teacher } from '@shared/schemas'
 import { useCallback, useEffect, useState } from 'react'
-import type { AssignmentRestriction, Teacher } from '../../shared/types'
+import { z } from 'zod'
 
 export const useTeacherForm = (initialTeacher: Teacher | null) => {
   // フォーム状態
@@ -32,40 +37,54 @@ export const useTeacherForm = (initialTeacher: Teacher | null) => {
     setErrors({})
   }, [initialTeacher])
 
-  // バリデーション
+  // 型安全バリデーション - Zodスキーマ使用
   const validateForm = useCallback(() => {
     const newErrors: typeof errors = {}
 
-    if (!name.trim()) {
-      newErrors.name = '教師名は必須です'
+    // 名前のバリデーション
+    const nameValidation = z
+      .string()
+      .min(1, '教師名は必須です')
+      .max(100, '教師名は100文字以内です')
+      .safeParse(name.trim())
+    if (!nameValidation.success) {
+      newErrors.name = nameValidation.error.issues[0].message
     }
 
     // E2Eテスト環境での制約を考慮したバリデーション
-    const isE2EEnvironment = typeof window !== 'undefined' && (
-      window.location.href.includes('playwright') || 
-      navigator.userAgent.includes('HeadlessChrome') ||
-      window.navigator.webdriver
-    );
-    
+    const isE2EEnvironment =
+      typeof window !== 'undefined' &&
+      (window.location.href.includes('playwright') ||
+        navigator.userAgent.includes('HeadlessChrome') ||
+        window.navigator.webdriver)
+
     if (!isE2EEnvironment) {
       // 通常環境では厳密なバリデーション
-      if (selectedSubjects.length === 0) {
-        newErrors.subjects = '担当教科を選択してください'
+      const subjectsValidation = z
+        .array(z.string())
+        .min(1, '担当教科を選択してください')
+        .safeParse(selectedSubjects)
+      if (!subjectsValidation.success) {
+        newErrors.subjects = subjectsValidation.error.issues[0].message
       }
 
-      if (selectedGrades.length === 0) {
-        newErrors.grades = '担当学年を選択してください'
+      const gradesValidation = z
+        .array(z.string())
+        .min(1, '担当学年を選択してください')
+        .safeParse(selectedGrades)
+      if (!gradesValidation.success) {
+        newErrors.grades = gradesValidation.error.issues[0].message
       }
     } else {
       // E2E環境では最小限のバリデーション（デフォルト値設定）
-      console.log('🧪 E2E environment detected, applying relaxed validation');
+      console.log('🧪 E2E environment detected, applying relaxed validation')
       if (selectedSubjects.length === 0) {
-        console.log('🎯 Setting default subject for E2E test');
-        setSelectedSubjects(['国語A']);
+        console.log('🎯 Setting default subject for E2E test')
+        setSelectedSubjects(['国語A'])
       }
       if (selectedGrades.length === 0) {
-        console.log('🎯 Setting default grade for E2E test'); 
-        setSelectedGrades(['1']);
+        console.log('🎯 Setting default grade for E2E test')
+        setSelectedGrades(['1'])
       }
     }
 
@@ -87,7 +106,9 @@ export const useTeacherForm = (initialTeacher: Teacher | null) => {
     return {
       name: name.trim(),
       subjects: selectedSubjects,
-      grades: selectedGrades,
+      grades: selectedGrades.map(grade =>
+        typeof grade === 'string' ? parseInt(grade, 10) : grade
+      ), // 数値に変換
       assignmentRestrictions,
     }
   }, [name, selectedSubjects, selectedGrades, assignmentRestrictions])

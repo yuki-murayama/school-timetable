@@ -1,4 +1,4 @@
-import type { Subject, Teacher } from '../../../shared/types'
+import type { Subject, Teacher } from '@shared/schemas'
 
 export const timetableGenerator = {
   // 空の時間割生成

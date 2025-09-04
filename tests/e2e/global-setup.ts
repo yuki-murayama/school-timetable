@@ -11,9 +11,9 @@ async function globalSetup(config: FullConfig) {
   // 認証状態ファイルのパス
   const authFile = path.join(__dirname, '.auth', 'user.json');
   
-  // 環境変数から認証情報を取得（.env.testファイルから）
-  const testUserEmail = process.env.TEST_USER_EMAIL || 'test@example.com';
-  const testUserPassword = process.env.TEST_USER_PASSWORD || 'testpassword123';
+  // 環境変数から認証情報を取得（.env.e2eファイルから）
+  const testUserEmail = process.env.TEST_USER_EMAIL || 'test@school.local';
+  const testUserPassword = process.env.TEST_USER_PASSWORD || 'password123';
   
   console.log(`Using test credentials: ${testUserEmail}`);
   
@@ -22,25 +22,33 @@ async function globalSetup(config: FullConfig) {
   
   try {
     console.log('🌐 Navigating to application...');
-    const baseURL = 'https://school-timetable-monorepo.grundhunter.workers.dev';
+    // ローカル開発環境を使用（playwright.config.tsのbaseURLまたは環境変数）
+    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5174';
     await page.goto(baseURL);
     await page.waitForLoadState('networkidle');
     
-    // Clerkの認証フローを実行
+    // 認証状態のクリア処理
+    const isLoggedIn = await page.locator('button:has-text("データ登録")').count() > 0;
+    
+    if (isLoggedIn) {
+      console.log('📤 Clearing existing authentication state...');
+      await page.evaluate(() => {
+        localStorage.clear();
+        sessionStorage.clear();
+      });
+      await page.reload();
+      await page.waitForLoadState('networkidle');
+      console.log('✅ Authentication state cleared');
+    }
+    
+    // カスタム認証システムの認証フローを実行
     console.log('🔍 Looking for authentication elements...');
     
-    // 認証要素が表示されるまで待機
-    const authElement = page.locator('.cl-rootBox, .cl-signIn-root, button:has-text("ログイン"), button:has-text("Sign In")');
+    // ログイン画面の要素を待機
+    const authElement = page.locator('input[type="email"], input[name="email"], form');
     await authElement.first().waitFor({ timeout: 10000 });
     
     console.log('✅ Authentication elements found');
-    
-    // If there's a sign-in button, click it
-    const signInButton = page.locator('button:has-text("ログイン"), button:has-text("Sign In")');
-    if (await signInButton.count() > 0) {
-      await signInButton.first().click();
-      await page.waitForTimeout(2000);
-    }
     
     // メールアドレス入力
     const emailInput = page.locator('input[name="email"], input[type="email"]').first();
@@ -56,23 +64,22 @@ async function globalSetup(config: FullConfig) {
       console.log('✅ Password filled');
     }
     
-    // ログインボタンをクリック - 複数の方法を試行
+    // ログインボタンをクリック - カスタム認証システム用
     console.log('🔍 Looking for submit button...');
     
     // まずEnterキーでの送信を試行
     if (await passwordInput.count() > 0) {
       await passwordInput.press('Enter');
       console.log('✅ Login submitted via Enter key');
-      await page.waitForTimeout(3000);
+      await page.waitForTimeout(2000);
     }
     
-    // 次に表示されているボタンを探す
+    // 次にログインボタンを探す
     const submitSelectors = [
       'button[type="submit"]:visible',
-      'button:has-text("続行"):visible',
-      'button:has-text("Continue"):visible',
-      'button[data-variant="solid"]:visible',
-      '.cl-button:visible'
+      'button:has-text("ログイン")',
+      'button:has-text("Login")',
+      '.btn-primary:visible'
     ];
     
     let submitSuccess = false;
@@ -81,10 +88,9 @@ async function globalSetup(config: FullConfig) {
       if (await button.count() > 0) {
         try {
           // ボタンが有効になるまで待機
-          await page.waitForTimeout(2000);
+          await page.waitForTimeout(1000);
           
-          // Force clickを使用してオーバーレイ問題を回避
-          await button.click({ force: true });
+          await button.click();
           console.log(`✅ Login submitted via: ${selector}`);
           submitSuccess = true;
           break;
@@ -96,14 +102,48 @@ async function globalSetup(config: FullConfig) {
     
     if (submitSuccess) {
       
-      // 認証完了を待機（サイドバーまたはメインアプリの表示）
+      // 認証完了を待機（ローディング完了後に実際のMainAppとSidebarの要素を確認）
       try {
-        await page.waitForSelector('nav, .sidebar, [data-testid*="sidebar"]', { timeout: 15000 });
-        console.log('✅ Authentication successful - main app loaded');
+        console.log('⏳ Waiting for authentication to complete...');
         
-        // 認証状態を保存
-        await page.context().storageState({ path: authFile });
-        console.log(`💾 Authentication state saved to: ${authFile}`);
+        // ローディングスピナーが消えるのを待つ
+        try {
+          await page.waitForSelector('.animate-spin', { state: 'detached', timeout: 15000 });
+          console.log('✅ Loading spinner disappeared');
+        } catch (_) {
+          console.log('⚠️ Loading spinner timeout (may not have appeared)');
+        }
+        
+        // 認証後の状態安定化を待つ
+        await page.waitForTimeout(3000);
+        
+        // Sidebarとメインアプリ要素の確認
+        const successSelectors = [
+          'nav',  // Sidebar内のnav要素（91行目）
+          'button:has-text("データ登録")',  // Sidebarの実際のボタン
+          'span:has-text("時間割システム")',  // Sidebarのタイトル
+          '.flex.h-screen.bg-gray-50'  // MainAppのコンテナ
+        ];
+        
+        let authSuccess = false;
+        for (const selector of successSelectors) {
+          try {
+            await page.waitForSelector(selector, { timeout: 8000 });
+            console.log(`✅ Main app element found: ${selector}`);
+            authSuccess = true;
+            break;
+          } catch (_) {
+            // 次のセレクタを試行
+          }
+        }
+        
+        if (authSuccess) {
+          console.log('✅ Authentication successful - main app loaded');
+          await page.context().storageState({ path: authFile });
+          console.log(`💾 Authentication state saved to: ${authFile}`);
+        } else {
+          throw new Error('No main app elements found');
+        }
         
       } catch (error) {
         console.log('⚠️ Could not confirm successful authentication, but continuing...');
@@ -118,14 +158,22 @@ async function globalSetup(config: FullConfig) {
   } catch (error) {
     console.error(`❌ Authentication setup failed: ${error}`);
     
-    // デバッグ情報
-    const currentUrl = page.url();
-    const pageTitle = await page.title();
-    console.log(`Current URL: ${currentUrl}`);
-    console.log(`Page title: ${pageTitle}`);
-    
-    // スクリーンショットを保存
-    await page.screenshot({ path: path.join(__dirname, '.auth', 'setup-failed.png') });
+    // ページが閉じられていない場合のみデバッグ情報を取得
+    try {
+      if (!page.isClosed()) {
+        const currentUrl = page.url();
+        const pageTitle = await page.title();
+        console.log(`Current URL: ${currentUrl}`);
+        console.log(`Page title: ${pageTitle}`);
+        
+        // スクリーンショットを保存
+        await page.screenshot({ path: path.join(__dirname, '.auth', 'setup-failed.png') });
+      } else {
+        console.log('Page is already closed, skipping debug info collection');
+      }
+    } catch (debugError) {
+      console.log(`Debug info collection failed: ${debugError}`);
+    }
     
     // エラーがあっても続行（テスト実行時に再試行）
     console.log('⚠️ Continuing with setup despite authentication error...');

@@ -8,7 +8,7 @@ export type {
   Teacher,
   TimetableGenerationResult,
   TimetableSlot,
-} from '../../shared/types'
+} from '@shared/schemas'
 
 export interface Class {
   id: string

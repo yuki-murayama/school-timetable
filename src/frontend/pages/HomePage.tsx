@@ -1,9 +1,9 @@
 import { LoginPage } from '../components/LoginPage'
 import { MainApp } from '../components/MainApp'
-import { useAuth } from '../hooks/use-auth'
+import { useCustomAuth } from '../hooks/use-auth'
 
 export function HomePage() {
-  const { isAuthenticated, isLoading, logout } = useAuth()
+  const { isAuthenticated, isLoading, logout } = useCustomAuth()
 
   if (isLoading) {
     return (

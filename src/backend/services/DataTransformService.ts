@@ -1,4 +1,4 @@
-import type { Classroom, SchoolSettings, Subject, Teacher } from '../../shared/types'
+import type { Classroom, SchoolSettings, Subject, Teacher } from '@shared/schemas'
 
 export interface DatabaseTeacher {
   id: string
@@ -80,14 +80,14 @@ export class DataTransformService {
       try {
         if (value === null || value === undefined) return defaultValue
         const parsed = Number(value)
-        return isNaN(parsed) ? defaultValue : parsed
+        return Number.isNaN(parsed) ? defaultValue : parsed
       } catch {
         return defaultValue
       }
     }
 
     const grade1Classes = safeNumber(settingsResult.grade1Classes, 4)
-    const grade2Classes = safeNumber(settingsResult.grade2Classes, 4)  
+    const grade2Classes = safeNumber(settingsResult.grade2Classes, 4)
     const grade3Classes = safeNumber(settingsResult.grade3Classes, 3)
     const dailyPeriods = safeNumber(settingsResult.dailyPeriods, 6)
     const saturdayPeriods = safeNumber(settingsResult.saturdayPeriods, 4)
@@ -185,20 +185,22 @@ export class DataTransformService {
 
       // weeklyHours の安全な設定（NaNエラー対策）
       let weeklyHoursValue = 1 // デフォルト値
-      
+
       try {
         if (s.weekly_hours !== null && s.weekly_hours !== undefined) {
           const parsed = Number(s.weekly_hours)
-          if (!isNaN(parsed) && parsed > 0 && parsed <= 10) {
+          if (!Number.isNaN(parsed) && parsed > 0 && parsed <= 10) {
             weeklyHoursValue = parsed
           } else {
-            console.log(`⚠️ 教科 ${s.name} の週間時数が不正: ${s.weekly_hours}, デフォルト値 1 を使用`)
+            console.log(
+              `⚠️ 教科 ${s.name} の週間時数が不正: ${s.weekly_hours}, デフォルト値 1 を使用`
+            )
           }
         }
       } catch (error) {
         console.log(`❌ 教科 ${s.name} の週間時数解析エラー:`, error)
       }
-      
+
       const weeklyHours = {
         1: weeklyHoursValue,
         2: weeklyHoursValue,
@@ -224,7 +226,7 @@ export class DataTransformService {
       try {
         if (value === null || value === undefined) return defaultValue
         const parsed = Number(value)
-        return isNaN(parsed) ? defaultValue : parsed
+        return Number.isNaN(parsed) ? defaultValue : parsed
       } catch {
         return defaultValue
       }

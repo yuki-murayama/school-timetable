@@ -1,77 +1,88 @@
 /**
- * 教科データの型検証とクリーンアップサービス
+ * 教科データの型検証とクリーンアップサービス - Zodスキーマ統合
  * D1データベースの緩い型チェックを補完
  */
 
-export interface CleanSubjectData {
-  id: string
-  name: string
-  weeklyHours: number // 整数のみ許可
-  targetGrades: number[] // 数値配列のみ許可
-  requiresSpecialClassroom?: boolean
-  classroomType?: string
-  order?: number
-}
+import { SubjectSchema } from '@shared/schemas'
+import { z } from 'zod'
 
-export class SubjectValidationService {
+// クリーンアップ済み教科データスキーマ
+const CleanSubjectDataSchema = SubjectSchema.extend({
+  weeklyHours: z
+    .number()
+    .int('整数が必要です')
+    .min(0, '0以上が必要です')
+    .max(10, '10以下が必要です'),
+  targetGrades: z.array(z.number().int().min(1).max(6)).min(0, '配列が必要です'),
+  requiresSpecialClassroom: z.boolean().optional(),
+  classroomType: z.string().optional(),
+  order: z.number().int().min(0).optional(),
+})
+
+export type CleanSubjectData = z.infer<typeof CleanSubjectDataSchema>
+
+// 教科検証ユーティリティ関数
+export const SubjectValidationUtils = {
   /**
-   * weekly_hoursフィールドの型検証と正規化
+   * 週時間数の検証
    */
-  static validateWeeklyHours(value: any): number {
-    // 数値の場合はそのまま返す
-    if (typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= 10) {
-      return value
-    }
+  validateWeeklyHours(value: unknown): number {
+    const weeklyHoursSchema = z
+      .number()
+      .int('整数が必要です')
+      .min(0, '0以上が必要です')
+      .max(10, '10以下が必要です')
 
-    // 文字列の数値の場合は変換
-    if (typeof value === 'string') {
-      const parsed = parseInt(value, 10)
-      if (!isNaN(parsed) && parsed >= 0 && parsed <= 10) {
-        return parsed
-      }
-    }
-
-    // JSONオブジェクトや配列、巨大データは拒否
-    if (typeof value === 'object' || Array.isArray(value)) {
-      console.error('❌ weekly_hours に不正なオブジェクト型データが検出されました:', JSON.stringify(value).slice(0, 100))
-      throw new Error('weekly_hours は整数値のみ許可されています')
-    }
-
-    // その他の不正な値
-    console.error('❌ weekly_hours に不正な値が検出されました:', value)
-    throw new Error('weekly_hours は 0-10 の整数値である必要があります')
-  }
-
-  /**
-   * targetGradesフィールドの型検証と正規化
-   */
-  static validateTargetGrades(value: any): number[] {
-    // 既に数値配列の場合
-    if (Array.isArray(value) && value.every(v => typeof v === 'number' && [1, 2, 3].includes(v))) {
-      return value
-    }
-
-    // JSON文字列の場合はパース
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value)
-        if (Array.isArray(parsed) && parsed.every(v => typeof v === 'number' && [1, 2, 3].includes(v))) {
-          return parsed
+    try {
+      // 文字列の場合は数値に変換を試行
+      if (typeof value === 'string') {
+        const parsed = parseInt(value, 10)
+        if (!Number.isNaN(parsed)) {
+          return weeklyHoursSchema.parse(parsed)
         }
-      } catch (error) {
-        console.error('❌ targetGrades のJSON解析に失敗:', value)
       }
-    }
 
-    // 不正な値の場合はデフォルト（全学年）
-    console.warn('⚠️ targetGrades に不正な値、デフォルト値 [1,2,3] を使用:', value)
-    return [1, 2, 3]
-  }
+      return weeklyHoursSchema.parse(value)
+    } catch (error) {
+      console.error('❌ weekly_hours バリデーションエラー:', value)
+      if (error instanceof z.ZodError) {
+        throw new Error(`週時間数が不正です: ${error.errors.map(e => e.message).join(', ')}`)
+      }
+      throw error
+    }
+  },
+
+  /**
+   * 対象学年の検証
+   */
+  validateTargetGrades(value: unknown): number[] {
+    const targetGradesSchema = z.array(z.number().int().min(1).max(6))
+
+    try {
+      // JSON文字列の場合はパースを試行
+      if (typeof value === 'string') {
+        try {
+          const parsed = JSON.parse(value)
+          return targetGradesSchema.parse(parsed)
+        } catch (_parseError) {
+          console.error('❌ targetGrades JSON解析エラー:', value)
+        }
+      }
+
+      return targetGradesSchema.parse(value)
+    } catch (error) {
+      console.error('❌ targetGrades バリデーションエラー:', value)
+      if (error instanceof z.ZodError) {
+        throw new Error(`対象学年が不正です: ${error.errors.map(e => e.message).join(', ')}`)
+      }
+      throw error
+    }
+  },
 
   /**
    * 教科名の検証
    */
-  static validateName(name: any): string {
+  validateName(name: unknown): string {
     if (typeof name !== 'string' || name.trim().length === 0) {
       throw new Error('教科名は空でない文字列である必要があります')
     }
@@ -79,76 +90,51 @@ export class SubjectValidationService {
       throw new Error('教科名は50文字以内である必要があります')
     }
     return name.trim()
-  }
+  },
 
   /**
    * 完全な教科データの検証とクリーンアップ
    */
-  static validateAndCleanSubject(rawData: any): CleanSubjectData {
+  validateAndCleanSubject(rawData: unknown): CleanSubjectData {
     try {
+      const data = rawData as Record<string, unknown>
       const cleaned: CleanSubjectData = {
-        id: rawData.id || '',
-        name: this.validateName(rawData.name),
-        weeklyHours: this.validateWeeklyHours(rawData.weekly_hours || rawData.weeklyHours || 1),
-        targetGrades: this.validateTargetGrades(rawData.targetGrades || rawData.target_grades || [1, 2, 3]),
+        id: data.id || '',
+        name: SubjectValidationUtils.validateName(data.name),
+        weeklyHours: SubjectValidationUtils.validateWeeklyHours(
+          data.weekly_hours || data.weeklyHours || 1
+        ),
+        targetGrades: SubjectValidationUtils.validateTargetGrades(
+          data.targetGrades || data.target_grades || [1, 2, 3]
+        ),
       }
 
       // オプション項目
-      if (rawData.requiresSpecialClassroom !== undefined) {
-        cleaned.requiresSpecialClassroom = Boolean(rawData.requiresSpecialClassroom)
+      if (data.requiresSpecialClassroom !== undefined) {
+        cleaned.requiresSpecialClassroom = Boolean(data.requiresSpecialClassroom)
       }
-      if (rawData.classroomType && typeof rawData.classroomType === 'string') {
-        cleaned.classroomType = rawData.classroomType
+      if (data.classroomType && typeof data.classroomType === 'string') {
+        cleaned.classroomType = data.classroomType
       }
-      if (rawData.order !== undefined && typeof rawData.order === 'number') {
-        cleaned.order = rawData.order
+      if (data.order !== undefined && typeof data.order === 'number') {
+        cleaned.order = data.order
       }
 
       console.log(`✅ 教科データ検証成功: ${cleaned.name} (週${cleaned.weeklyHours}時間)`)
       return cleaned
     } catch (error) {
-      console.error('❌ 教科データ検証エラー:', error, 'rawData:', JSON.stringify(rawData).slice(0, 200))
-      throw error
-    }
-  }
-
-  /**
-   * 教科データ配列の一括検証
-   */
-  static validateAndCleanSubjects(rawSubjects: any[]): CleanSubjectData[] {
-    if (!Array.isArray(rawSubjects)) {
-      throw new Error('教科データは配列である必要があります')
-    }
-
-    const cleaned: CleanSubjectData[] = []
-    const errors: Array<{ index: number; error: string; data: any }> = []
-
-    for (let i = 0; i < rawSubjects.length; i++) {
-      try {
-        const cleanedSubject = this.validateAndCleanSubject(rawSubjects[i])
-        cleaned.push(cleanedSubject)
-      } catch (error) {
-        errors.push({
-          index: i,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          data: rawSubjects[i]
-        })
+      console.error('❌ 教科データ検証失敗:', rawData)
+      if (error instanceof Error) {
+        throw new Error(`教科データの検証に失敗しました: ${error.message}`)
       }
+      throw new Error('不明な検証エラーが発生しました')
     }
-
-    if (errors.length > 0) {
-      console.error('❌ 教科データ一括検証でエラーが発生:', errors)
-      // 一部のデータが不正でも、検証に成功したデータは返す
-      console.log(`⚠️ ${errors.length}件のエラーがありましたが、${cleaned.length}件の有効なデータを返します`)
-    }
-
-    return cleaned
-  }
+  },
 
   /**
    * データベースに保存前の最終検証
    */
-  static validateForDatabase(data: CleanSubjectData): {
+  validateForDatabase(data: CleanSubjectData): {
     id: string
     name: string
     weeklyHours: number // INTEGER型で保存
@@ -164,7 +150,7 @@ export class SubjectValidationService {
       targetGrades: JSON.stringify(data.targetGrades), // JSON文字列として保存
       requiresSpecialClassroom: data.requiresSpecialClassroom ? 1 : 0,
       classroomType: data.classroomType || 'normal',
-      order: data.order || 0
+      order: data.order || 0,
     }
-  }
+  },
 }

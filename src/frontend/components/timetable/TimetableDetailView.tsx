@@ -1,17 +1,17 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { Loader2, ArrowLeft, AlertTriangle, Edit, Save, X, Eye } from 'lucide-react'
-import type { TimetableSlot } from '../../../shared/types'
+import type { TimetableSlot } from '@shared/schemas'
+import { AlertTriangle, ArrowLeft, Edit, Eye, Loader2, Save, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/use-auth'
+import type { TimetableSlotData } from '../../hooks/use-timetable-data'
 import { useToast } from '../../hooks/use-toast'
 import { TimetableGrid } from './TimetableGrid'
-import type { TimetableSlotData } from '../../hooks/use-timetable-data'
 
 // 時間割の詳細データ型
 interface TimetableDetailData {
   id: string
   name?: string
-  timetable: TimetableSlot[][][]  // [grade][class][periods] 構造
+  timetable: TimetableSlot[][][] // [grade][class][periods] 構造
   assignmentRate: number
   totalSlots: number
   assignedSlots: number
@@ -30,26 +30,26 @@ interface ComplianceData {
   complianceRate: number
 }
 
-const WEEKDAYS = ['月曜', '火曜', '水曜', '木曜', '金曜', '土曜']
-const PERIODS = [1, 2, 3, 4, 5, 6]
+const _WEEKDAYS = ['月曜', '火曜', '水曜', '木曜', '金曜', '土曜']
+const _PERIODS = [1, 2, 3, 4, 5, 6]
 
 type ViewMode = 'detail' | 'edit'
 
-export function TimetableDetailView({ 
-  timetableId, 
-  onBackToList 
-}: { 
+export function TimetableDetailView({
+  timetableId,
+  onBackToList,
+}: {
   timetableId?: string
-  onBackToList?: () => void 
+  onBackToList?: () => void
 }) {
   const { id: paramId } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  
+
   // timetableIdが渡されていればそれを使用、そうでなければURLパラメータを使用
   const id = timetableId || paramId
   const { toast } = useToast()
   const { token, getFreshToken } = useAuth()
-  
+
   const [timetable, setTimetable] = useState<TimetableDetailData | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [currentView, setCurrentView] = useState<ViewMode>('detail')
@@ -67,26 +67,26 @@ export function TimetableDetailView({
   // 利用可能なクラス一覧を生成 - フラット配列構造対応
   const getAvailableClasses = useCallback((timetableData: TimetableDetailData): string[] => {
     const classes = new Set<string>()
-    
+
     // 厳密なnullチェック
     if (!timetableData || !timetableData.timetable || !Array.isArray(timetableData.timetable)) {
       return ['1-1', '1-2', '1-3', '1-4', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '3-3']
     }
-    
+
     try {
       console.log('🔍 getAvailableClasses: processing timetable data')
-      
+
       // 全学年のデータを処理して利用可能なクラスを収集
       for (let gradeIndex = 0; gradeIndex < timetableData.timetable.length; gradeIndex++) {
         const gradeData = timetableData.timetable[gradeIndex]
         console.log(`🔍 Processing grade ${gradeIndex + 1}:`, gradeData)
-        
+
         if (Array.isArray(gradeData)) {
-          gradeData.forEach((classData) => {
+          gradeData.forEach(classData => {
             if (Array.isArray(classData) && classData.length > 0) {
               // 最初のスロットから学年・クラス情報を取得
               const firstSlot = classData[0]
-              if (firstSlot && firstSlot.classGrade && firstSlot.classSection) {
+              if (firstSlot?.classGrade && firstSlot.classSection) {
                 const className = `${firstSlot.classGrade}-${firstSlot.classSection}`
                 console.log(`🔍 Found class: ${className}`)
                 classes.add(className)
@@ -99,12 +99,12 @@ export function TimetableDetailView({
       console.error('Error processing timetable data:', error)
       return ['1-1', '1-2', '1-3', '1-4', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '3-3']
     }
-    
+
     // デフォルトクラス（データが空の場合）
     if (classes.size === 0) {
       return ['1-1', '1-2', '1-3', '1-4', '2-1', '2-2', '2-3', '2-4', '3-1', '3-2', '3-3']
     }
-    
+
     return Array.from(classes).sort()
   }, [])
 
@@ -112,7 +112,7 @@ export function TimetableDetailView({
   const convertToTimetableGridData = (className: string): TimetableSlotData[] => {
     console.log('🔄 convertToTimetableGridData called with className:', className)
     console.log('🔄 timetable:', timetable)
-    
+
     if (!timetable || !timetable.timetable || !Array.isArray(timetable.timetable)) {
       console.log('❌ convertToTimetableGridData: invalid timetable data')
       return []
@@ -121,82 +121,88 @@ export function TimetableDetailView({
     const [grade, section] = className.split('-')
     const targetGrade = parseInt(grade)
     const targetSection = parseInt(section)
-    
+
     console.log('🔍 Looking for grade:', targetGrade, 'section:', targetSection)
     console.log('🔍 Available grades in timetable:', timetable.timetable.length)
-    
+
     // 学年別データから対象学年のデータを取得 (1年生 = index 0, 2年生 = index 1, etc.)
     const gradeIndex = targetGrade - 1
     if (gradeIndex < 0 || gradeIndex >= timetable.timetable.length) {
       console.log('❌ Grade index out of range:', gradeIndex)
       return []
     }
-    
+
     const gradeData = timetable.timetable[gradeIndex]
     console.log('🔍 Grade data:', gradeData)
     console.log('🔍 Grade data is array:', Array.isArray(gradeData))
-    
+
     if (!Array.isArray(gradeData)) {
       console.log('❌ Grade data is not array')
       return []
     }
-    
+
     // 対象クラスのデータを見つける
-    let classData: any[] = []
+    let classData: Record<string, unknown>[] = []
     console.log('🔍 Searching through', gradeData.length, 'classes')
-    
+
     for (let i = 0; i < gradeData.length; i++) {
       const classSchedule = gradeData[i]
       console.log(`🔍 Class ${i}:`, classSchedule)
       console.log(`🔍 Class ${i} is array:`, Array.isArray(classSchedule))
-      
+
       if (Array.isArray(classSchedule) && classSchedule.length > 0) {
         const firstSlot = classSchedule[0]
         console.log(`🔍 First slot of class ${i}:`, firstSlot)
-        
-        if (firstSlot && firstSlot.classGrade === targetGrade && String(firstSlot.classSection) === String(targetSection)) {
+
+        if (
+          firstSlot &&
+          firstSlot.classGrade === targetGrade &&
+          String(firstSlot.classSection) === String(targetSection)
+        ) {
           console.log('✅ Found matching class!')
           classData = classSchedule
           break
         }
       }
     }
-    
+
     if (!Array.isArray(classData) || classData.length === 0) {
       console.log('❌ No class data found')
       return []
     }
-    
+
     console.log('🔍 Found class data with', classData.length, 'slots')
     const periodData: TimetableSlotData[] = []
-    
+
     // 各時限のデータを作成 (1～6時限)
     for (let period = 1; period <= 6; period++) {
-      const periodSlots: any = {}
-      
+      const periodSlots: Record<string, unknown> = {}
+
       // 各曜日のデータを作成 (月～土)
       const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
       dayKeys.forEach((dayKey, dayIndex) => {
         const slotIndex = dayIndex * 6 + (period - 1) // 6時限/日
-        
+
         if (slotIndex < classData.length) {
           const slot = classData[slotIndex]
-          
-          periodSlots[dayKey] = slot ? {
-            subject: slot.subject?.name || '',
-            teacher: slot.teacher?.name || '',
-            classroom: slot.classroom?.name || '',
-            violations: Array.isArray(slot.violations) ? slot.violations : [],
-            isAutoFilled: slot.isAutoFilled || false
-          } : null
+
+          periodSlots[dayKey] = slot
+            ? {
+                subject: slot.subject?.name || '',
+                teacher: slot.teacher?.name || '',
+                classroom: slot.classroom?.name || '',
+                violations: Array.isArray(slot.violations) ? slot.violations : [],
+                isAutoFilled: slot.isAutoFilled || false,
+              }
+            : null
         } else {
           periodSlots[dayKey] = null
         }
       })
-      
+
       periodData.push(periodSlots as TimetableSlotData)
     }
-    
+
     console.log('✅ convertToTimetableGridData returning:', periodData)
     console.log('✅ periodData length:', periodData.length)
     return periodData
@@ -218,7 +224,7 @@ export function TimetableDetailView({
       period,
       day,
       classGrade: grade,
-      classSection: classNumber
+      classSection: classNumber,
     })
     e.dataTransfer.effectAllowed = 'move'
   }
@@ -232,7 +238,7 @@ export function TimetableDetailView({
   // ドロップ処理
   const handleDrop = async (e: React.DragEvent, targetPeriod: string, targetDay: string) => {
     e.preventDefault()
-    
+
     if (!draggedSlot || !timetable) {
       return
     }
@@ -247,7 +253,7 @@ export function TimetableDetailView({
     // 現在は変更フラグのみ設定
     setHasChanges(true)
     setDraggedSlot(null)
-    
+
     toast({
       title: '授業を移動しました',
       description: `${draggedSlot.subject}を${targetPeriod}時限目 ${targetDay}曜日に移動しました`,
@@ -265,7 +271,7 @@ export function TimetableDetailView({
         description: '時間割の変更が正常に保存されました',
       })
       setHasChanges(false)
-    } catch (error) {
+    } catch (_error) {
       toast({
         title: 'エラー',
         description: '変更の保存に失敗しました',
@@ -297,7 +303,7 @@ export function TimetableDetailView({
   const calculateComplianceData = (className?: string): ComplianceData => {
     console.log('📊 calculateComplianceData called with className:', className)
     console.log('📊 timetable for compliance:', timetable)
-    
+
     if (!timetable || !timetable.timetable || !Array.isArray(timetable.timetable)) {
       console.log('❌ calculateComplianceData: invalid timetable data')
       return {
@@ -306,7 +312,7 @@ export function TimetableDetailView({
         highViolations: 0,
         mediumViolations: 0,
         lowViolations: 0,
-        complianceRate: 100
+        complianceRate: 100,
       }
     }
 
@@ -320,22 +326,31 @@ export function TimetableDetailView({
       // 単一クラスのコンプライアンスを計算
       const [grade, section] = className.split('-')
       const targetSection = section
-      
+
       try {
         const targetGrade = parseInt(grade)
         const gradeIndex = targetGrade - 1
-        
-        console.log('📊 Looking for compliance data - grade:', targetGrade, 'section:', targetSection)
-        
+
+        console.log(
+          '📊 Looking for compliance data - grade:',
+          targetGrade,
+          'section:',
+          targetSection
+        )
+
         if (gradeIndex >= 0 && gradeIndex < timetable.timetable.length) {
           const gradeData = timetable.timetable[gradeIndex]
           console.log('📊 Grade data for compliance:', gradeData)
-          
+
           if (Array.isArray(gradeData)) {
             for (const classSchedule of gradeData) {
               if (Array.isArray(classSchedule) && classSchedule.length > 0) {
                 const firstSlot = classSchedule[0]
-                if (firstSlot && firstSlot.classGrade === targetGrade && String(firstSlot.classSection) === String(targetSection)) {
+                if (
+                  firstSlot &&
+                  firstSlot.classGrade === targetGrade &&
+                  String(firstSlot.classSection) === String(targetSection)
+                ) {
                   console.log('📊 Found class for compliance calculation')
                   // 対象クラスのスロットをすべて処理
                   classSchedule.forEach(slot => {
@@ -364,12 +379,12 @@ export function TimetableDetailView({
       // 全クラスのコンプライアンスを計算
       try {
         console.log('📊 Calculating compliance for all classes')
-        
+
         // 全学年のデータを処理
         for (let gradeIndex = 0; gradeIndex < timetable.timetable.length; gradeIndex++) {
           const gradeData = timetable.timetable[gradeIndex]
           console.log(`📊 Processing grade ${gradeIndex + 1}:`, gradeData)
-          
+
           if (Array.isArray(gradeData)) {
             gradeData.forEach(classSchedule => {
               if (Array.isArray(classSchedule) && classSchedule.length > 0) {
@@ -403,14 +418,14 @@ export function TimetableDetailView({
       highViolations,
       mediumViolations,
       lowViolations,
-      complianceRate: Math.round(complianceRate * 10) / 10
+      complianceRate: Math.round(complianceRate * 10) / 10,
     }
   }
 
   // コンプライアンス表示コンポーネント
   const renderComplianceIndicator = (className?: string) => {
     const compliance = calculateComplianceData(className)
-    
+
     const getComplianceColor = (rate: number) => {
       if (rate >= 90) return 'text-green-600 bg-green-50 border-green-200'
       if (rate >= 70) return 'text-yellow-600 bg-yellow-50 border-yellow-200'
@@ -423,40 +438,42 @@ export function TimetableDetailView({
           <h4 className='font-medium text-gray-900'>
             {className ? `${className}組 コンプライアンス` : '全体コンプライアンス'}
           </h4>
-          <div className={`px-3 py-1 rounded-full text-sm font-medium border ${
-            getComplianceColor(compliance.complianceRate)
-          }`}>
+          <div
+            className={`px-3 py-1 rounded-full text-sm font-medium border ${getComplianceColor(
+              compliance.complianceRate
+            )}`}
+          >
             {compliance.complianceRate.toFixed(1)}%
           </div>
         </div>
-        
+
         <div className='space-y-2'>
           <div className='flex justify-between text-sm'>
             <span className='text-gray-600'>全スロット数</span>
             <span className='font-medium'>{compliance.totalSlots}</span>
           </div>
-          
+
           {compliance.violationSlots > 0 && (
             <>
               <div className='flex justify-between text-sm'>
                 <span className='text-gray-600'>違反スロット</span>
                 <span className='text-red-600 font-medium'>{compliance.violationSlots}</span>
               </div>
-              
+
               {compliance.highViolations > 0 && (
                 <div className='flex justify-between text-xs text-red-600 ml-4'>
                   <span>高リスク違反</span>
                   <span>{compliance.highViolations}</span>
                 </div>
               )}
-              
+
               {compliance.mediumViolations > 0 && (
                 <div className='flex justify-between text-xs text-yellow-600 ml-4'>
                   <span>中リスク違反</span>
                   <span>{compliance.mediumViolations}</span>
                 </div>
               )}
-              
+
               {compliance.lowViolations > 0 && (
                 <div className='flex justify-between text-xs text-gray-500 ml-4'>
                   <span>低リスク違反</span>
@@ -466,17 +483,17 @@ export function TimetableDetailView({
             </>
           )}
         </div>
-        
+
         {/* プログレスバー */}
         <div className='mt-3'>
           <div className='w-full bg-gray-200 rounded-full h-2'>
-            <div 
+            <div
               className={`h-2 rounded-full transition-all duration-300 ${
-                compliance.complianceRate >= 90 
+                compliance.complianceRate >= 90
                   ? 'bg-green-500'
-                  : compliance.complianceRate >= 70 
-                  ? 'bg-yellow-500'
-                  : 'bg-red-500'
+                  : compliance.complianceRate >= 70
+                    ? 'bg-yellow-500'
+                    : 'bg-red-500'
               }`}
               style={{ width: `${compliance.complianceRate}%` }}
             />
@@ -494,12 +511,13 @@ export function TimetableDetailView({
 
     return (
       <div className='mb-4'>
-        <label className='block text-sm font-medium text-gray-700 mb-2'>
+        <label htmlFor='edit-class-select' className='block text-sm font-medium text-gray-700 mb-2'>
           編集対象クラス
         </label>
         <select
+          id='edit-class-select'
           value={selectedClass}
-          onChange={(e) => setSelectedClass(e.target.value)}
+          onChange={e => setSelectedClass(e.target.value)}
           className='px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-gray-500'
         >
           <option value=''>すべてのクラス</option>
@@ -513,13 +531,12 @@ export function TimetableDetailView({
     )
   }
 
-
   useEffect(() => {
     if (!id) return
-    
+
     const loadData = async () => {
       setIsLoading(true)
-      
+
       try {
         let currentToken = token
         if (!currentToken) {
@@ -530,7 +547,7 @@ export function TimetableDetailView({
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${currentToken}`,
+            Authorization: `Bearer ${currentToken}`,
             'X-Requested-With': 'XMLHttpRequest',
           },
         })
@@ -542,11 +559,11 @@ export function TimetableDetailView({
         const data = await response.json()
         console.log('🔍 API Response:', data)
 
-        if (data && data.success && data.data) {
+        if (data?.success && data.data) {
           console.log('📊 Timetable raw data:', data.data.timetable)
           console.log('📊 Timetable type:', typeof data.data.timetable)
           console.log('📊 Timetable is array:', Array.isArray(data.data.timetable))
-          
+
           const timetableData: TimetableDetailData = {
             id: data.data.id,
             name: data.data.name || `時間割 ${id.split('-')[1]}`,
@@ -556,15 +573,15 @@ export function TimetableDetailView({
             assignedSlots: data.data.assignedSlots || 0,
             generationMethod: data.data.generationMethod || 'unknown',
             createdAt: data.data.createdAt || new Date().toISOString(),
-            updatedAt: data.data.updatedAt || new Date().toISOString()
+            updatedAt: data.data.updatedAt || new Date().toISOString(),
           }
-          
+
           console.log('✅ Setting timetable data:', timetableData)
           setTimetable(timetableData)
         } else {
           throw new Error('時間割データが見つかりません')
         }
-      } catch (error) {
+      } catch (_error) {
         toast({
           title: 'エラー',
           description: '時間割詳細の読み込みに失敗しました',
@@ -574,10 +591,10 @@ export function TimetableDetailView({
         setIsLoading(false)
       }
     }
-    
+
     loadData()
-  }, [id])
-  
+  }, [id, getFreshToken, toast, token])
+
   // ページ離脱時の未保存変更警告
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
@@ -586,7 +603,7 @@ export function TimetableDetailView({
         e.returnValue = ''
       }
     }
-    
+
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [hasChanges])
@@ -596,7 +613,7 @@ export function TimetableDetailView({
     if (!timetable) return []
     return getAvailableClasses(timetable)
   }, [timetable, getAvailableClasses])
-  
+
   // 最初のクラスを選択状態に設定（編集モード用）
   useEffect(() => {
     if (availableClasses && availableClasses.length > 0 && !selectedClass) {
@@ -621,7 +638,8 @@ export function TimetableDetailView({
         <h2 className='text-xl font-semibold mb-2'>時間割が見つかりません</h2>
         <p className='text-gray-600 mb-4'>指定された時間割データを読み込めませんでした。</p>
         <button
-          onClick={() => onBackToList ? onBackToList() : navigate('/timetable-reference')}
+          type='button'
+          onClick={() => (onBackToList ? onBackToList() : navigate('/timetable-reference'))}
           className='px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700'
         >
           時間割一覧に戻る
@@ -636,7 +654,8 @@ export function TimetableDetailView({
       <div className='flex items-center justify-between'>
         <div className='flex items-center space-x-4'>
           <button
-            onClick={() => onBackToList ? onBackToList() : navigate('/timetable-reference')}
+            type='button'
+            onClick={() => (onBackToList ? onBackToList() : navigate('/timetable-reference'))}
             className='flex items-center space-x-2 px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded'
           >
             <ArrowLeft className='h-4 w-4' />
@@ -644,33 +663,38 @@ export function TimetableDetailView({
           </button>
           <h1 className='text-2xl font-bold'>{timetable.name}</h1>
         </div>
-        
+
         <div className='flex items-center space-x-6'>
           <div className='text-sm text-gray-600'>
             完成度: {timetable.assignmentRate.toFixed(1)}%
           </div>
-          
+
           {/* 簡易コンプライアンス表示 */}
           <div className='flex items-center space-x-2 text-sm'>
             <span className='text-gray-600'>コンプライアンス:</span>
-            <span className={`font-medium ${
-              calculateComplianceData().complianceRate >= 90 
-                ? 'text-green-600'
-                : calculateComplianceData().complianceRate >= 70 
-                ? 'text-yellow-600'
-                : 'text-red-600'
-            }`}>
+            <span
+              className={`font-medium ${
+                calculateComplianceData().complianceRate >= 90
+                  ? 'text-green-600'
+                  : calculateComplianceData().complianceRate >= 70
+                    ? 'text-yellow-600'
+                    : 'text-red-600'
+              }`}
+            >
               {calculateComplianceData().complianceRate.toFixed(1)}%
             </span>
           </div>
-          
+
           {/* 編集モード切り替えボタン */}
           <div className='flex items-center space-x-2'>
             {currentView === 'detail' ? (
               <button
+                type='button'
                 onClick={() => {
                   setCurrentView('edit')
-                  setSelectedClass(availableClasses && availableClasses.length > 0 ? availableClasses[0] : '')
+                  setSelectedClass(
+                    availableClasses && availableClasses.length > 0 ? availableClasses[0] : ''
+                  )
                 }}
                 className='flex items-center space-x-2 px-3 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors'
               >
@@ -681,6 +705,7 @@ export function TimetableDetailView({
               <div className='flex items-center space-x-2'>
                 {hasChanges && (
                   <button
+                    type='button'
                     onClick={handleSaveChanges}
                     className='flex items-center space-x-2 px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors'
                   >
@@ -689,6 +714,7 @@ export function TimetableDetailView({
                   </button>
                 )}
                 <button
+                  type='button'
                   onClick={() => setCurrentView('detail')}
                   className='flex items-center space-x-2 px-3 py-2 bg-gray-600 text-white rounded hover:bg-gray-700 transition-colors'
                 >
@@ -696,6 +722,7 @@ export function TimetableDetailView({
                   <span>表示</span>
                 </button>
                 <button
+                  type='button'
                   onClick={handleCancelEdit}
                   className='flex items-center space-x-2 px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors'
                 >
@@ -707,7 +734,7 @@ export function TimetableDetailView({
           </div>
         </div>
       </div>
-      
+
       {/* 編集モード時の変更通知 */}
       {currentView === 'edit' && (
         <div className='bg-blue-50 border border-blue-200 rounded-lg p-4'>
@@ -722,9 +749,9 @@ export function TimetableDetailView({
           </div>
         </div>
       )}
-      
+
       {renderClassSelector()}
-      
+
       {/* コンプライアンス情報 */}
       <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6'>
         {renderComplianceIndicator()}
@@ -772,7 +799,6 @@ export function TimetableDetailView({
           </div>
         )}
       </div>
-
     </div>
   )
 }

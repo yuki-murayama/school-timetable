@@ -1,93 +1,228 @@
+import { ValidationError } from '@shared/schemas'
 import type { Context, Next } from 'hono'
 import { HTTPException } from 'hono/http-exception'
+import { z } from 'zod'
 
 /**
  * バリデーションルール型定義
  */
 interface ValidationRule {
   required?: boolean
-  type?: 'string' | 'number' | 'email' | 'id'
+  type?: 'string' | 'number' | 'email' | 'id' | 'array' | 'boolean'
   minLength?: number
   maxLength?: number
   min?: number
   max?: number
+  maxItems?: number
 }
+
+// 文字列検証スキーマ
+const StringInputSchema = z.union([
+  z.string(),
+  z.number().transform(val => String(val)),
+  z.null().transform(() => ''),
+  z.undefined().transform(() => ''),
+])
+
+// 数値検証スキーマ
+const NumberInputSchema = z.union([
+  z.number(),
+  z.string().transform(val => {
+    const num = Number(val)
+    if (Number.isNaN(num)) {
+      throw new Error('数値に変換できません')
+    }
+    return num
+  }),
+])
+
+// メール検証スキーマ
+const EmailSchema = z.string().email('有効なメールアドレスを入力してください')
+
+// ID検証スキーマ
+const IdSchema = z
+  .string()
+  .regex(/^[a-zA-Z0-9\-_]+$/, 'IDは英数字とハイフン、アンダースコアのみ使用可能です')
+  .min(1, 'IDは必須です')
+  .max(100, 'IDは100文字以下で入力してください')
+
+// JSON検証スキーマ
+const JsonStringSchema = z.string().transform((val, ctx) => {
+  try {
+    const parsed = JSON.parse(val)
+
+    // XSS対策の基本チェック
+    const jsonString = JSON.stringify(parsed)
+    if (jsonString.includes('<script') || jsonString.includes('javascript:')) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: '危険なコンテンツが検出されました',
+      })
+      return z.NEVER
+    }
+
+    return parsed
+  } catch {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: '有効なJSON形式で入力してください',
+    })
+    return z.NEVER
+  }
+})
+
+// SQLパラメータ検証スキーマ
+const SqlParameterSchema = z.unknown().transform((param, ctx) => {
+  if (typeof param === 'string') {
+    const dangerousPatterns = [
+      /'\s*(OR|AND)\s+'/i,
+      /'\s*;\s*/,
+      /UNION\s+SELECT/i,
+      /DROP\s+TABLE/i,
+      /DELETE\s+FROM/i,
+      /INSERT\s+INTO/i,
+      /UPDATE\s+\w+\s+SET/i,
+    ]
+
+    for (const pattern of dangerousPatterns) {
+      if (pattern.test(param)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'SQLインジェクションの可能性があるパラメータが検出されました',
+        })
+        return z.NEVER
+      }
+    }
+  }
+  return param
+})
 
 /**
  * 入力値バリデーション・サニタイゼーション関数
  */
 
 /**
- * 文字列のサニタイゼーション
+ * 型安全な文字列サニタイゼーション
  */
 export function sanitizeString(input: unknown): string {
-  if (typeof input !== 'string') {
-    return ''
-  }
+  try {
+    const sanitized = StringInputSchema.parse(input)
 
-  return input
-    .trim()
-    .replace(/[<>"'&]/g, match => {
-      const entities: Record<string, string> = {
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#x27;',
-        '&': '&amp;',
-      }
-      return entities[match] || match
-    })
-    .substring(0, 1000) // 最大長制限
+    return sanitized
+      .trim()
+      .replace(/[<>"'&]/g, match => {
+        const entities: Record<string, string> = {
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#x27;',
+          '&': '&amp;',
+        }
+        return entities[match] || match
+      })
+      .substring(0, 1000) // 最大長制限
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new ValidationError('文字列の検証に失敗しました', error.errors)
+    }
+    throw error
+  }
 }
 
 /**
- * 数値バリデーション
+ * 型安全な数値バリデーション
  */
 export function validateNumber(input: unknown, min: number = 0, max: number = 999999): number {
-  const num = Number(input)
+  try {
+    const num = NumberInputSchema.parse(input)
 
-  if (Number.isNaN(num)) {
-    throw new Error('Invalid number format')
+    if (num < min || num > max) {
+      throw new ValidationError(`数値は${min}以上${max}以下で入力してください`, [
+        {
+          code: 'out_of_range',
+          path: [],
+          message: `数値は${min}以上${max}以下である必要があります`,
+        },
+      ])
+    }
+
+    return num
+  } catch (error) {
+    if (error instanceof ValidationError) {
+      throw error
+    }
+    if (error instanceof z.ZodError) {
+      throw new ValidationError('数値の検証に失敗しました', error.errors)
+    }
+    throw error
   }
-
-  if (num < min || num > max) {
-    throw new Error(`Number must be between ${min} and ${max}`)
-  }
-
-  return num
 }
 
 /**
- * メールアドレスバリデーション
+ * 型安全なメールアドレスバリデーション
  */
 export function validateEmail(email: string): boolean {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-  return emailRegex.test(email) && email.length <= 254
+  try {
+    EmailSchema.parse(email)
+    return email.length <= 254
+  } catch {
+    return false
+  }
+}
+
+/**
+ * 型安全なメールアドレス検証（エラーを投げる版）
+ */
+export function validateEmailStrict(input: unknown): string {
+  try {
+    const email = StringInputSchema.parse(input)
+    return EmailSchema.max(254, 'メールアドレスは254文字以下で入力してください').parse(email)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new ValidationError('メールアドレスの検証に失敗しました', error.errors)
+    }
+    throw error
+  }
 }
 
 /**
  * IDフォーマットバリデーション
  */
 export function validateId(id: string): boolean {
-  return /^[a-zA-Z0-9\-_]+$/.test(id) && id.length >= 1 && id.length <= 100
+  try {
+    IdSchema.parse(id)
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**
- * JSONバリデーション
+ * 型安全なID検証（エラーを投げる版）
+ */
+export function validateIdStrict(input: unknown): string {
+  try {
+    const id = StringInputSchema.parse(input)
+    return IdSchema.parse(id)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new ValidationError('IDの検証に失敗しました', error.errors)
+    }
+    throw error
+  }
+}
+
+/**
+ * 型安全なJSONバリデーション
  */
 export function validateJSON(input: string): unknown {
   try {
-    const parsed = JSON.parse(input)
-
-    // 基本的なXSS対策
-    const jsonString = JSON.stringify(parsed)
-    if (jsonString.includes('<script') || jsonString.includes('javascript:')) {
-      throw new Error('Potentially malicious content detected')
+    return JsonStringSchema.parse(input)
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new ValidationError('JSONの検証に失敗しました', error.errors)
     }
-
-    return parsed
-  } catch (_error) {
-    throw new Error('Invalid JSON format')
+    throw error
   }
 }
 
@@ -180,33 +315,25 @@ export function validateRequestBody(schema: Record<string, ValidationRule>) {
 }
 
 /**
- * SQLインジェクション対策：パラメータバリデーション
+ * 型安全なSQLインジェクション対策：パラメータバリデーション
  */
 export function validateSqlParameters(params: unknown[]): unknown[] {
-  return params.map((param: unknown) => {
-    if (typeof param === 'string') {
-      // 危険な文字列パターンをチェック
-      const dangerousPatterns = [
-        /'\s*(OR|AND)\s+'/i,
-        /'\s*;\s*/,
-        /UNION\s+SELECT/i,
-        /DROP\s+TABLE/i,
-        /DELETE\s+FROM/i,
-        /INSERT\s+INTO/i,
-        /UPDATE\s+\w+\s+SET/i,
-      ]
+  try {
+    return params.map((param: unknown) => {
+      const validated = SqlParameterSchema.parse(param)
 
-      for (const pattern of dangerousPatterns) {
-        if (pattern.test(param)) {
-          throw new Error('Potentially malicious SQL detected')
-        }
+      if (typeof validated === 'string') {
+        return sanitizeString(validated)
       }
 
-      return sanitizeString(param)
+      return validated
+    })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      throw new ValidationError('SQLパラメータの検証に失敗しました', error.errors)
     }
-
-    return param
-  })
+    throw error
+  }
 }
 
 /**
@@ -243,6 +370,8 @@ const rateLimitStore = new Map<string, { count: number; resetTime: number }>()
 
 export function rateLimit(maxRequests: number = 100, windowMs: number = 60000) {
   return async (c: Context, next: Next) => {
+    // セキュリティ：レート制限バイパス機能は削除済み（セキュリティリスクのため）
+
     const clientIP =
       c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown'
     const now = Date.now()
@@ -285,6 +414,8 @@ export function csrfProtection() {
       await next()
       return
     }
+
+    // セキュリティ：CSRF保護バイパス機能は削除済み（セキュリティリスクのため）
 
     // CSRFトークンをヘッダーから取得
     const _csrfToken = c.req.header('X-CSRF-Token')

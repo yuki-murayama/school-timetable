@@ -2,7 +2,7 @@
  * 時間割バリデーション・適合率計算ユーティリティ
  */
 
-import type { Subject, Teacher } from '../../../shared/types'
+import type { Subject, Teacher } from '@shared/schemas'
 
 export const timetableValidator = {
   calculateComplianceRate(

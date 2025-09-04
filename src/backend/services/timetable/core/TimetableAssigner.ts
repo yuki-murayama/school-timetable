@@ -2,7 +2,7 @@
  * 時間割割当・削除ロジッククラス
  */
 
-import type { Classroom, Subject, Teacher, TimetableSlot } from '../../../../shared/types'
+import type { Classroom, Subject, Teacher, TimetableSlot } from '@shared/schemas'
 import type { ConstraintChecker } from '../constraints'
 import type { AssignmentCandidate, ConstraintResult, EnhancedConstraintResult } from '../types'
 

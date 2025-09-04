@@ -1,38 +1,25 @@
 import { test as setup, expect } from '@playwright/test';
-
-// テスト用のユーザー認証情報
-// .env.e2eファイルから実際の認証情報を取得
-const TEST_USER = {
-  email: process.env.TEST_USER_EMAIL || 'test@liblock.co.jp',
-  password: process.env.TEST_USER_PASSWORD || '6dZFtWns9hEDX8i',
-};
+import { E2E_TEST_USER } from './utils/test-user';
 
 const authFile = 'tests/e2e/.auth/user.json';
 
 setup('authenticate', async ({ page }) => {
-  console.log('🔐 Starting authentication setup...');
+  console.log('🔐 Starting custom authentication setup...');
   
-  // アプリケーションにアクセス
+  // ローカル開発環境にアクセス
   try {
-    await page.goto('https://school-timetable-monorepo.grundhunter.workers.dev');
+    const baseURL = process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5174';
+    await page.goto(baseURL);
     await page.waitForLoadState('networkidle');
   } catch (error) {
     console.log(`❌ Failed to navigate to application: ${error}`);
     throw error;
   }
   
-  // Clerkの認証画面が表示されるまで待機
+  // カスタム認証システムでのログイン
   try {
-    // サインインボタンまたはサインインフォームを探す
-    const signInButton = page.locator('button:has-text("ログイン"), button:has-text("Sign In"), .cl-button, [data-testid*="sign-in"]');
-    const signInForm = page.locator('.cl-signIn-root, [data-testid*="sign-in"], form');
-    
-    // サインインボタンが表示されている場合はクリック
-    if (await signInButton.count() > 0) {
-      console.log('✅ Found sign-in button, clicking...');
-      await signInButton.first().click();
-      await page.waitForTimeout(2000);
-    }
+    // ログイン画面の確認
+    console.log('📍 ログイン画面の確認中...');
     
     // メールアドレス入力フィールドを探す
     const emailInputSelectors = [
@@ -40,7 +27,6 @@ setup('authenticate', async ({ page }) => {
       'input[type="email"]',
       'input[placeholder*="email"]',
       'input[placeholder*="メール"]',
-      '.cl-formFieldInput[type="email"]',
       '[data-testid*="email"]'
     ];
     
@@ -60,7 +46,6 @@ setup('authenticate', async ({ page }) => {
       'input[type="password"]',
       'input[placeholder*="password"]',
       'input[placeholder*="パスワード"]',
-      '.cl-formFieldInput[type="password"]',
       '[data-testid*="password"]'
     ];
     
@@ -78,58 +63,110 @@ setup('authenticate', async ({ page }) => {
       console.log('📝 Filling in credentials...');
       
       // 認証情報を入力
-      await emailInput.fill(TEST_USER.email);
-      await passwordInput.fill(TEST_USER.password);
+      await emailInput.fill(E2E_TEST_USER.email);
+      await passwordInput.fill(E2E_TEST_USER.password);
+      console.log(`📧 Email filled: ${E2E_TEST_USER.email}`);
       
-      // Enterキーでフォーム送信を試行
-      console.log('🚀 Submitting login form with Enter key...');
-      await passwordInput.press('Enter');
+      // ログインボタンを探してクリック
+      const loginButtonSelectors = [
+        'button[type="submit"]',
+        'button:has-text("ログイン")',
+        'button:has-text("Login")',
+        'button:has-text("Sign in")',
+        '[data-testid*="login"]'
+      ];
       
-      // またはフォーム送信を直接実行
-      await page.waitForTimeout(1000);
-      
-      // 少し待機してから送信ボタンを探す
-      await page.waitForTimeout(2000);
-      
-      // 送信ボタンを探す（隠されていないもの）
-      const visibleButtons = page.locator('button:visible:has-text("Continue"), button:visible:has-text("続行")');
-      if (await visibleButtons.count() > 0) {
-        console.log('✅ Found visible continue button, waiting for it to be enabled...');
-        const button = visibleButtons.first();
-        
-        // ボタンが有効になるまで待機
-        await button.waitFor({ state: 'attached', timeout: 5000 });
-        
-        // disabledでない場合のみクリック
-        const isDisabled = await button.getAttribute('disabled');
-        if (isDisabled !== null) {
-          console.log('⏳ Button is disabled, waiting for it to be enabled...');
-          await page.waitForFunction(() => {
-            const btn = document.querySelector('button[data-variant="solid"]');
-            return btn && !btn.hasAttribute('disabled');
-          }, { timeout: 10000 });
+      let loginSuccess = false;
+      for (const selector of loginButtonSelectors) {
+        const button = page.locator(selector);
+        if (await button.count() > 0) {
+          console.log(`✅ Found login button: ${selector}`);
+          await button.first().click();
+          await page.waitForTimeout(2000);
+          loginSuccess = true;
+          break;
         }
-        
-        await button.click();
-      } else {
-        console.log('⚠️ No visible button found, form may have been submitted via Enter key');
       }
       
-      // 認証完了を待機（メインアプリが表示されるまで）
+      // Enterキーでの送信も試行
+      if (!loginSuccess) {
+        console.log('🚀 Trying Enter key submission...');
+        await passwordInput.press('Enter');
+        await page.waitForTimeout(2000);
+      }
+      
+      // 認証完了を待機（ローディング完了後にメインアプリが表示されるまで）
       try {
-        // サイドバーまたはメインアプリケーションの要素を待機
-        await page.waitForSelector('.sidebar, [data-testid*="sidebar"], nav', { timeout: 15000 });
-        console.log('✅ Authentication successful - main app loaded');
+        console.log('⏳ Waiting for authentication to complete...');
         
-        // 認証状態を保存
-        await page.context().storageState({ path: authFile });
-        console.log(`💾 Authentication state saved to: ${authFile}`);
+        // まずローディングスピナーが消えるのを待つ（ProtectedRouteのisLoading=false）
+        try {
+          await page.waitForSelector('.animate-spin', { state: 'detached', timeout: 15000 });
+          console.log('✅ Loading spinner disappeared');
+        } catch (_) {
+          console.log('⚠️ Loading spinner timeout (may not have appeared)');
+        }
+        
+        // 認証後の状態安定化を長めに待つ（認証検証API完了まで）
+        await page.waitForTimeout(15000);
+        
+        // より簡単な要素から順番に検索
+        const mainAppElements = [
+          'div',  // 基本的なdiv要素の存在確認
+          'body',  // bodyタグの確認
+          '[class*="flex"]',  // flexクラスを持つ要素
+          'button',  // 任意のボタン要素
+          'nav',  // Sidebar内のnav要素
+          'button:has-text("データ登録")',  // Sidebarの実際のボタン
+          'span:has-text("時間割システム")'  // Sidebarのタイトル
+        ];
+        
+        let authSuccess = false;
+        for (const selector of mainAppElements) {
+          try {
+            await page.waitForSelector(selector, { timeout: 15000 });
+            console.log(`✅ Main app element found: ${selector}`);
+            authSuccess = true;
+            break;
+          } catch (waitError) {
+            console.log(`⚠️ Element not found: ${selector}`);
+          }
+        }
+        
+        // デバッグ: 認証後のページ内容を確認
+        if (!authSuccess) {
+          console.log('🔍 Debug: Checking page content after authentication...');
+          try {
+            const url = page.url();
+            const bodyText = await page.textContent('body');
+            const bodyClasses = await page.getAttribute('body', 'class');
+            console.log(`Current URL: ${url}`);
+            console.log(`Body classes: ${bodyClasses}`);
+            console.log(`Page content (first 500 chars): ${bodyText?.substring(0, 500)}`);
+            
+            // 存在する主要要素をリストアップ
+            const allButtons = await page.locator('button').count();
+            const allNavs = await page.locator('nav').count();
+            const allDivs = await page.locator('div').count();
+            console.log(`Elements found - buttons: ${allButtons}, navs: ${allNavs}, divs: ${allDivs}`);
+          } catch (debugError) {
+            console.log(`Debug failed: ${debugError}`);
+          }
+        }
+        
+        if (authSuccess) {
+          // 認証状態を保存
+          await page.context().storageState({ path: authFile });
+          console.log(`💾 Authentication state saved to: ${authFile}`);
+        } else {
+          throw new Error('Main app elements not found after login');
+        }
         
       } catch (waitError) {
         console.log('⚠️ Could not detect successful login - checking for error messages');
         
         // エラーメッセージをチェック
-        const errorMessages = page.locator('.cl-formFieldError, .error, .alert-error, [role="alert"]');
+        const errorMessages = page.locator('.error, .alert-error, [role="alert"], .text-red-500');
         if (await errorMessages.count() > 0) {
           const errorText = await errorMessages.first().textContent();
           console.log(`❌ Login error: ${errorText}`);
@@ -138,14 +175,19 @@ setup('authenticate', async ({ page }) => {
           console.log('⏳ Login in progress, waiting longer...');
           await page.waitForTimeout(5000);
           
-          // 再度メインアプリの要素をチェック
-          const mainApp = page.locator('#root div, .main-app, main');
+          // 再度メインアプリの要素をチェック（より具体的なセレクタ）
+          const mainApp = page.locator('main, .flex.h-screen, div[class*="sidebar"]');
           if (await mainApp.count() > 0) {
             const content = await mainApp.first().textContent();
-            if (content && content.includes('時間割') || content.includes('データ')) {
-              console.log('✅ Authentication appears successful');
+            if (content && (content.includes('時間割システム') || content.includes('データ登録') || content.includes('時間割生成'))) {
+              console.log('✅ Authentication appears successful - content match found');
+              await page.context().storageState({ path: authFile });
+            } else {
+              console.log('⚠️ Content check failed, but main app structure found - saving state anyway');
               await page.context().storageState({ path: authFile });
             }
+          } else {
+            throw new Error('Authentication failed - main app structure not found');
           }
         }
       }

@@ -1,86 +1,78 @@
 /**
- * 教科関連API
+ * 型安全教科関連API - Zodスキーマバリデーション統合
  */
 
-import type { Subject } from '../../../shared/types'
+import { type Subject, SubjectSchema } from '@shared/schemas'
+import { z } from 'zod'
 import { type ApiOptions, apiClient } from './client'
 
+// APIリクエスト・レスポンス型定義
+const SubjectsListResponseSchema = z.object({
+  subjects: z.array(SubjectSchema),
+  pagination: z.object({
+    page: z.number(),
+    limit: z.number(),
+    total: z.number(),
+    totalPages: z.number(),
+  }).optional(),
+})
+const CreateSubjectRequestSchema = z.object({
+  name: z.string().min(1, '教科名は必須です').max(100, '教科名は100文字以内で入力してください'),
+  grades: z.array(z.number().min(1).max(6)).optional(),
+  weeklyHours: z.record(z.string(), z.number()).optional(),
+  requiresSpecialClassroom: z.boolean().optional(),
+  classroomType: z.string().optional(),
+  order: z.number().int().positive().optional(),
+})
+const UpdateSubjectRequestSchema = CreateSubjectRequestSchema.partial()
+const SubjectReorderRequestSchema = z.object({
+  subjects: z.array(
+    z.object({
+      id: z.string().uuid(),
+      order: z.number().int().min(1),
+    })
+  ),
+})
+const SubjectReorderResponseSchema = z.object({
+  updatedCount: z.number().int().min(0),
+  totalRequested: z.number().int().min(0),
+})
+const VoidResponseSchema = z.object({}).or(z.null()).or(z.undefined())
+
 export const subjectApi = {
-  async getSubjects(options?: ApiOptions): Promise<Subject[]> {
-    return apiClient.get<Subject[]>('/frontend/school/subjects', options)
+  async getSubjects(options?: ApiOptions): Promise<{ subjects: Subject[]; pagination?: { page: number; limit: number; total: number; totalPages: number } }> {
+    return apiClient.get<{ subjects: Subject[]; pagination?: { page: number; limit: number; total: number; totalPages: number } }>('/school/subjects', SubjectsListResponseSchema, options)
   },
 
-  async createSubject(subject: Omit<Subject, 'id'>, options?: ApiOptions): Promise<Subject> {
-    // フロントエンド側で型検証を実行
-    const validatedSubject = {
-      name: subject.name?.trim() || '',
-      weeklyHours: typeof subject.weeklyHours === 'number' ? subject.weeklyHours : 
-        (typeof subject.weekly_hours === 'number' ? subject.weekly_hours : 1),
-      grades: Array.isArray(subject.grades) ? subject.grades : 
-        (Array.isArray(subject.target_grades) ? subject.target_grades : [1, 2, 3]),
-      order: subject.order || 0
-    }
-
-    // 名前の検証
-    if (!validatedSubject.name) {
-      throw new Error('教科名は必須です')
-    }
-    if (validatedSubject.name.length > 50) {
-      throw new Error('教科名は50文字以内で入力してください')
-    }
-
-    // 週間授業数の検証
-    if (validatedSubject.weeklyHours < 0 || validatedSubject.weeklyHours > 10) {
-      throw new Error('週間授業数は0〜10の範囲で入力してください')
-    }
-
-    return apiClient.post<Subject>('/frontend/school/subjects', validatedSubject, options)
+  async createSubject(
+    subject: z.infer<typeof CreateSubjectRequestSchema>,
+    options?: ApiOptions
+  ): Promise<Subject> {
+    return apiClient.post<z.infer<typeof CreateSubjectRequestSchema>, Subject>(
+      '/school/subjects',
+      subject,
+      CreateSubjectRequestSchema,
+      SubjectSchema,
+      options
+    )
   },
 
   async updateSubject(
     id: string,
-    subject: Partial<Subject>,
+    subject: z.infer<typeof UpdateSubjectRequestSchema>,
     options?: ApiOptions
   ): Promise<Subject> {
-    // フロントエンド側で型検証を実行（updateの場合は部分的）
-    const validatedUpdates: Partial<Subject> = {}
-
-    if (subject.name !== undefined) {
-      const trimmedName = subject.name.trim()
-      if (!trimmedName) {
-        throw new Error('教科名は必須です')
-      }
-      if (trimmedName.length > 50) {
-        throw new Error('教科名は50文字以内で入力してください')
-      }
-      validatedUpdates.name = trimmedName
-    }
-
-    if (subject.weeklyHours !== undefined || subject.weekly_hours !== undefined) {
-      const hours = subject.weeklyHours !== undefined ? subject.weeklyHours : subject.weekly_hours!
-      if (typeof hours !== 'number' || hours < 0 || hours > 10) {
-        throw new Error('週間授業数は0〜10の数値で入力してください')
-      }
-      validatedUpdates.weeklyHours = hours
-    }
-
-    if (subject.grades !== undefined || subject.target_grades !== undefined) {
-      const grades = subject.grades || subject.target_grades!
-      if (!Array.isArray(grades) || !grades.every(g => [1, 2, 3].includes(g))) {
-        throw new Error('対象学年は1、2、3年から選択してください')
-      }
-      validatedUpdates.grades = grades
-    }
-
-    if (subject.order !== undefined) {
-      validatedUpdates.order = subject.order
-    }
-
-    return apiClient.put<Subject>(`/frontend/school/subjects/${id}`, validatedUpdates, options)
+    return apiClient.put<z.infer<typeof UpdateSubjectRequestSchema>, Subject>(
+      `/school/subjects/${id}`,
+      subject,
+      UpdateSubjectRequestSchema,
+      SubjectSchema,
+      options
+    )
   },
 
   async deleteSubject(id: string, options?: ApiOptions): Promise<void> {
-    return apiClient.delete<void>(`/frontend/school/subjects/${id}`, options)
+    await apiClient.delete<void>(`/school/subjects/${id}`, VoidResponseSchema, options)
   },
 
   async saveSubjects(subjects: Subject[], options?: ApiOptions): Promise<Subject[]> {
@@ -90,15 +82,19 @@ export const subjectApi = {
 
     for (const subject of subjects) {
       try {
-        const updated = await apiClient.put<Subject>(
-          `/frontend/school/subjects/${subject.id}`,
-          {
-            name: subject.name,
-            specialClassroom: subject.specialClassroom,
-            weekly_hours: subject.weekly_hours,
-            target_grades: subject.target_grades,
-            order: subject.order,
-          },
+        const updateData = UpdateSubjectRequestSchema.parse({
+          name: subject.name,
+          grades: subject.grades,
+          weeklyHours: subject.weeklyHours,
+          requiresSpecialClassroom: subject.requiresSpecialClassroom,
+          classroomType: subject.classroomType,
+          order: subject.order,
+        })
+        const updated = await apiClient.put<z.infer<typeof UpdateSubjectRequestSchema>, Subject>(
+          `/school/subjects/${subject.id}`,
+          updateData,
+          UpdateSubjectRequestSchema,
+          SubjectSchema,
           options
         )
         updatedSubjects.push(updated)
@@ -115,13 +111,13 @@ export const subjectApi = {
     subjects: Array<{ id: string; order: number }>,
     options?: ApiOptions
   ): Promise<{ updatedCount: number; totalRequested: number }> {
-    const response = await apiClient.patch<{ updatedCount: number; totalRequested: number }>(
-      '/frontend/school/subjects/reorder',
-      {
-        subjects,
-      },
+    const requestData = { subjects }
+    return apiClient.patch<typeof requestData, { updatedCount: number; totalRequested: number }>(
+      '/school/subjects/reorder',
+      requestData,
+      SubjectReorderRequestSchema,
+      SubjectReorderResponseSchema,
       options
     )
-    return response
   },
 }

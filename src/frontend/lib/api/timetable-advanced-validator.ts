@@ -1,4 +1,4 @@
-import type { Subject, Teacher } from '../../../shared/types'
+import type { Subject, Teacher } from '@shared/schemas'
 
 export const timetableAdvancedValidator = {
   // 適合率計算とバリデーション機能

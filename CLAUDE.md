@@ -8,7 +8,7 @@
 
 学校時間割管理アプリケーションのモノレポ構成
 
-- **フロントエンド**: React + TypeScript + Vite + Clerk認証
+- **フロントエンド**: React + TypeScript + Vite + 自前JWT認証
 - **バックエンド**: Hono + Cloudflare Workers + D1 Database
 - **デプロイ**: 統一されたCloudflare Workersデプロイメント
 
@@ -17,7 +17,7 @@
 ### 🔗 URL
 
 - **本番環境**: https://school-timetable-monorepo.grundhunter.workers.dev
-- **Clerk認証**: https://equal-yeti-47.clerk.accounts.dev
+- **認証システム**: 自前JWT認証（ローカルDB管理）
 
 ### 🗄️ データベース
 
@@ -86,6 +86,31 @@ npm run test:e2e:report
 
 # ユニットテスト
 npm test
+
+# 本番環境テスト（基本疎通確認のみ - 3テスト）
+npm run test:e2e:production
+
+# 🚨 本番環境全量テスト（全27テスト + クロスブラウザ）
+# ⚠️ 注意：サービスイン前・メンテナンス時のみ使用
+npm run test:e2e:production-full
+
+# 本番環境全量テスト（Chrome認証済み）- 主要テスト
+npm run test:e2e:production-full:chrome
+
+# 本番環境全量テスト（Firefox）- 主要テストのみ
+npm run test:e2e:production-full:firefox
+
+# 本番環境全量テスト（クロスブラウザ）- Chrome + Firefox + Edge
+npm run test:e2e:production-full:cross-browser
+
+# 本番環境全量テスト（モバイル）- レスポンシブ確認
+npm run test:e2e:production-full:mobile
+
+# 本番環境全量テスト（API専用）- 認証なしAPIテスト
+npm run test:e2e:production-full:api
+
+# 本番環境全量テスト結果レポート表示
+npm run test:e2e:production-full:report
 ```
 
 ### 🗄️ データベース関連
@@ -193,7 +218,52 @@ npm install
 
 ## 📝 API エンドポイント
 
-### 主要なAPIエンドポイント
+### ✨ 統合API（推奨）
+
+**完全型安全・自動ドキュメント生成システム**
+
+- **Swagger UI**: `http://localhost:8787/api/docs` - 対話式API仕様書
+- **OpenAPI仕様**: `http://localhost:8787/api/spec` - JSON形式のAPI仕様
+- **API情報**: `http://localhost:8787/api/info` - システム情報
+- **ヘルスチェック**: `http://localhost:8787/api/health` - サーバー状況
+
+#### 型安全APIエンドポイント
+
+**学校設定**:
+- `GET /api/school/settings` - 学校設定取得（拡張プロパティ付き）
+- `PUT /api/school/settings` - 学校設定更新（厳密バリデーション）
+
+**教師管理**:
+- `GET /api/school/teachers` - 教師一覧（検索・フィルタ・ページネーション）
+- `GET /api/school/teachers/{id}` - 教師詳細取得
+- `POST /api/school/teachers` - 教師作成（Zod検証）
+- `PUT /api/school/teachers/{id}` - 教師更新（部分更新対応）
+- `DELETE /api/school/teachers/{id}` - 教師削除
+
+#### フロントエンド実装例
+
+```typescript
+import api from '@/lib/api/v2'
+
+// 型安全な学校設定取得
+const settings = await apiV2.schoolSettings.getSettings()
+// settings は EnhancedSchoolSettings 型で完全型安全
+
+// 型安全な教師検索
+const teachers = await apiV2.teachers.getTeachers({
+  search: '田中',
+  grade: 1,
+  page: 1,
+  limit: 10
+})
+
+// エラーハンドリング
+if (apiV2.isValidationError(error)) {
+  console.log('バリデーションエラー:', error.validationErrors)
+}
+```
+
+### 📚 レガシーAPIエンドポイント（v1）
 
 - `GET /api/frontend/school/settings` - 学校設定取得
 - `PUT /api/frontend/school/settings` - 学校設定更新
@@ -211,7 +281,7 @@ npm install
 
 1. **データベース問題**: `school_settings`テーブル作成と初期化
 2. **API修正**: 学校設定更新の500エラー解決
-3. **E2E認証**: Clerk認証フローの自動化実装
+3. **E2E認証**: 自前認証システムの自動化実装
 4. **CRUD操作**: データ登録画面の読み取り・更新機能確認
 
 ### 🔄 進行中/今後の予定
@@ -226,6 +296,41 @@ npm install
 2. **デプロイ前**: `npm run test:e2e` でE2Eテスト実行
 3. **API変更後**: データベース初期化が必要な場合がある
 4. **認証テスト**: `.env.e2e`の認証情報を最新に保つ
+
+## 🚨 本番環境テスト戦略
+
+### 基本テスト（通常時）- 3テスト
+```bash
+npm run test:e2e:production
+```
+- API疎通確認
+- 認証システム確認  
+- データベース接続確認
+- **実行時間**: 約5分
+
+### 全量テスト（特殊時のみ）- 27テスト + クロスブラウザ
+```bash
+npm run test:e2e:production-full
+```
+
+#### 使用条件
+- **サービスイン前**: 最終動作確認
+- **メンテナンス時**: 全機能動作確認
+- **大規模アップデート後**: 完全リグレッションテスト
+- **クロスブラウザ対応確認時**: 複数ブラウザでの動作検証
+
+#### 実行時間目安
+- **Chrome認証済み**: 約45分（全テスト）
+- **Firefox主要テスト**: 約15分（重要テストのみ）
+- **クロスブラウザ**: 約1.5時間（Chrome + Firefox + Edge）
+- **モバイル**: 約30分（レスポンシブテスト）
+- **API専用**: 約10分（認証なしAPI）
+
+#### 注意事項
+- **統一テストデータ管理システム使用**: 本番データに影響なし
+- **Cloudflare Workers使用量**: 通常より多くなります
+- **実行推奨時間**: メンテナンス時間帯
+- **結果確認**: `npm run test:e2e:production-full:report`
 
 ## 🤖 Playwright MCP テストルール
 
@@ -273,3 +378,7 @@ await page.click('button:has-text("追加")');
 const testRow = page.locator(`tr:has-text("${testTeacherName}")`);
 await testRow.locator('button[aria-label*="delete"]').click();
 ```
+
+## Task Master AI Instructions
+**Import Task Master's development workflow commands and guidelines, treat as if import is in the main CLAUDE.md file.**
+@./.taskmaster/CLAUDE.md

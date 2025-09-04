@@ -72,7 +72,7 @@ export class TestDataCleanup {
       /テスト.*_\d+_[a-z0-9]{6}/i,  // テスト科目_1234567890_abc123
       /削除テスト.*_\d{4}-\d{2}-\d{2}/i, // 削除テスト用教師_2023-12-01
       /test.*\d+/i,                        // test_teacher_123
-      pattern                               // カスタムパターン
+      new RegExp(pattern, 'i')             // カスタムパターンを正規表現に変換
     ];
     
     return testPatterns.some(regex => regex.test(name));
@@ -107,6 +107,9 @@ export class TestDataCleanup {
       classroom: 'classrooms'
     };
     
+    // モーダルが開いている場合は閉じる
+    await this.closeAnyOpenModal();
+    
     // データ登録画面が表示されていない場合は移動
     if (await this.page.locator('[role="tablist"]').count() === 0) {
       await this.page.goto('/');
@@ -115,9 +118,75 @@ export class TestDataCleanup {
       await this.page.waitForTimeout(1000);
     }
     
-    // 該当タブをクリック
-    await this.page.click(`[data-value="${tabValues[type]}"]`);
+    // 再度モーダルチェック（データ登録画面移動後）
+    await this.closeAnyOpenModal();
+    
+    // 該当タブをクリック（Radix UIのTabsTrigger要素）
+    await this.page.click(`[role="tab"][data-state*="${tabValues[type]}"], button[data-value="${tabValues[type]}"], [role="tab"]:has-text("${this.getTabLabel(type)}")`);
     await this.page.waitForTimeout(500);
+  }
+
+  /**
+   * 開いているモーダルを閉じる
+   */
+  private async closeAnyOpenModal(): Promise<void> {
+    try {
+      // モーダルオーバーレイが表示されているかチェック
+      const overlaySelector = 'div[data-state="open"][aria-hidden="true"]';
+      const dialogSelector = 'div[role="dialog"][data-state="open"]';
+      
+      if (await this.page.locator(overlaySelector).count() > 0 || 
+          await this.page.locator(dialogSelector).count() > 0) {
+        console.log('🔄 モーダルが開いています。閉じる処理を実行中...');
+        
+        // 1. Escapeキーで閉じる
+        await this.page.keyboard.press('Escape');
+        await this.page.waitForTimeout(500);
+        
+        // 2. まだ開いている場合は閉じるボタンを探してクリック
+        if (await this.page.locator(overlaySelector).count() > 0) {
+          const closeButtons = [
+            'button[data-testid*="close"]',
+            'button:has-text("キャンセル")',
+            'button:has-text("閉じる")',
+            'button:has-text("×")',
+            '[data-dismiss]',
+            '[aria-label*="close" i]',
+            '[aria-label*="閉じる"]'
+          ];
+          
+          for (const selector of closeButtons) {
+            if (await this.page.locator(selector).count() > 0) {
+              await this.page.click(selector);
+              await this.page.waitForTimeout(500);
+              break;
+            }
+          }
+        }
+        
+        // 3. 最後の手段：オーバーレイの外をクリック
+        if (await this.page.locator(overlaySelector).count() > 0) {
+          await this.page.click('body', { position: { x: 0, y: 0 } });
+          await this.page.waitForTimeout(500);
+        }
+        
+        console.log('✅ モーダルクローズ処理完了');
+      }
+    } catch (error) {
+      console.warn('⚠️ モーダルクローズで軽微なエラー:', error);
+    }
+  }
+
+  /**
+   * タイプに対応するタブラベルを取得
+   */
+  private getTabLabel(type: 'teacher' | 'subject' | 'classroom'): string {
+    const labels = {
+      teacher: '教師情報',
+      subject: '教科情報', 
+      classroom: '教室情報'
+    };
+    return labels[type];
   }
 
   /**
@@ -159,6 +228,9 @@ export class TestDataCleanup {
 
       for (const data of dataList) {
         try {
+          // 削除前にモーダルを閉じる
+          await this.closeAnyOpenModal();
+          
           const deleteButton = this.page.locator(`button[data-testid="delete-${type}-${data.id}"]`);
           
           if (await deleteButton.count() > 0) {
@@ -175,12 +247,18 @@ export class TestDataCleanup {
             }
             
             await this.page.waitForTimeout(1000);
+            
+            // 削除後にモーダルを閉じる
+            await this.closeAnyOpenModal();
+            
             console.log(`✅ 削除完了: ${data.name}`);
           } else {
             console.log(`⚠️ 削除ボタンが見つかりません: ${data.name} (既に削除済みの可能性)`);
           }
         } catch (error) {
           console.error(`❌ ${data.name}の削除でエラー:`, error);
+          // エラー後もモーダルを閉じる
+          await this.closeAnyOpenModal();
         }
       }
     } catch (error) {
@@ -231,19 +309,31 @@ export class TestDataCleanup {
       
       // 検出されたデータを削除
       for (const item of toDelete) {
-        const deleteButton = this.page.locator(`button[data-testid="delete-${type}-${item.id}"]`);
-        
-        if (await deleteButton.count() > 0) {
-          console.log(`🗑️ パターンマッチ削除: ${item.name}`);
-          await deleteButton.click();
-          await this.page.waitForTimeout(500);
+        try {
+          // 削除前にモーダルを閉じる
+          await this.closeAnyOpenModal();
           
-          const confirmButton = this.page.locator('button:has-text("削除"), button:has-text("Delete"), button:has-text("確認")');
-          if (await confirmButton.count() > 0) {
-            await confirmButton.first().click();
+          const deleteButton = this.page.locator(`button[data-testid="delete-${type}-${item.id}"]`);
+          
+          if (await deleteButton.count() > 0) {
+            console.log(`🗑️ パターンマッチ削除: ${item.name}`);
+            await deleteButton.click();
+            await this.page.waitForTimeout(500);
+            
+            const confirmButton = this.page.locator('button:has-text("削除"), button:has-text("Delete"), button:has-text("確認")');
+            if (await confirmButton.count() > 0) {
+              await confirmButton.first().click();
+            }
+            
+            await this.page.waitForTimeout(1000);
+            
+            // 削除後にモーダルを閉じる
+            await this.closeAnyOpenModal();
           }
-          
-          await this.page.waitForTimeout(1000);
+        } catch (error) {
+          console.error(`❌ パターンマッチ削除でエラー: ${item.name}`, error);
+          // エラー後もモーダルを閉じる
+          await this.closeAnyOpenModal();
         }
       }
     } catch (error) {

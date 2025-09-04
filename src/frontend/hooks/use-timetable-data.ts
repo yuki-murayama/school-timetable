@@ -1,31 +1,57 @@
+/**
+ * 型安全時間割データフック - Zodスキーマ統合
+ */
+
+import type { SchoolSettings, Subject, Teacher } from '@shared/schemas'
 import { useCallback, useState } from 'react'
-import type {
-  SchoolSettings,
-  Subject,
-  Teacher,
-  TimetableDetail,
-  TimetableListItem,
-} from '../../shared/types'
+import { z } from 'zod'
 import { schoolApi } from '../lib/api/school'
 import { subjectApi } from '../lib/api/subject'
 import { teacherApi } from '../lib/api/teacher'
 import { timetableApi } from '../lib/api/timetable'
 import { useAuth } from './use-auth'
 
-interface TimetableSlotData {
-  period: string
-  subject?: string
-  teacher?: string
-  classroom?: string
-  grade?: number
-  class?: string
-  violations?: Array<{
-    type: string
-    severity: 'high' | 'medium' | 'low'
-    message: string
-  }>
-  isAutoFilled?: boolean
-}
+// 時間割スロットデータスキーマ
+const TimetableSlotDataSchema = z.object({
+  period: z.string(),
+  subject: z.string().optional(),
+  teacher: z.string().optional(),
+  classroom: z.string().optional(),
+  grade: z.number().min(1).max(6).optional(),
+  class: z.string().optional(),
+  violations: z
+    .array(
+      z.object({
+        type: z.string(),
+        severity: z.enum(['high', 'medium', 'low']),
+        message: z.string(),
+      })
+    )
+    .optional(),
+  isAutoFilled: z.boolean().optional(),
+})
+
+// 時間割リストアイテムスキーマ（暫定）
+const TimetableListItemSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  createdAt: z.string(),
+  grade: z.number().optional(),
+  className: z.string().optional(),
+})
+
+// 時間割詳細スキーマ（暫定）
+const TimetableDetailSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  data: z.record(z.unknown()),
+  createdAt: z.string(),
+  updatedAt: z.string().optional(),
+})
+
+type TimetableSlotData = z.infer<typeof TimetableSlotDataSchema>
+type TimetableListItem = z.infer<typeof TimetableListItemSchema>
+type TimetableDetail = z.infer<typeof TimetableDetailSchema>
 
 export const useTimetableData = () => {
   const { token, getFreshToken } = useAuth()
@@ -86,7 +112,7 @@ export const useTimetableData = () => {
     } catch (error) {
       console.error('学校設定の取得に失敗:', error)
     }
-  }, [token])
+  }, [token, getFreshToken])
 
   // 教師・教科データを取得
   const loadValidationData = useCallback(async () => {
@@ -105,21 +131,24 @@ export const useTimetableData = () => {
     } catch (error) {
       console.error('検証用データの取得に失敗:', error)
     }
-  }, [token])
+  }, [token, getFreshToken])
 
   // 時間割一覧を取得
   const loadTimetables = useCallback(async () => {
     console.log('🔄 loadTimetables開始 - 認証状態:', { hasToken: !!token, tokenType: typeof token })
     setIsLoadingTimetables(true)
-    
+
     // 認証トークンを事前に取得
     let currentToken = token
     if (!currentToken) {
       console.log('🔑 トークンが空のため、新しいトークンを取得します')
       currentToken = await getFreshToken()
-      console.log('🔑 新しいトークン取得結果:', { hasToken: !!currentToken, tokenType: typeof currentToken })
+      console.log('🔑 新しいトークン取得結果:', {
+        hasToken: !!currentToken,
+        tokenType: typeof currentToken,
+      })
     }
-    
+
     const [conventionalTimetables, savedTimetables] = await Promise.allSettled([
       timetableApi.getTimetables({ token: currentToken, getFreshToken }),
       timetableApi.getSavedTimetables({ token: currentToken, getFreshToken }),
@@ -140,12 +169,12 @@ export const useTimetableData = () => {
     console.log('🔍 savedTimetables.value type:', typeof savedTimetables.value)
     console.log('🔍 savedTimetables.value isArray:', Array.isArray(savedTimetables.value))
     console.log('🔍 savedTimetables.value:', savedTimetables.value)
-    
+
     if (savedTimetables.status === 'fulfilled' && Array.isArray(savedTimetables.value)) {
       const savedTimetablesList = savedTimetables.value
       console.log('📋 処理する時間割データ数:', savedTimetablesList.length)
       console.log('📋 最初の時間割データサンプル:', savedTimetablesList[0])
-      
+
       const convertedSavedTimetables = savedTimetablesList.map((timetable, index) => {
         const converted = {
           ...timetable,
@@ -160,20 +189,21 @@ export const useTimetableData = () => {
       console.log('✅ 生成された時間割を取得:', savedTimetablesList.length, '件')
       console.log('✅ 変換後の合計:', convertedSavedTimetables.length, '件')
     } else {
-      const errorDetail = savedTimetables.status === 'rejected' 
-        ? (savedTimetables.reason instanceof Error 
-          ? `${savedTimetables.reason.message} (${savedTimetables.reason.name})`
-          : String(savedTimetables.reason))
-        : `空のデータ (status: ${savedTimetables.status})`
+      const errorDetail =
+        savedTimetables.status === 'rejected'
+          ? savedTimetables.reason instanceof Error
+            ? `${savedTimetables.reason.message} (${savedTimetables.reason.name})`
+            : String(savedTimetables.reason)
+          : `空のデータ (status: ${savedTimetables.status})`
       console.warn('⚠️ 生成された時間割取得に失敗:', errorDetail)
-      
+
       // 詳細なデバッグ情報
       if (savedTimetables.status === 'fulfilled') {
         console.log('🔍 savedTimetables.value 詳細:', {
           value: savedTimetables.value,
           isArray: Array.isArray(savedTimetables.value),
           type: typeof savedTimetables.value,
-          length: savedTimetables.value?.length
+          length: savedTimetables.value?.length,
         })
       }
     }
@@ -181,7 +211,7 @@ export const useTimetableData = () => {
     console.log('📊 合計時間割数:', combinedTimetables.length)
     setTimetables(combinedTimetables)
     setIsLoadingTimetables(false)
-  }, [token])
+  }, [token, getFreshToken])
 
   return {
     // 状態

@@ -1,16 +1,33 @@
-import type { TimetableStructure } from '../types'
+/**
+ * 型安全時間割サービス - Zodスキーマ統合
+ */
+import { z } from 'zod'
 import { DatabaseService } from './database'
 
-export interface TimetableInfo {
-  id: string
-  name: string
-  created_at: string
-  updated_at?: string
-}
+// 時間割構造スキーマ
+const TimetableStructureSchema = z.object({
+  grades: z.array(z.number()),
+  classes: z.record(z.number()),
+  periods: z.number(),
+  days: z.array(z.string()),
+})
 
-export interface TimetableWithData extends TimetableInfo {
-  timetable: unknown
-}
+// 時間割情報スキーマ
+const TimetableInfoSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string().min(1, '時間割名は必須です'),
+  created_at: z.string(),
+  updated_at: z.string().optional(),
+})
+
+// データ付き時間割スキーマ
+const TimetableWithDataSchema = TimetableInfoSchema.extend({
+  timetable: z.record(z.unknown()),
+})
+
+type TimetableStructure = z.infer<typeof TimetableStructureSchema>
+export type TimetableInfo = z.infer<typeof TimetableInfoSchema>
+export type TimetableWithData = z.infer<typeof TimetableWithDataSchema>
 
 export class TimetableService {
   constructor(private db: D1Database) {}

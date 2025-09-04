@@ -13,10 +13,11 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import type { Subject } from '@shared/schemas'
 import { Edit, Loader2, Plus, Save, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useToast } from '../../hooks/use-toast'
-import { type Subject, subjectApi } from '../../lib/api'
+import { subjectApi } from '../../lib/api'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
@@ -25,11 +26,14 @@ import { SortableRow } from './SortableRow'
 import { SubjectEditDialog } from './SubjectEditDialog'
 
 interface SubjectsSectionProps {
+  subjects: Subject[]
+  onSubjectsUpdate: (subjects: Subject[]) => void
   token: string | null
   getFreshToken?: () => Promise<string | null>
+  isLoading: boolean
 }
 
-export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) {
+export function SubjectsSection({ subjects, onSubjectsUpdate, token, getFreshToken, isLoading }: SubjectsSectionProps) {
   const { toast } = useToast()
 
   const sensors = useSensors(
@@ -39,18 +43,12 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
     })
   )
 
-  const [subjects, setSubjects] = useState<Subject[]>([])
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null)
   const [isSubjectDialogOpen, setIsSubjectDialogOpen] = useState(false)
-  const [isSubjectsLoading, setIsSubjectsLoading] = useState(true)
   const [isSubjectsSaving, setIsSubjectsSaving] = useState(false)
 
   // Debounce ref for order updates
   const orderUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null)
-  // Flag to prevent infinite useEffect loops
-  const hasLoadedRef = useRef(false)
-
-  // Removed debug logging to fix infinite rendering
 
   // Helper function to format target grades for display
   const formatGrades = (subject: Subject) => {
@@ -70,139 +68,6 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
       return '全学年'
     }
   }
-
-  // 教科読み込み関数をメモ化
-  const loadSubjects = useCallback(async () => {
-    // loadSubjects called
-
-    if (!token) {
-      // No token available
-      setIsSubjectsLoading(false)
-      return
-    }
-
-    if (hasLoadedRef.current) {
-      // Already loaded, skipping
-      return
-    }
-
-    hasLoadedRef.current = true
-
-    setIsSubjectsLoading(true)
-    // Starting subjects data load
-
-    // タイムアウト機能を追加
-    const timeoutId = setTimeout(() => {
-      console.warn('Subjects loading timeout - forcing loading to false')
-      setIsSubjectsLoading(false)
-      setSubjects([])
-      // Remove toast from timeout to prevent infinite loop
-    }, 15000) // 15秒でタイムアウト
-
-    try {
-      // Calling subjectApi.getSubjects
-
-      let subjectsData: Subject[]
-      try {
-        subjectsData = await subjectApi.getSubjects({ token, getFreshToken })
-        // API response received
-      } catch (apiError) {
-        console.error('API call failed:', apiError)
-        throw apiError
-      }
-
-      // Processing subjects response
-
-      // Ensure we always have an array
-      let subjects = Array.isArray(subjectsData) ? subjectsData : []
-      // Subjects array processed
-
-      // Double check and force array if needed
-      if (!Array.isArray(subjects)) {
-        console.warn('Subjects is not an array, forcing to empty array:', subjects)
-        subjects = []
-      }
-
-      // Final subjects array prepared
-
-      // Normalize subject data (parse targetGrades if it's a JSON string)
-      // Extra safety check before map
-      if (!Array.isArray(subjects)) {
-        console.error('Subjects is not an array after all checks, aborting:', subjects)
-        setSubjects([])
-        setIsSubjectsLoading(false)
-        clearTimeout(timeoutId)
-        return
-      }
-
-      const normalizedSubjects = subjects.map(subject => {
-        let targetGrades = []
-
-        if (Array.isArray(subject.targetGrades)) {
-          targetGrades = subject.targetGrades
-        } else if (typeof subject.targetGrades === 'string') {
-          try {
-            targetGrades = JSON.parse(subject.targetGrades || '[]')
-          } catch (_e) {
-            console.warn('Failed to parse subject targetGrades:', subject.targetGrades)
-            targetGrades = []
-          }
-        }
-
-        return {
-          ...subject,
-          targetGrades,
-        }
-      })
-
-      // Sort by order field, then by name if no order
-      const sortedSubjects = normalizedSubjects.sort((a, b) => {
-        if (a.order != null && b.order != null) {
-          return a.order - b.order
-        }
-        if (a.order != null) return -1
-        if (b.order != null) return 1
-        return a.name.localeCompare(b.name)
-      })
-
-      // Final safety check before setting state
-      if (Array.isArray(sortedSubjects)) {
-        // Setting subjects state
-        setSubjects(sortedSubjects)
-      } else {
-        console.error('❌ sortedSubjects is not an array, setting empty array:', sortedSubjects)
-        setSubjects([])
-      }
-
-      // 成功時にタイムアウトをクリア
-      clearTimeout(timeoutId)
-    } catch (error) {
-      clearTimeout(timeoutId)
-      hasLoadedRef.current = false // Reset to allow retry on error
-
-      console.error('Error loading subjects:', error)
-      console.error('Error details:', JSON.stringify(error, null, 2))
-
-      // エラー時は空配列をセット
-      setSubjects([])
-
-      // Remove toast from error handler to prevent infinite loop - log error instead
-      console.error(
-        '教科情報の読み込みに失敗しました:',
-        error instanceof Error ? error.message : 'Unknown error'
-      )
-    } finally {
-      // Setting loading to false
-      setIsSubjectsLoading(false)
-    }
-  }, [token]) // getFreshTokenは最新値を参照するため除外
-
-  // Load subjects useEffect
-  useEffect(() => {
-    loadSubjects()
-  }, []) // loadSubjectsは安定化されたため除外
-
-  // Loading state monitoring removed to prevent infinite renders
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -227,37 +92,26 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
   const handleDeleteSubject = async (id: string) => {
     if (!token) return
 
-    console.log('Attempting to delete subject with ID:', id)
+    console.log('🗑️ 統一型安全APIで教科削除開始:', id)
 
     try {
-      await subjectApi.deleteSubject(id, { token, getFreshToken })
+      const result = await subjectApi.deleteSubject(id, { token, getFreshToken })
+      console.log('✅ 教科削除成功:', result)
 
       // 削除成功時にリストから除外
-      setSubjects(subjects.filter(s => s.id !== id))
+      onSubjectsUpdate(subjects.filter(s => s.id !== id))
       toast({
         title: '削除完了',
         description: '教科情報を削除しました',
       })
     } catch (error: unknown) {
-      console.error('Subject deletion error:', error)
+      console.error('❌ 教科削除エラー:', error)
 
-      // 404エラーの場合は既に削除済みとして処理
-      if (error?.message?.includes('404') || error?.response?.status === 404) {
-        console.log('Subject already deleted (404), removing from list')
-        setSubjects(prevSubjects =>
-          (Array.isArray(prevSubjects) ? prevSubjects : []).filter(s => s.id !== id)
-        )
-        toast({
-          title: '削除完了',
-          description: '教科情報は既に削除されています',
-        })
-      } else {
-        toast({
-          title: '削除エラー',
-          description: '教科情報の削除に失敗しました',
-          variant: 'destructive',
-        })
-      }
+      toast({
+        title: '削除エラー',
+        description: '教科の削除に失敗しました',
+        variant: 'destructive',
+      })
     }
   }
 
@@ -267,39 +121,25 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
     try {
       if (editingSubject?.id) {
         // Update
-        console.log('🔄 Updating subject with data:', subjectData)
-        const updatedSubject = await subjectApi.updateSubject(editingSubject.id, subjectData, {
-          token,
-          getFreshToken,
-        })
-        console.log(
-          '✅ API returned updated subject:',
-          updatedSubject,
-          'targetGrades:',
-          updatedSubject.targetGrades
-        )
+        console.log('🔄 統一型安全APIで教科更新:', subjectData)
+        const result = await subjectApi.updateSubject(editingSubject.id, subjectData, { token, getFreshToken })
+        const updatedSubject = result
+        console.log('✅ 教科更新成功:', updatedSubject)
 
-        setSubjects(prevSubjects => {
-          const newSubjectsList = (Array.isArray(prevSubjects) ? prevSubjects : []).map(s => {
-            if (s.id === editingSubject.id) {
-              console.log(
-                '🔄 Replacing subject:',
-                s.id,
-                'old targetGrades:',
-                s.targetGrades,
-                'new targetGrades:',
-                updatedSubject.targetGrades
-              )
-              return updatedSubject
-            }
-            return s
-          })
-          console.log(
-            '📊 Updated subjects list:',
-            newSubjectsList.map(s => ({ id: s.id, name: s.name, targetGrades: s.targetGrades }))
-          )
-          return newSubjectsList
-        })
+        onSubjectsUpdate(subjects.map(s => {
+          if (s.id === editingSubject.id) {
+            console.log(
+              '🔄 Replacing subject:',
+              s.id,
+              'old targetGrades:',
+              s.targetGrades,
+              'new targetGrades:',
+              updatedSubject.targetGrades
+            )
+            return updatedSubject
+          }
+          return s
+        }))
 
         toast({
           title: '更新完了',
@@ -307,17 +147,12 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
         })
       } else {
         // Create new
-        const newSubject = await subjectApi.createSubject(subjectData, { token, getFreshToken })
-        console.log(
-          '✅ API returned new subject:',
-          newSubject,
-          'targetGrades:',
-          newSubject.targetGrades
-        )
-        setSubjects(prevSubjects => [
-          ...(Array.isArray(prevSubjects) ? prevSubjects : []),
-          newSubject,
-        ])
+        console.log('➕ 統一型安全APIで教科新規作成:', subjectData)
+        const result = await subjectApi.createSubject(subjectData, { token, getFreshToken })
+        const newSubject = result
+        console.log('✅ 教科新規作成成功:', newSubject)
+
+        onSubjectsUpdate([...subjects, newSubject])
         toast({
           title: '追加完了',
           description: '教科情報を追加しました',
@@ -326,10 +161,11 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
       setIsSubjectDialogOpen(false)
       setEditingSubject(null)
     } catch (error) {
-      console.error('教科保存エラー:', error)
+      console.error('❌ 教科保存エラー:', error)
+
       toast({
         title: '保存エラー',
-        description: '教科情報の保存に失敗しました',
+        description: '教科の保存に失敗しました',
         variant: 'destructive',
       })
     }
@@ -340,20 +176,36 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
 
     setIsSubjectsSaving(true)
     try {
-      // Normalize all subjects data before sending
-      const normalizedSubjects = (Array.isArray(subjects) ? subjects : []).map(subject => ({
-        ...subject,
-        target_grades: subject.targetGrades || [],
-        targetGrades: subject.targetGrades || [],
-      }))
+      console.log('💾 統一型安全APIで教科一括保存開始:', subjects.length, '件')
 
-      await subjectApi.saveSubjects(normalizedSubjects, { token, getFreshToken })
-      toast({
-        title: '保存完了',
-        description: '全ての教科情報を保存しました',
-      })
+      // 各教科を個別に更新（一括更新APIがない場合）
+      const updatePromises = subjects
+        .filter(subject => subject.id)
+        .map(async subject => {
+          if (!subject.id) throw new Error('Subject ID is required')
+          return await subjectApi.updateSubject(subject.id, subject, { token, getFreshToken })
+        })
+
+      const results = await Promise.allSettled(updatePromises)
+      const successCount = results.filter(r => r.status === 'fulfilled').length
+      const failCount = results.filter(r => r.status === 'rejected').length
+
+      console.log(`✅ 教科一括保存完了: 成功 ${successCount}件, 失敗 ${failCount}件`)
+
+      if (failCount === 0) {
+        toast({
+          title: '保存完了',
+          description: `全ての教科情報を保存しました（${successCount}件）`,
+        })
+      } else {
+        toast({
+          title: '部分的に保存完了',
+          description: `${successCount}件保存、${failCount}件失敗`,
+          variant: 'destructive',
+        })
+      }
     } catch (error) {
-      console.error('教科一括保存エラー:', error)
+      console.error('❌ 教科一括保存エラー:', error)
       toast({
         title: '保存エラー',
         description: '教科情報の保存に失敗しました',
@@ -365,61 +217,64 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
   }
 
   // Drag and drop handler
-  const handleSubjectDragEnd = (event: DragEndEvent) => {
+  const handleSubjectDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event
 
     if (active.id !== over?.id) {
-      setSubjects(items => {
-        const safeItems = Array.isArray(items) ? items : []
-        const oldIndex = safeItems.findIndex(item => item.id === active.id)
-        const newIndex = safeItems.findIndex(item => item.id === over?.id)
+      const oldIndex = subjects.findIndex(item => item.id === active.id)
+      const newIndex = subjects.findIndex(item => item.id === over?.id)
 
-        const newItems = arrayMove(safeItems, oldIndex, newIndex)
+      const newItems = arrayMove(subjects, oldIndex, newIndex)
 
-        // Update order fields and save to backend
-        const itemsWithOrder = newItems.map((item, index) => ({
-          ...item,
-          order: index,
-          target_grades: item.targetGrades || [],
-          targetGrades: item.targetGrades || [],
-        }))
+      // Update order fields and save to backend
+      const itemsWithOrder = newItems.map((item, index) => ({
+        ...item,
+        order: index,
+        target_grades: item.targetGrades || [],
+        targetGrades: item.targetGrades || [],
+      }))
 
-        // Save order changes to backend using batch update API with debounce
-        if (token) {
-          const orderData = itemsWithOrder.map(item => ({
-            id: item.id,
-            order: item.order,
-          }))
+      // 即座にUI更新
+      onSubjectsUpdate(itemsWithOrder)
 
-          // Clear existing timeout
-          if (orderUpdateTimeoutRef.current) {
-            clearTimeout(orderUpdateTimeoutRef.current)
-          }
-
-          // Set new timeout for debounced update
-          orderUpdateTimeoutRef.current = setTimeout(() => {
-            subjectApi
-              .reorderSubjects(orderData, { token, getFreshToken })
-              .then(result => {
-                console.log('✅ 教科順序一括更新完了:', result)
-                toast({
-                  title: '順序保存成功',
-                  description: `${result.updatedCount}件の教科順序を更新しました`,
-                })
-              })
-              .catch(error => {
-                console.error('❌ Failed to save subject order:', error)
-                toast({
-                  title: '順序保存エラー',
-                  description: '教科の順序保存に失敗しました',
-                  variant: 'destructive',
-                })
-              })
-          }, 500) // 500ms後に実行（デバウンス）
+      // Save order changes to backend using batch update API with debounce
+      if (token) {
+        // Clear existing timeout
+        if (orderUpdateTimeoutRef.current) {
+          clearTimeout(orderUpdateTimeoutRef.current)
         }
 
-        return itemsWithOrder
-      })
+        // Set new timeout for debounced update
+        orderUpdateTimeoutRef.current = setTimeout(async () => {
+          try {
+            console.log('🔄 教科順序更新開始:', itemsWithOrder.length, '件')
+            
+            // Update each subject with new order via API
+            const updatePromises = itemsWithOrder.map(async (subject, index) => {
+              if (!subject.id) throw new Error('Subject ID is required')
+              return await subjectApi.updateSubject(subject.id, { 
+                ...subject, 
+                order: index 
+              }, { token })
+            })
+
+            await Promise.all(updatePromises)
+            
+            console.log('✅ 教科順序更新完了')
+            toast({
+              title: '順序変更',
+              description: '教科の順序を変更し、保存しました',
+            })
+          } catch (error) {
+            console.error('❌ 教科順序更新エラー:', error)
+            toast({
+              title: '順序変更エラー',
+              description: '教科順序の保存に失敗しました',
+              variant: 'destructive',
+            })
+          }
+        }, 500) // 500ms後に実行（デバウンス）
+      }
     }
   }
 
@@ -435,7 +290,7 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
             </div>
             <Button
               onClick={handleAddSubject}
-              disabled={isSubjectsLoading}
+              disabled={isLoading}
               data-testid='add-subject-button'
             >
               <Plus className='w-4 h-4 mr-2' />
@@ -443,7 +298,7 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
             </Button>
           </CardHeader>
           <CardContent>
-            {isSubjectsLoading ? (
+            {isLoading ? (
               <div className='flex flex-col items-center justify-center p-8 space-y-4'>
                 <Loader2 className='w-8 h-8 animate-spin' />
                 <div className='text-center'>
@@ -481,10 +336,10 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
                       </TableRow>
                     ) : (
                       <SortableContext
-                        items={(subjects || []).map(s => s?.id || '')}
+                        items={subjects.map(s => s?.id || '')}
                         strategy={verticalListSortingStrategy}
                       >
-                        {(subjects || []).map(subject => (
+                        {subjects.map(subject => (
                           <SortableRow key={subject.id} id={subject.id || ''}>
                             <TableCell className='font-medium'>{subject.name}</TableCell>
                             <TableCell>
@@ -508,23 +363,20 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
                                   variant='outline'
                                   size='sm'
                                   onClick={() => handleEditSubject(subject)}
-                                  data-testid={`edit-subject-${subject.id}`}
                                   aria-label={`教科「${subject.name}」を編集`}
-                                  title={`教科「${subject.name}」を編集`}
-                                  className='h-8 w-8 p-0'
+                                  data-testid={`edit-subject-${subject.id}`}
                                 >
-                                  <Edit className='h-4 w-4' />
+                                  <Edit className='w-4 h-4' />
                                 </Button>
                                 <Button
                                   variant='outline'
                                   size='sm'
-                                  onClick={() => subject.id && handleDeleteSubject(subject.id)}
-                                  data-testid={`delete-subject-${subject.id}`}
+                                  onClick={() => handleDeleteSubject(subject.id)}
+                                  className='text-red-600 hover:text-red-700 hover:bg-red-50'
                                   aria-label={`教科「${subject.name}」を削除`}
-                                  title={`教科「${subject.name}」を削除`}
-                                  className='h-8 w-8 p-0'
+                                  data-testid={`delete-subject-${subject.id}`}
                                 >
-                                  <Trash2 className='h-4 w-4' />
+                                  <Trash2 className='w-4 h-4' />
                                 </Button>
                               </div>
                             </TableCell>
@@ -537,25 +389,37 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
               </DndContext>
             )}
 
-            <Button
-              className='w-full mt-6'
-              onClick={handleSaveAllSubjects}
-              disabled={isSubjectsLoading || isSubjectsSaving}
-            >
-              {isSubjectsSaving ? (
-                <Loader2 className='w-4 h-4 mr-2 animate-spin' />
-              ) : (
-                <Save className='w-4 h-4 mr-2' />
-              )}
-              {isSubjectsSaving ? '保存中...' : '教科情報を保存'}
-            </Button>
+            {subjects.length > 0 && (
+              <div className='mt-4 flex justify-end'>
+                <Button
+                  onClick={handleSaveAllSubjects}
+                  disabled={isSubjectsSaving || isLoading}
+                  variant='outline'
+                >
+                  {isSubjectsSaving ? (
+                    <>
+                      <Loader2 className='w-4 h-4 mr-2 animate-spin' />
+                      保存中...
+                    </>
+                  ) : (
+                    <>
+                      <Save className='w-4 h-4 mr-2' />
+                      すべて保存
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <SubjectEditDialog
           subject={editingSubject}
           isOpen={isSubjectDialogOpen}
-          onClose={() => setIsSubjectDialogOpen(false)}
+          onClose={() => {
+            setIsSubjectDialogOpen(false)
+            setEditingSubject(null)
+          }}
           onSave={handleSaveSubject}
           token={token}
           getFreshToken={getFreshToken}
@@ -566,19 +430,10 @@ export function SubjectsSection({ token, getFreshToken }: SubjectsSectionProps) 
     console.error('SubjectsSection render error:', error)
     return (
       <div className='p-4 border rounded-md bg-red-50 border-red-200'>
-        <h3 className='text-red-800 font-semibold'>教科情報コンポーネントエラー</h3>
-        <p className='text-red-600 text-sm mt-1'>教科情報の表示中にエラーが発生しました。</p>
-        <p className='text-red-500 text-xs mt-2'>
-          エラー詳細: {error instanceof Error ? error.message : 'Unknown error'}
+        <h3 className='text-red-800 font-semibold'>教科情報の表示エラー</h3>
+        <p className='text-red-600 text-sm mt-1'>
+          教科情報コンポーネントでエラーが発生しました。
         </p>
-        <Button
-          onClick={() => window.location.reload()}
-          className='mt-3'
-          variant='outline'
-          size='sm'
-        >
-          ページを再読み込み
-        </Button>
       </div>
     )
   }

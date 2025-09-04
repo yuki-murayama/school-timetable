@@ -1,9 +1,64 @@
 /**
- * 時間割データ変換ユーティリティ
+ * 時間割データ変換ユーティリティ - 型安全版
  */
 
+import { z } from 'zod'
+
+// 時間割スロットスキーマ（変換後）
+const DisplayTimetableSlotSchema = z.object({
+  period: z.string(),
+  mon: z
+    .object({
+      subject: z.string(),
+      teacher: z.string(),
+      classroom: z.string().optional(),
+    })
+    .optional(),
+  tue: z
+    .object({
+      subject: z.string(),
+      teacher: z.string(),
+      classroom: z.string().optional(),
+    })
+    .optional(),
+  wed: z
+    .object({
+      subject: z.string(),
+      teacher: z.string(),
+      classroom: z.string().optional(),
+    })
+    .optional(),
+  thu: z
+    .object({
+      subject: z.string(),
+      teacher: z.string(),
+      classroom: z.string().optional(),
+    })
+    .optional(),
+  fri: z
+    .object({
+      subject: z.string(),
+      teacher: z.string(),
+      classroom: z.string().optional(),
+    })
+    .optional(),
+  sat: z
+    .object({
+      subject: z.string(),
+      teacher: z.string(),
+      classroom: z.string().optional(),
+    })
+    .optional(),
+})
+
+type DisplayTimetableSlot = z.infer<typeof DisplayTimetableSlotSchema>
+
 export const timetableConverter = {
-  convertToDisplayFormat(timetableData: unknown, grade: number, classNumber: number) {
+  convertToDisplayFormat(
+    timetableData: unknown,
+    grade: number,
+    classNumber: number
+  ): DisplayTimetableSlot[] {
     // 🎯 convertToDisplayFormat呼び出し開始: grade=${grade}, classNumber=${classNumber}
     // 📊 入力データ詳細:
     // timetableData: timetableData,

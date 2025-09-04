@@ -1,7 +1,8 @@
+import type { SchoolSettings } from '@shared/schemas'
 import { Loader2, Save } from 'lucide-react'
 import { useState } from 'react'
 import { useToast } from '../../hooks/use-toast'
-import { type SchoolSettings, schoolApi } from '../../lib/api'
+import { schoolApi } from '../../lib/api'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Input } from '../ui/input'
@@ -41,7 +42,18 @@ export function SchoolSettingsSection({
 
     setIsSaving(true)
     try {
-      const updatedSettings = await schoolApi.updateSettings(settings, { token, getFreshToken })
+      // EnhancedSchoolSettingsから基本的な学校設定データのみを抽出（バックエンドが期待する形式）
+      const basicSettings = {
+        grade1Classes: settings.grade1Classes,
+        grade2Classes: settings.grade2Classes,
+        grade3Classes: settings.grade3Classes,
+        grade4Classes: settings.grade4Classes || 3,
+        grade5Classes: settings.grade5Classes || 3,
+        grade6Classes: settings.grade6Classes || 3,
+        dailyPeriods: settings.dailyPeriods,
+        saturdayPeriods: settings.saturdayPeriods,
+      }
+      const updatedSettings = await schoolApi.updateSettings(basicSettings, { token, getFreshToken })
       onSettingsUpdate(updatedSettings)
       toast({
         title: '保存完了',

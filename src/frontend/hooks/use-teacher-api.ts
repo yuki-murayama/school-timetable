@@ -1,11 +1,11 @@
+import type { SchoolSettings, Subject, Teacher } from '@shared/schemas'
 import { useCallback, useEffect, useState } from 'react'
-import type { SchoolSettings, Subject, Teacher } from '../../shared/types'
 import { schoolApi, subjectApi, teacherApi } from '../lib/api'
 import { useToast } from './use-toast'
 
 export const useTeacherApi = (
   token: string | null,
-  getFreshToken?: () => Promise<string | null>
+  _getFreshToken?: () => Promise<string | null>
 ) => {
   const { toast } = useToast()
 
@@ -25,36 +25,67 @@ export const useTeacherApi = (
 
   // 初期データ読み込み
   const loadInitialData = useCallback(async () => {
+    if (!token) {
+      setIsLoading(false)
+      return
+    }
+
     setIsLoading(true)
     try {
-      const [subjectsData, settingsData] = await Promise.all([
-        subjectApi.getSubjects({ token, getFreshToken }),
-        schoolApi.getSettings({ token, getFreshToken }),
+      console.log('🔍 統一型安全APIで初期データ読み込み開始')
+      const [subjectsResult, settingsResult] = await Promise.all([
+        subjectApi.getSubjects({ token }),
+        schoolApi.getSettings({ token }),
       ])
 
-      setSubjects(subjectsData)
-      setSchoolSettings(settingsData)
+      console.log('✅ 初期データ読み込み成功:', { subjectsResult, settingsResult })
+
+      // 統一APIからはレスポンス構造が統一されている
+      if (subjectsResult?.subjects && Array.isArray(subjectsResult.subjects)) {
+        setSubjects(subjectsResult.subjects)
+      } else {
+        console.warn('予期しないsubjectsレスポンス構造:', subjectsResult)
+        setSubjects([])
+      }
+
+      if (settingsResult && typeof settingsResult === 'object') {
+        setSchoolSettings(settingsResult)
+      }
     } catch (error) {
-      console.error('初期データの読み込みに失敗:', error)
-      // Remove toast to prevent infinite loop
+      console.error('❌ 初期データの読み込みに失敗:', error)
       console.error('初期データの読み込みに失敗しました')
+      // エラー時はデフォルト値を設定
+      setSubjects([])
     } finally {
       setIsLoading(false)
     }
-  }, [token]) // getFreshTokenは最新値を参照するため依存配列から除外
+  }, [token])
 
   // 教師保存
   const saveTeacher = useCallback(
     async (teacherData: Partial<Teacher>, isNewTeacher: boolean) => {
+      if (!token) {
+        throw new Error('認証トークンが見つかりません')
+      }
+
       setIsSaving(true)
       try {
         let result: Teacher
 
         if (isNewTeacher) {
-          result = await teacherApi.createTeacher(teacherData as Omit<Teacher, 'id'>, {
-            token,
-            getFreshToken,
-          })
+          console.log('➕ 統一型安全APIで教師新規作成:', teacherData)
+          result = await teacherApi.createTeacher(
+            {
+              name: teacherData.name || '',
+              subjects: teacherData.subjects || [],
+              grades: (teacherData.grades || []).map(grade =>
+                typeof grade === 'string' ? parseInt(grade, 10) : grade
+              ),
+              assignmentRestrictions: teacherData.assignmentRestrictions || [],
+            },
+            { token }
+          )
+          console.log('✅ 教師新規作成成功:', result)
           toast({
             title: '保存完了',
             description: '新しい教師を追加しました',
@@ -63,10 +94,20 @@ export const useTeacherApi = (
           if (!teacherData.id) {
             throw new Error('教師IDが見つかりません')
           }
-          result = await teacherApi.updateTeacher(teacherData.id, teacherData, {
-            token,
-            getFreshToken,
-          })
+          console.log('🔄 統一型安全APIで教師更新:', teacherData)
+          result = await teacherApi.updateTeacher(
+            teacherData.id,
+            {
+              name: teacherData.name,
+              subjects: teacherData.subjects,
+              grades: (teacherData.grades || []).map(grade =>
+                typeof grade === 'string' ? parseInt(grade, 10) : grade
+              ),
+              assignmentRestrictions: teacherData.assignmentRestrictions,
+            },
+            { token }
+          )
+          console.log('✅ 教師更新成功:', result)
           toast({
             title: '保存完了',
             description: '教師情報を更新しました',
@@ -75,26 +116,33 @@ export const useTeacherApi = (
 
         return result
       } catch (error) {
-        console.error('教師の保存に失敗:', error)
-        toast({
-          title: 'エラー',
-          description: '教師の保存に失敗しました',
-          variant: 'destructive',
-        })
+        console.error('❌ 教師の保存に失敗:', error)
+
+        if (error instanceof Error && (error as any).validationErrors) {
+          toast({
+            title: '保存エラー',
+            description: `入力データが無効です: ${(error as any).validationErrors.map((e: any) => e.message).join(', ')}`,
+            variant: 'destructive',
+          })
+        } else {
+          toast({
+            title: 'エラー',
+            description: '教師の保存に失敗しました',
+            variant: 'destructive',
+          })
+        }
         throw error
       } finally {
         setIsSaving(false)
       }
     },
-    [token] // getFreshTokenとtoastは最新値を参照するため除外
+    [toast, token]
   )
 
   // 初期化
   useEffect(() => {
-    if (token) {
-      loadInitialData()
-    }
-  }, [token]) // loadInitialDataは安定化されたため除外
+    loadInitialData()
+  }, [loadInitialData])
 
   return {
     // データ

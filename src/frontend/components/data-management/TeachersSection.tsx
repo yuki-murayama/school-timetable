@@ -13,10 +13,11 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import type { Teacher } from '@shared/schemas'
 import { Edit, Loader2, Plus, Save, Trash2 } from 'lucide-react'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useToast } from '../../hooks/use-toast'
-import { type Teacher, teacherApi } from '../../lib/api'
+import { teacherApi } from '../../lib/api'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
@@ -56,20 +57,17 @@ export const TeachersSection = memo(function TeachersSection({
     }
   }, [])
 
-  // Helper function to normalize a single teacher's data
-  const _normalizeTeacher = (teacher: unknown): Teacher => {
-    let subjects = []
-    let grades = []
-
-    // subjects の安全なパース
-    if (Array.isArray(teacher.subjects)) {
-      subjects = teacher.subjects
+  // Helper function to normalize teacher subjects
+  const normalizeSubjects = useCallback((subjects: unknown): string[] => {
+    if (Array.isArray(subjects)) {
+      return subjects
         .map(s => (typeof s === 'string' ? s : s && typeof s === 'object' && s.name ? s.name : s))
         .filter(s => typeof s === 'string')
-    } else if (typeof teacher.subjects === 'string') {
+    }
+    if (typeof subjects === 'string') {
       try {
-        const parsed = JSON.parse(teacher.subjects || '[]')
-        subjects = Array.isArray(parsed)
+        const parsed = JSON.parse(subjects || '[]')
+        return Array.isArray(parsed)
           ? parsed
               .map(s =>
                 typeof s === 'string' ? s : s && typeof s === 'object' && s.name ? s.name : s
@@ -77,30 +75,31 @@ export const TeachersSection = memo(function TeachersSection({
               .filter(s => typeof s === 'string')
           : []
       } catch (_e) {
-        console.warn('Failed to parse teacher subjects:', teacher.subjects)
-        subjects = []
+        console.warn('Failed to parse teacher subjects:', subjects)
+        return []
       }
     }
+    return []
+  }, [])
 
-    // grades の安全なパース
-    if (Array.isArray(teacher.grades)) {
-      grades = teacher.grades.filter(g => typeof g === 'string')
-    } else if (typeof teacher.grades === 'string') {
+  // Helper function to normalize teacher grades
+  const normalizeGrades = useCallback((grades: unknown): string[] => {
+    if (Array.isArray(grades)) {
+      return grades.map(g => String(g)).filter(g => g !== 'undefined' && g !== 'null')
+    }
+    if (typeof grades === 'string') {
       try {
-        const parsed = JSON.parse(teacher.grades || '[]')
-        grades = Array.isArray(parsed) ? parsed.filter(g => typeof g === 'string') : []
+        const parsed = JSON.parse(grades || '[]')
+        return Array.isArray(parsed)
+          ? parsed.map(g => String(g)).filter(g => g !== 'undefined' && g !== 'null')
+          : []
       } catch (_e) {
-        console.warn('Failed to parse teacher grades:', teacher.grades)
-        grades = []
+        console.warn('Failed to parse teacher grades:', grades)
+        return []
       }
     }
-
-    return {
-      ...teacher,
-      subjects,
-      grades,
-    }
-  }
+    return []
+  }, [])
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -126,21 +125,36 @@ export const TeachersSection = memo(function TeachersSection({
       if (!token || !Array.isArray(teachers)) return
 
       try {
+        console.log('🗑️ 統一型安全APIで教師削除開始:', id)
         await teacherApi.deleteTeacher(id, { token, getFreshToken })
+        console.log('✅ 教師削除成功:', result)
+
         onTeachersUpdate(teachers.filter(t => t.id !== id))
         toast({
           title: '削除完了',
           description: '教師情報を削除しました',
         })
-      } catch (_error) {
-        toast({
-          title: '削除エラー',
-          description: '教師情報の削除に失敗しました',
-          variant: 'destructive',
-        })
+      } catch (error) {
+        console.error('❌ 教師削除エラー:', error)
+
+        if (error instanceof Error) {
+          const errorMessage =
+            error.validationErrors?.map(e => e.message).join(', ') || error.message
+          toast({
+            title: '削除エラー',
+            description: `入力データが無効です: ${errorMessage}`,
+            variant: 'destructive',
+          })
+        } else {
+          toast({
+            title: '削除エラー',
+            description: '教師情報の削除に失敗しました',
+            variant: 'destructive',
+          })
+        }
       }
     },
-    [token, teachers, onTeachersUpdate] // getFreshTokenとtoastは最新値を参照するため除外
+    [token, teachers, onTeachersUpdate, toast]
   )
 
   const handleSaveAllTeachers = useCallback(async () => {
@@ -148,12 +162,35 @@ export const TeachersSection = memo(function TeachersSection({
 
     setIsSaving(true)
     try {
-      await teacherApi.saveTeachers(teachers, { token, getFreshToken })
-      toast({
-        title: '保存完了',
-        description: '全ての教師情報を保存しました',
+      console.log('💾 統一型安全APIで教師一括保存開始:', teachers.length, '件')
+
+      // 各教師を個別に更新（一括更新APIがない場合）
+      const updatePromises = teachers.map(async teacher => {
+        if (teacher.id) {
+          return await teacherApi.updateTeacher(teacher.id, teacher, { token, getFreshToken })
+        }
       })
-    } catch (_error) {
+
+      const results = await Promise.allSettled(updatePromises)
+      const successCount = results.filter(r => r.status === 'fulfilled').length
+      const failCount = results.filter(r => r.status === 'rejected').length
+
+      console.log(`✅ 教師一括保存完了: 成功 ${successCount}件, 失敗 ${failCount}件`)
+
+      if (failCount === 0) {
+        toast({
+          title: '保存完了',
+          description: `全ての教師情報を保存しました（${successCount}件）`,
+        })
+      } else {
+        toast({
+          title: '部分的に保存完了',
+          description: `${successCount}件保存、${failCount}件失敗`,
+          variant: 'destructive',
+        })
+      }
+    } catch (error) {
+      console.error('❌ 教師一括保存エラー:', error)
       toast({
         title: '保存エラー',
         description: '教師情報の保存に失敗しました',
@@ -162,7 +199,7 @@ export const TeachersSection = memo(function TeachersSection({
     } finally {
       setIsSaving(false)
     }
-  }, [token, teachers])
+  }, [token, teachers, toast])
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -193,26 +230,33 @@ export const TeachersSection = memo(function TeachersSection({
           timeoutRef.current = setTimeout(async () => {
             if (token) {
               try {
-                console.log('👨‍🏫 教師順序一括更新開始')
-                const reorderData = itemsWithOrder
-                  .map((teacher, index) => ({
-                    id: teacher.id || '',
-                    order: index,
-                  }))
-                  .filter(item => item.id)
+                console.log('👨‍🏫 統一型安全APIで教師順序一括更新開始')
 
-                const result = await teacherApi.reorderTeachers(reorderData, {
-                  token,
-                  getFreshToken,
+                // 各教師のorder更新（個別更新）
+                const updatePromises = itemsWithOrder
+                  .filter(teacher => teacher.id)
+                  .map(async (teacher, index) => {
+                    if (!teacher.id) throw new Error('Teacher ID is required')
+                    return await teacherApi.updateTeacher(teacher.id, {
+                      ...teacher,
+                      order: index,
+                    }, { token, getFreshToken })
+                  })
+
+                const results = await Promise.allSettled(updatePromises)
+                const successCount = results.filter(r => r.status === 'fulfilled').length
+
+                console.log('✅ 教師順序一括更新完了:', {
+                  successCount,
+                  total: updatePromises.length,
                 })
-                console.log('✅ 教師順序一括更新完了:', result)
 
                 toast({
                   title: '順序保存完了',
-                  description: `${result.updatedCount}件の教師順序を保存しました`,
+                  description: `${successCount}件の教師順序を保存しました`,
                 })
               } catch (error) {
-                console.error('❌ Failed to save teacher order:', error)
+                console.error('❌ 教師順序保存エラー:', error)
                 toast({
                   title: '順序保存エラー',
                   description: '教師の順序保存に失敗しました',
@@ -224,12 +268,15 @@ export const TeachersSection = memo(function TeachersSection({
         }
       }
     },
-    [teachers, onTeachersUpdate, token] // getFreshTokenとtoastは最新値を参照するため除外
+    [teachers, onTeachersUpdate, token, toast, normalizeSubjects, normalizeGrades]
   )
 
   // メモ化されたソート済み教師リスト
   const sortedTeachers = useMemo(() => {
-    console.log('🔄 sortedTeachers recalculating, teachers:', teachers.length)
+    console.log(
+      '🔄 sortedTeachers recalculating, teachers:',
+      Array.isArray(teachers) ? teachers.length : 'not array'
+    )
     if (!Array.isArray(teachers)) {
       console.warn('Teachers is not an array:', teachers)
       return []
@@ -303,7 +350,7 @@ export const TeachersSection = memo(function TeachersSection({
                                 <div className='flex flex-wrap gap-1'>
                                   {(() => {
                                     try {
-                                      const subjectsArray = teacher.subjects || []
+                                      const subjectsArray = normalizeSubjects(teacher.subjects)
                                       console.log(`🔍 Teacher ${teacher.name}:`, {
                                         subjects: subjectsArray,
                                         length: subjectsArray.length,
@@ -319,13 +366,10 @@ export const TeachersSection = memo(function TeachersSection({
                                       }
 
                                       return subjectsArray.map(subject => {
-                                        const subjectKey =
-                                          typeof subject === 'string'
-                                            ? subject
-                                            : subject.name || Math.random().toString()
+                                        const subjectKey = subject || Math.random().toString()
                                         return (
                                           <Badge key={subjectKey} variant='secondary'>
-                                            {typeof subject === 'string' ? subject : subject.name}
+                                            {subject}
                                           </Badge>
                                         )
                                       })
@@ -343,16 +387,12 @@ export const TeachersSection = memo(function TeachersSection({
                                 <div className='flex flex-wrap gap-1'>
                                   {(() => {
                                     try {
-                                      return (teacher.grades || []).map(grade => {
-                                        const gradeKey =
-                                          typeof grade === 'string'
-                                            ? grade
-                                            : grade.name || Math.random().toString()
+                                      const gradesArray = normalizeGrades(teacher.grades)
+                                      return gradesArray.map(grade => {
+                                        const gradeKey = grade || Math.random().toString()
                                         return (
                                           <Badge key={gradeKey} variant='outline'>
-                                            {typeof grade === 'string'
-                                              ? grade
-                                              : grade.name || grade}
+                                            {grade}
                                           </Badge>
                                         )
                                       })
@@ -404,10 +444,22 @@ export const TeachersSection = memo(function TeachersSection({
                                   <Button
                                     variant='ghost'
                                     size='sm'
-                                    onClick={() => teacher.id && handleDeleteTeacher(teacher.id)}
+                                    onClick={e => {
+                                      e.preventDefault()
+                                      e.stopPropagation()
+                                      console.log('🗑️ Delete button clicked for:', teacher.name)
+                                      if (teacher.id) {
+                                        handleDeleteTeacher(teacher.id)
+                                      }
+                                    }}
                                     data-testid={`delete-teacher-${teacher.id}`}
                                     aria-label={`教師「${teacher.name}」を削除`}
                                     title={`教師「${teacher.name}」を削除`}
+                                    style={{ 
+                                      position: 'relative', 
+                                      zIndex: 10,
+                                      pointerEvents: 'auto' 
+                                    }}
                                   >
                                     <Trash2 className='w-4 h-4 text-red-500 hover:text-red-700' />
                                   </Button>
@@ -477,18 +529,25 @@ export const TeachersSection = memo(function TeachersSection({
             const newTeachers = [...teachers, updatedTeacher]
             console.log('📊 New teachers count:', newTeachers.length)
             console.log('📝 New teacher added:', updatedTeacher.name)
-            console.log('🚀 Calling onTeachersUpdate with new list:', newTeachers.map(t => ({ id: t.id, name: t.name })))
+            console.log(
+              '🚀 Calling onTeachersUpdate with new list:',
+              newTeachers.map(t => ({ id: t.id, name: t.name }))
+            )
+
+            // Immediate state update with force refresh
+            console.log('🚀 Immediate state update triggered')
+            onTeachersUpdate(newTeachers)
             
-            // Force a small delay to ensure state update
+            // Force re-render after a brief delay to ensure UI consistency
             setTimeout(() => {
-              console.log('🔄 Delayed state update triggered')
-              onTeachersUpdate(newTeachers)
+              console.log('🔄 Force refresh state update triggered')
+              onTeachersUpdate([...newTeachers])
               
               // Verify the update was applied
               setTimeout(() => {
                 console.log('✅ Verification: Current teachers after update:', newTeachers.length)
-              }, 100)
-            }, 0)
+              }, 50)
+            }, 10)
           }
           setIsDialogOpen(false)
           setEditingTeacher(null)

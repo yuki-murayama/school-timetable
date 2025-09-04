@@ -1,4 +1,10 @@
-import type { Classroom, SchoolSettings, Subject, Teacher, TimetableGenerationResult } from '../../shared/types'
+import type {
+  Classroom,
+  SchoolSettings,
+  Subject,
+  Teacher,
+  TimetableGenerationResult,
+} from '@shared/schemas'
 import { DataTransformService } from './DataTransformService'
 import { TimetableGenerator } from './timetableGenerator'
 

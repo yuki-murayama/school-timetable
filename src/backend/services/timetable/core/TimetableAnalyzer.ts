@@ -2,7 +2,7 @@
  * 時間割分析・統計クラス
  */
 
-import type { Subject, Teacher, TimetableSlot } from '../../../../shared/types'
+import type { Subject, Teacher, TimetableSlot } from '@shared/schemas'
 import type {
   AssignmentCandidate,
   ConstraintViolation,
@@ -41,7 +41,7 @@ export class TimetableAnalyzer {
       for (const classSlots of gradeSlots) {
         if (!classSlots) continue
         for (const slot of classSlots) {
-          if (slot && slot.hasViolation && slot.violations && slot.violations.length > 0) {
+          if (slot?.hasViolation && slot.violations && slot.violations.length > 0) {
             violationCount += slot.violations.length
           }
         }
@@ -76,7 +76,7 @@ export class TimetableAnalyzer {
       for (const classSlots of gradeSlots) {
         if (!classSlots) continue
         for (const slot of classSlots) {
-          if (slot && slot.teacher && slot.subject) {
+          if (slot?.teacher && slot.subject) {
             assigned++
           }
         }

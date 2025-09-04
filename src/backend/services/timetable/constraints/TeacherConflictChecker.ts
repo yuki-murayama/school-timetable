@@ -2,7 +2,7 @@
  * 教師の時間重複チェック
  */
 
-import type { TimetableSlot } from '../../../../shared/types'
+import type { TimetableSlot } from '@shared/schemas'
 import type { AssignmentCandidate, ConstraintResult } from '../types'
 import { ConstraintChecker } from './ConstraintChecker'
 

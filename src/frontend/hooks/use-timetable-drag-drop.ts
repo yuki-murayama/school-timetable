@@ -1,6 +1,6 @@
+import type { Subject, Teacher } from '@shared/schemas'
 import type React from 'react'
 import { useCallback, useState } from 'react'
-import type { Subject, Teacher } from '../../shared/types'
 import { timetableUtils } from '../lib/api'
 import type { TimetableSlotData } from './use-timetable-data'
 
@@ -45,56 +45,6 @@ export const useTimetableDragDrop = (
     e.dataTransfer.dropEffect = 'move'
   }, [])
 
-  // ドロップ処理
-  const handleDrop = useCallback(
-    (e: React.DragEvent, targetPeriod: string, targetDay: string) => {
-      e.preventDefault()
-
-      if (!draggedItem) return
-
-      console.log('🎯 ドロップ操作:', {
-        from: `${draggedItem.day}曜日${draggedItem.period}時限目`,
-        to: `${targetDay}曜日${targetPeriod}時限目`,
-        subject: draggedItem.subject,
-        teacher: draggedItem.teacher,
-      })
-
-      const newTimetableData = [...timetableData]
-
-      // ドラッグ元のデータをクリア
-      const draggedPeriodIndex = newTimetableData.findIndex(
-        row => row.period === draggedItem.period
-      )
-
-      const targetPeriodIndex = newTimetableData.findIndex(row => row.period === targetPeriod)
-
-      if (draggedPeriodIndex !== -1 && targetPeriodIndex !== -1) {
-        // ドラッグ元をクリア
-        const draggedRow = { ...newTimetableData[draggedPeriodIndex] }
-        const draggedDayKey = draggedItem.day as keyof TimetableSlotData
-        if (draggedDayKey in draggedRow) {
-          delete draggedRow[draggedDayKey]
-        }
-        newTimetableData[draggedPeriodIndex] = draggedRow
-
-        // ドロップ先に移動
-        const targetRow = { ...newTimetableData[targetPeriodIndex] }
-        const targetDayKey = targetDay as keyof TimetableSlotData
-        ;(targetRow as any)[targetDayKey] = {
-          subject: draggedItem.subject,
-          teacher: draggedItem.teacher,
-          classroom: '',
-        }
-        newTimetableData[targetPeriodIndex] = targetRow
-
-        applyChangesWithValidation(newTimetableData)
-      }
-
-      setDraggedItem(null)
-    },
-    [draggedItem, timetableData, applyChangesWithValidation]
-  )
-
   // バリデーション付きでの変更適用
   const applyChangesWithValidation = useCallback(
     async (newTimetableData: TimetableSlotData[]) => {
@@ -134,6 +84,56 @@ export const useTimetableDragDrop = (
       }
     },
     [teachers, subjects, setTimetableData]
+  )
+
+  // ドロップ処理
+  const handleDrop = useCallback(
+    (e: React.DragEvent, targetPeriod: string, targetDay: string) => {
+      e.preventDefault()
+
+      if (!draggedItem) return
+
+      console.log('🎯 ドロップ操作:', {
+        from: `${draggedItem.day}曜日${draggedItem.period}時限目`,
+        to: `${targetDay}曜日${targetPeriod}時限目`,
+        subject: draggedItem.subject,
+        teacher: draggedItem.teacher,
+      })
+
+      const newTimetableData = [...timetableData]
+
+      // ドラッグ元のデータをクリア
+      const draggedPeriodIndex = newTimetableData.findIndex(
+        row => row.period === draggedItem.period
+      )
+
+      const targetPeriodIndex = newTimetableData.findIndex(row => row.period === targetPeriod)
+
+      if (draggedPeriodIndex !== -1 && targetPeriodIndex !== -1) {
+        // ドラッグ元をクリア
+        const draggedRow = { ...newTimetableData[draggedPeriodIndex] }
+        const draggedDayKey = draggedItem.day as keyof TimetableSlotData
+        if (draggedDayKey in draggedRow) {
+          delete draggedRow[draggedDayKey]
+        }
+        newTimetableData[draggedPeriodIndex] = draggedRow
+
+        // ドロップ先に移動
+        const targetRow = { ...newTimetableData[targetPeriodIndex] }
+        const targetDayKey = targetDay as keyof TimetableSlotData
+        ;(targetRow as Record<string, unknown>)[targetDayKey] = {
+          subject: draggedItem.subject,
+          teacher: draggedItem.teacher,
+          classroom: '',
+        }
+        newTimetableData[targetPeriodIndex] = targetRow
+
+        applyChangesWithValidation(newTimetableData)
+      }
+
+      setDraggedItem(null)
+    },
+    [draggedItem, timetableData, applyChangesWithValidation]
   )
 
   return {

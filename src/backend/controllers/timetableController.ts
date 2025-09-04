@@ -1,5 +1,5 @@
+import type { Env } from '@shared/schemas'
 import type { Context } from 'hono'
-import type { Env } from '../../shared/types'
 import { DataTransformService } from '../services/DataTransformService'
 import { TimetableOrchestrator } from '../services/TimetableOrchestrator'
 import { TimetablePersistenceService } from '../services/TimetablePersistenceService'
@@ -338,7 +338,7 @@ export class TimetableController {
   async getSavedProgramTimetables(c: Context<{ Bindings: Env }>) {
     try {
       const persistence = this.getTimetablePersistenceService(c)
-      
+
       // クエリパラメータからページングパラメータを取得
       const page = parseInt(c.req.query('page') || '1', 10)
       const limit = parseInt(c.req.query('limit') || '20', 10)

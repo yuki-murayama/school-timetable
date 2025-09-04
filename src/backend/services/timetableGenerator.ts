@@ -10,7 +10,7 @@ import type {
   Teacher,
   TimetableGenerationResult,
   TimetableSlot,
-} from '../../shared/types'
+} from '@shared/schemas'
 
 import {
   type AssignmentCandidate,
@@ -58,15 +58,18 @@ export class TimetableGenerator {
 
     // デバッグ: 初期化時のsettingsを確認
     this.log('🔧 TimetableGenerator初期化:')
-    this.log('   受信settings:', JSON.stringify({
-      dailyPeriods: settings?.dailyPeriods,
-      saturdayPeriods: settings?.saturdayPeriods,
-      grade1Classes: settings?.grade1Classes,
-      grade2Classes: settings?.grade2Classes,
-      grade3Classes: settings?.grade3Classes,
-      dailyPeriodsType: typeof settings?.dailyPeriods,
-      saturdayPeriodsType: typeof settings?.saturdayPeriods
-    }))
+    this.log(
+      '   受信settings:',
+      JSON.stringify({
+        dailyPeriods: settings?.dailyPeriods,
+        saturdayPeriods: settings?.saturdayPeriods,
+        grade1Classes: settings?.grade1Classes,
+        grade2Classes: settings?.grade2Classes,
+        grade3Classes: settings?.grade3Classes,
+        dailyPeriodsType: typeof settings?.dailyPeriods,
+        saturdayPeriodsType: typeof settings?.saturdayPeriods,
+      })
+    )
 
     // 機能クラス初期化
     this.config = new TimetableConfiguration(settings)
@@ -112,15 +115,25 @@ export class TimetableGenerator {
       }
 
       this.log(`📊 初期データ確認: 教師${this.teachers.length}名、教科${this.subjects.length}件`)
-      
+
       // 設定情報の詳細ログ
       const settings = this.config.getSettings()
       this.log(`⚙️ 設定情報確認:`)
-      this.log(`   - dailyPeriods: ${settings.dailyPeriods} (type: ${typeof settings.dailyPeriods})`)
-      this.log(`   - saturdayPeriods: ${settings.saturdayPeriods} (type: ${typeof settings.saturdayPeriods})`)
-      this.log(`   - grade1Classes: ${settings.grade1Classes} (type: ${typeof settings.grade1Classes})`)
-      this.log(`   - grade2Classes: ${settings.grade2Classes} (type: ${typeof settings.grade2Classes})`)
-      this.log(`   - grade3Classes: ${settings.grade3Classes} (type: ${typeof settings.grade3Classes})`)
+      this.log(
+        `   - dailyPeriods: ${settings.dailyPeriods} (type: ${typeof settings.dailyPeriods})`
+      )
+      this.log(
+        `   - saturdayPeriods: ${settings.saturdayPeriods} (type: ${typeof settings.saturdayPeriods})`
+      )
+      this.log(
+        `   - grade1Classes: ${settings.grade1Classes} (type: ${typeof settings.grade1Classes})`
+      )
+      this.log(
+        `   - grade2Classes: ${settings.grade2Classes} (type: ${typeof settings.grade2Classes})`
+      )
+      this.log(
+        `   - grade3Classes: ${settings.grade3Classes} (type: ${typeof settings.grade3Classes})`
+      )
 
       // 新しい仕様に基づくアルゴリズムを使用
       const result = await this.executeAdvancedAssignment(options?.tolerantMode || false)
@@ -144,40 +157,46 @@ export class TimetableGenerator {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : '時間割生成に失敗しました'
       const errorStack = error instanceof Error ? error.stack : String(error)
-      
+
       this.log('❌ 時間割生成エラー:')
       this.log('   メッセージ:', errorMessage)
       this.log('   スタックトレース:', errorStack)
       this.log('   エラー詳細:', JSON.stringify(error))
-      
+
       // 特にNaN関連エラーの詳細分析
       if (errorMessage.includes('NaN')) {
         this.log('🔍 NaN関連エラー詳細分析:')
-        
+
         // 設定情報をダンプ
         const settings = this.config.getSettings()
-        this.log('   Settings詳細:', JSON.stringify({
-          dailyPeriods: settings.dailyPeriods,
-          saturdayPeriods: settings.saturdayPeriods,
-          grade1Classes: settings.grade1Classes,
-          grade2Classes: settings.grade2Classes,
-          grade3Classes: settings.grade3Classes,
-          dailyPeriodsType: typeof settings.dailyPeriods,
-          saturdayPeriodsType: typeof settings.saturdayPeriods
-        }))
-        
+        this.log(
+          '   Settings詳細:',
+          JSON.stringify({
+            dailyPeriods: settings.dailyPeriods,
+            saturdayPeriods: settings.saturdayPeriods,
+            grade1Classes: settings.grade1Classes,
+            grade2Classes: settings.grade2Classes,
+            grade3Classes: settings.grade3Classes,
+            dailyPeriodsType: typeof settings.dailyPeriods,
+            saturdayPeriodsType: typeof settings.saturdayPeriods,
+          })
+        )
+
         // 教師・教科情報をダンプ
         this.log('   Teachers数:', this.teachers?.length || 0)
         this.log('   Subjects数:', this.subjects?.length || 0)
         if (this.subjects && this.subjects.length > 0) {
-          this.log('   教科サンプル:', JSON.stringify({
-            name: this.subjects[0].name,
-            weeklyHours: this.subjects[0].weeklyHours,
-            weeklyHoursType: typeof this.subjects[0].weeklyHours
-          }))
+          this.log(
+            '   教科サンプル:',
+            JSON.stringify({
+              name: this.subjects[0].name,
+              weeklyHours: this.subjects[0].weeklyHours,
+              weeklyHoursType: typeof this.subjects[0].weeklyHours,
+            })
+          )
         }
       }
-      
+
       return {
         success: false,
         message: `時間割生成エラー: ${errorMessage}`,
@@ -273,7 +292,9 @@ export class TimetableGenerator {
     const MAX_RETRIES = 5
 
     this.log('🎯 新仕様アルゴリズム開始: 割当困難度順・ランダム配置・制約違反許容')
-    this.log(`📊 データ確認: 教師${this.teachers.length}名、教科${this.subjects.length}件、教室${this.classrooms.length}室`)
+    this.log(
+      `📊 データ確認: 教師${this.teachers.length}名、教科${this.subjects.length}件、教室${this.classrooms.length}室`
+    )
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       retryCount = attempt + 1
@@ -285,7 +306,7 @@ export class TimetableGenerator {
 
       // 1. 割当困難度の高い教師から処理
       const sortedTeachers = this.sortTeachersByDifficulty()
-      
+
       for (const teacher of sortedTeachers) {
         await this.assignTeacherSubjects(teacher, tolerantMode)
       }
@@ -334,7 +355,7 @@ export class TimetableGenerator {
 
     // 困難度の高い順でソート
     teacherDifficulties.sort((a, b) => b.difficulty - a.difficulty)
-    
+
     this.log(`🎯 教師割当困難度順:`)
     teacherDifficulties.forEach((item, index) => {
       this.log(`${index + 1}. ${item.teacher.name}: 困難度 ${item.difficulty.toFixed(3)}`)
@@ -351,28 +372,34 @@ export class TimetableGenerator {
       if (!teacher || !teacher.subjects || !teacher.subjects.length) return 0
 
       const settings = this.config.getSettings()
-      
+
       // 教師の割当可能時間数を計算
-      const totalPossibleSlots = (settings.dailyPeriods * 5) + settings.saturdayPeriods
-      const restrictedSlots = teacher.assignmentRestrictions?.reduce((total, restriction) => {
-        return total + (restriction.restrictionLevel === '必須' ? restriction.restrictedPeriods.length : 0)
-      }, 0) || 0
-      
+      const totalPossibleSlots = settings.dailyPeriods * 5 + settings.saturdayPeriods
+      const restrictedSlots =
+        teacher.assignmentRestrictions?.reduce((total, restriction) => {
+          return (
+            total +
+            (restriction.restrictionLevel === '必須' ? restriction.restrictedPeriods.length : 0)
+          )
+        }, 0) || 0
+
       const availableSlots = totalPossibleSlots - restrictedSlots
 
       if (availableSlots <= 0) return Infinity
 
       // 各担当教科の困難度を計算して合計
       let totalDifficulty = 0
-      
+
       for (const subjectName of teacher.subjects) {
         try {
           const subject = this.subjects.find(s => s.name === subjectName)
           if (!subject || !subject.grades) continue
 
           // その教科を担当する教師数
-          const teachersForSubject = this.teachers.filter(t => t.subjects && t.subjects.includes(subjectName)).length
-          
+          const teachersForSubject = this.teachers.filter(t =>
+            t.subjects?.includes(subjectName)
+          ).length
+
           if (teachersForSubject === 0) continue
 
           // その教科の総授業時数を計算
@@ -380,7 +407,7 @@ export class TimetableGenerator {
             try {
               const gradeSettings = this.config.getGradeSettings(grade)
               let weeklyHours = 0
-              
+
               if (subject.weeklyHours === null || subject.weeklyHours === undefined) {
                 weeklyHours = 0
               } else if (typeof subject.weeklyHours === 'object' && subject.weeklyHours) {
@@ -388,8 +415,8 @@ export class TimetableGenerator {
               } else if (typeof subject.weeklyHours === 'number') {
                 weeklyHours = subject.weeklyHours
               }
-              
-              return total + (gradeSettings.classes * weeklyHours)
+
+              return total + gradeSettings.classes * weeklyHours
             } catch (error) {
               this.log(`❌ 困難度計算エラー(grade ${grade}):`, error)
               return total
@@ -401,7 +428,6 @@ export class TimetableGenerator {
           totalDifficulty += subjectDifficulty
         } catch (error) {
           this.log(`❌ 教科困難度計算エラー(${subjectName}):`, error)
-          continue
         }
       }
 
@@ -432,7 +458,7 @@ export class TimetableGenerator {
       // 教科の各学年について処理
       for (const grade of subject.grades) {
         const gradeSettings = this.config.getGradeSettings(grade)
-        
+
         // 各クラスに授業時数分割当
         for (let classIndex = 1; classIndex <= gradeSettings.classes; classIndex++) {
           await this.assignSubjectToClass(teacher, subject, grade, classIndex, tolerantMode)
@@ -445,15 +471,15 @@ export class TimetableGenerator {
    * 特定のクラスに教科を割当（ランダム配置・同日回避）
    */
   private async assignSubjectToClass(
-    teacher: Teacher, 
-    subject: Subject, 
-    grade: number, 
-    classIndex: number, 
+    teacher: Teacher,
+    subject: Subject,
+    grade: number,
+    classIndex: number,
     tolerantMode: boolean
   ): Promise<void> {
     // 学年別の週間授業時数を取得（スコープエラー修正）
     let weeklyHours = 0
-    
+
     try {
       // 安全なプロパティアクセスでデータ検証
       if (!subject) {
@@ -473,21 +499,30 @@ export class TimetableGenerator {
           weeklyHours = 0
         } else if (typeof subject.weeklyHours === 'object' && subject.weeklyHours) {
           weeklyHours = subject.weeklyHours[grade] || 0
-          this.log(`📊 教科 ${subject.name} の週間時数データ(object):`, JSON.stringify(subject.weeklyHours))
+          this.log(
+            `📊 教科 ${subject.name} の週間時数データ(object):`,
+            JSON.stringify(subject.weeklyHours)
+          )
         } else if (typeof subject.weeklyHours === 'number') {
           weeklyHours = subject.weeklyHours
           this.log(`📊 教科 ${subject.name} の週間時数データ(number):`, subject.weeklyHours)
         } else {
-          this.log(`⚠️ 不明なweeklyHours型 ${subject.name}:`, typeof subject.weeklyHours, subject.weeklyHours)
+          this.log(
+            `⚠️ 不明なweeklyHours型 ${subject.name}:`,
+            typeof subject.weeklyHours,
+            subject.weeklyHours
+          )
           weeklyHours = 0
         }
       } catch (error) {
         this.log(`❌ weeklyHours処理エラー ${subject.name}:`, error)
         weeklyHours = 0
       }
-      
-      this.log(`🎯 クラス割当開始: ${subject.name} ${grade}年${classIndex}組 (週${weeklyHours}時間)`)
-      
+
+      this.log(
+        `🎯 クラス割当開始: ${subject.name} ${grade}年${classIndex}組 (週${weeklyHours}時間)`
+      )
+
       if (weeklyHours === 0) {
         this.log(`⚠️ 週間授業時数が0です: ${subject.name} ${grade}年`)
         return
@@ -496,7 +531,7 @@ export class TimetableGenerator {
       this.log(`❌ assignSubjectToClass初期化エラー:`, error)
       return
     }
-    
+
     const candidate: AssignmentCandidate = {
       teacher,
       subject,
@@ -511,10 +546,12 @@ export class TimetableGenerator {
 
     for (let hour = 0; hour < weeklyHours; hour++) {
       const availableSlots = this.getAvailableSlotsForAssignment(candidate, assignedDays)
-      
+
       if (availableSlots.length === 0) {
         if (tolerantMode) {
-          this.log(`⚠️ ${subject.name} ${grade}年${classIndex}組 ${hour + 1}時限目: 制約違反で強制割当`)
+          this.log(
+            `⚠️ ${subject.name} ${grade}年${classIndex}組 ${hour + 1}時限目: 制約違反で強制割当`
+          )
           await this.forceAssignWithViolation(candidate)
         } else {
           this.log(`❌ ${subject.name} ${grade}年${classIndex}組 ${hour + 1}時限目: 割当不能`)
@@ -524,39 +561,45 @@ export class TimetableGenerator {
 
       // ランダム選択
       const randomSlot = availableSlots[Math.floor(Math.random() * availableSlots.length)]
-      
+
       // スロット情報から実際のTimetableSlotを作成して割当
       const success = this.assignToTimetableSlot(randomSlot, candidate)
-      
+
       if (success) {
         assignedHours++
         assignedDays.push(randomSlot.day)
-        this.log(`✅ ${subject.name} ${grade}年${classIndex}組: ${randomSlot.day}曜日${randomSlot.period}時限目に割当成功`)
+        this.log(
+          `✅ ${subject.name} ${grade}年${classIndex}組: ${randomSlot.day}曜日${randomSlot.period}時限目に割当成功`
+        )
       }
     }
 
-    this.log(`📋 ${subject.name} ${grade}年${classIndex}組 割当結果: ${assignedHours}/${weeklyHours}`)
+    this.log(
+      `📋 ${subject.name} ${grade}年${classIndex}組 割当結果: ${assignedHours}/${weeklyHours}`
+    )
   }
 
   /**
    * 割当可能スロットを取得（同日回避ロジック付き）
    */
   private getAvailableSlotsForAssignment(
-    candidate: AssignmentCandidate, 
+    candidate: AssignmentCandidate,
     assignedDays: number[]
   ): Array<{ day: number; period: number }> {
     const settings = this.config.getSettings()
     const availableSlots: Array<{ day: number; period: number }> = []
 
     // 全時間枠をチェック
-    for (let day = 0; day < 6; day++) { // 月〜土
+    for (let day = 0; day < 6; day++) {
+      // 月〜土
       const maxPeriods = day === 5 ? settings.saturdayPeriods : settings.dailyPeriods
-      
+
       for (let period = 0; period < maxPeriods; period++) {
         // 対象クラスのスロットをチェック
         const slotIndex = this.calculateSlotIndex(day, period, settings)
-        const slot = this.timetable[candidate.classGrade - 1][Number(candidate.classSection) - 1][slotIndex]
-        
+        const slot =
+          this.timetable[candidate.classGrade - 1][Number(candidate.classSection) - 1][slotIndex]
+
         // 空いているスロット且つ教師の制約に違反しない
         if (!slot && this.isTeacherAvailable(candidate.teacher, day, period)) {
           // 同日回避: 既に割当済みの曜日をチェック
@@ -571,11 +614,12 @@ export class TimetableGenerator {
     if (availableSlots.length === 0 && assignedDays.length > 0) {
       for (let day = 0; day < 6; day++) {
         const maxPeriods = day === 5 ? settings.saturdayPeriods : settings.dailyPeriods
-        
+
         for (let period = 0; period < maxPeriods; period++) {
           const slotIndex = this.calculateSlotIndex(day, period, settings)
-          const slot = this.timetable[candidate.classGrade - 1][Number(candidate.classSection) - 1][slotIndex]
-          
+          const slot =
+            this.timetable[candidate.classGrade - 1][Number(candidate.classSection) - 1][slotIndex]
+
           if (!slot && this.isTeacherAvailable(candidate.teacher, day, period)) {
             availableSlots.push({ day, period })
           }
@@ -613,7 +657,7 @@ export class TimetableGenerator {
         const settings = this.config.getSettings()
         const slotIndex = this.calculateSlotIndex(day, period, settings)
         const slot = this.timetable[grade - 1][classIndex - 1][slotIndex]
-        if (slot && slot.teacher && slot.teacher.id === teacher.id) {
+        if (slot?.teacher && slot.teacher.id === teacher.id) {
           return false
         }
       }
@@ -626,12 +670,12 @@ export class TimetableGenerator {
    * 時間割スロットに割当実行
    */
   private assignToTimetableSlot(
-    slotInfo: { day: number; period: number }, 
+    slotInfo: { day: number; period: number },
     candidate: AssignmentCandidate
   ): boolean {
     const settings = this.config.getSettings()
     const slotIndex = this.calculateSlotIndex(slotInfo.day, slotInfo.period, settings)
-    
+
     // 対象スロットに割当
     this.timetable[candidate.classGrade - 1][Number(candidate.classSection) - 1][slotIndex] = {
       classGrade: candidate.classGrade,
@@ -642,7 +686,7 @@ export class TimetableGenerator {
       subject: candidate.subject,
       classroom: null, // 簡略化のため教室は割り当てない
     }
-    
+
     return true
   }
 
@@ -655,7 +699,7 @@ export class TimetableGenerator {
       try {
         if (value === null || value === undefined) return defaultValue
         const parsed = Number(value)
-        return isNaN(parsed) ? defaultValue : parsed
+        return Number.isNaN(parsed) ? defaultValue : parsed
       } catch {
         return defaultValue
       }
@@ -665,27 +709,29 @@ export class TimetableGenerator {
     const safeDay = safeNumber(day, 0)
     const safePeriod = safeNumber(period, 0)
     const safeDailyPeriods = safeNumber(settings.dailyPeriods, 6)
-    
+
     let slotIndex = 0
-    
+
     // 月曜〜金曜（day 0-4）
     if (safeDay < 5) {
       slotIndex = safeDay * safeDailyPeriods + safePeriod
-    } 
+    }
     // 土曜日（day 5）
     else if (safeDay === 5) {
       slotIndex = 5 * safeDailyPeriods + safePeriod
     }
-    
+
     // 最終的な安全性確認
     const finalSlotIndex = safeNumber(slotIndex, 0)
-    
+
     // デバッグログで計算過程を確認
-    if (isNaN(slotIndex) || slotIndex < 0) {
-      this.log(`❌ calculateSlotIndex異常値検出: day=${day}, period=${period}, dailyPeriods=${settings.dailyPeriods}, slotIndex=${slotIndex}`)
+    if (Number.isNaN(slotIndex) || slotIndex < 0) {
+      this.log(
+        `❌ calculateSlotIndex異常値検出: day=${day}, period=${period}, dailyPeriods=${settings.dailyPeriods}, slotIndex=${slotIndex}`
+      )
       return 0 // デフォルト値でクラッシュを回避
     }
-    
+
     return finalSlotIndex
   }
 
@@ -694,27 +740,30 @@ export class TimetableGenerator {
    */
   private async forceAssignWithViolation(candidate: AssignmentCandidate): Promise<void> {
     const settings = this.config.getSettings()
-    
+
     // 全ての時間枠から空いているスロットを探す
-    for (let day = 0; day < 6; day++) { // 月〜土
+    for (let day = 0; day < 6; day++) {
+      // 月〜土
       const maxPeriods = day === 5 ? settings.saturdayPeriods : settings.dailyPeriods
-      
+
       for (let period = 0; period < maxPeriods; period++) {
         const slotIndex = this.calculateSlotIndex(day, period, settings)
-        const slot = this.timetable[candidate.classGrade - 1][Number(candidate.classSection) - 1][slotIndex]
-        
+        const slot =
+          this.timetable[candidate.classGrade - 1][Number(candidate.classSection) - 1][slotIndex]
+
         if (!slot) {
           // 空きスロットに制約違反フラグ付きで割当
-          this.timetable[candidate.classGrade - 1][Number(candidate.classSection) - 1][slotIndex] = {
-            classGrade: candidate.classGrade,
-            classSection: candidate.classSection,
-            day: day.toString(),
-            period: period,
-            teacher: candidate.teacher,
-            subject: candidate.subject,
-            classroom: null,
-            isViolation: true, // 制約違反フラグ
-          }
+          this.timetable[candidate.classGrade - 1][Number(candidate.classSection) - 1][slotIndex] =
+            {
+              classGrade: candidate.classGrade,
+              classSection: candidate.classSection,
+              day: day.toString(),
+              period: period,
+              teacher: candidate.teacher,
+              subject: candidate.subject,
+              classroom: null,
+              isViolation: true, // 制約違反フラグ
+            }
           return
         }
       }
@@ -730,8 +779,10 @@ export class TimetableGenerator {
     for (const candidate of this.candidates) {
       if (candidate.assignedHours < candidate.requiredHours) {
         const remaining = candidate.requiredHours - candidate.assignedHours
-        this.log(`⚠️ ${candidate.subject.name} ${candidate.classGrade}年${candidate.classSection}組: ${remaining}時間未割当`)
-        
+        this.log(
+          `⚠️ ${candidate.subject.name} ${candidate.classGrade}年${candidate.classSection}組: ${remaining}時間未割当`
+        )
+
         for (let i = 0; i < remaining; i++) {
           await this.forceAssignWithViolation(candidate)
         }

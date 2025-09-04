@@ -13,9 +13,9 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
+import type { AssignmentRestriction, SchoolSettings } from '@shared/schemas'
 import { Plus } from 'lucide-react'
 import { useCallback } from 'react'
-import type { AssignmentRestriction, SchoolSettings } from '../../../shared/types'
 import { Button } from '../ui/button'
 import { Label } from '../ui/label'
 import { SortableRestrictionItem } from './SortableRestrictionItem'

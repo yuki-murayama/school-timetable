@@ -2,7 +2,7 @@
  * 統合データ取得API
  */
 
-import type { Classroom, SchoolSettings, Subject, Teacher } from '../../../shared/types'
+import type { Classroom, SchoolSettings, Subject, Teacher } from '@shared/schemas'
 import { classroomApi } from './classroom'
 import type { ApiOptions } from './client'
 import { schoolApi } from './school'

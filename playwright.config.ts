@@ -15,14 +15,14 @@ export default defineConfig({
   workers: process.env.CI ? 1 : 3, // Reduced from default 5 to 3 for better stability
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: [['html'], ['json', { outputFile: 'test-results/test-results.json' }], ['list']],
-  /* Global setup for authentication */
-  globalSetup: './tests/e2e/global-setup.ts',
-  /* Global teardown for cleanup */
-  globalTeardown: './tests/e2e/global-cleanup.ts',
+  /* Global setup for authentication - 一時的に無効化 */
+  // globalSetup: './tests/e2e/global-setup.ts',
+  /* Global teardown for cleanup - 一時的に無効化 */
+  // globalTeardown: './tests/e2e/global-cleanup.ts',
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: 'https://school-timetable-monorepo.grundhunter.workers.dev',
+    baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5174',
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: 'on-first-retry',

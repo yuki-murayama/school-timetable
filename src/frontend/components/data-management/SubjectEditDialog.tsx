@@ -1,10 +1,9 @@
+import type { Subject } from '@shared/schemas'
 import { Save } from 'lucide-react'
 import { useEffect } from 'react'
 import { useSubjectApi } from '../../hooks/use-subject-api'
 // モジュラー化されたフックをインポート
 import { useSubjectForm } from '../../hooks/use-subject-form'
-
-import type { Subject } from '../../lib/api'
 import { Button } from '../ui/button'
 import { Checkbox } from '../ui/checkbox'
 import { Input } from '../ui/input'

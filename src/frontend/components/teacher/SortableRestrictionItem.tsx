@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import type { AssignmentRestriction, SchoolSettings } from '@shared/schemas'
 import { GripVertical, Trash2 } from 'lucide-react'
-import type { AssignmentRestriction, SchoolSettings } from '../../../shared/types'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select'

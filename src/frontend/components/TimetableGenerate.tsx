@@ -1,8 +1,9 @@
+import type { TimetableGenerationResponse } from '@shared/schemas'
 import { CheckCircle, Loader2, Settings } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../hooks/use-auth'
 import { useToast } from '../hooks/use-toast'
-import { type TimetableGenerationResponse, timetableApi } from '../lib/api'
+import { timetableApi } from '../lib/api'
 import { Button } from './ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Input } from './ui/input'
@@ -52,20 +53,19 @@ export function TimetableGenerate() {
 
       // APIクライアントはdata部分のみを返すため、timetableとstatisticsの存在で成功判定
       if (result?.timetable && result.statistics) {
-
         // 時間割を自動保存
         try {
           const saveResult = await timetableApi.saveProgramTimetable(
             result.timetable,
             result.statistics,
             {
-              name: `時間割_${new Date().toLocaleDateString()}_${new Date().toLocaleTimeString().replace(/:/g, '-')}`
+              name: `時間割_${new Date().toLocaleDateString()}_${new Date().toLocaleTimeString().replace(/:/g, '-')}`,
             },
             { token }
           )
 
           // apiClient.postは成功時にdataオブジェクトのみを返す
-          if (saveResult && saveResult.timetableId) {
+          if (saveResult?.timetableId) {
             toast({
               title: '生成・保存完了',
               description: `時間割生成と保存が完了しました（割当率: ${saveResult.assignmentRate || 0}%）`,
@@ -99,7 +99,6 @@ export function TimetableGenerate() {
           },
         })
       } else {
-
         toast({
           title: '生成失敗',
           description: '時間割生成に失敗しました',
@@ -114,8 +113,7 @@ export function TimetableGenerate() {
           })
         }
       }
-    } catch (error) {
-
+    } catch (_error) {
       toast({
         title: '生成エラー',
         description: '時間割生成中にエラーが発生しました',

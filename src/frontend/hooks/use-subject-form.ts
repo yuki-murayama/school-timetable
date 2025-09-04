@@ -1,12 +1,24 @@
-import { useCallback, useEffect, useState } from 'react'
-import type { Subject } from '../../shared/types'
+/**
+ * 型安全教科フォームフック - Zodスキーマ統合
+ */
 
-interface SubjectFormData {
-  name: string
-  specialClassroom: string
-  weekly_hours: number
-  target_grades: number[]
-}
+import type { Subject } from '@shared/schemas'
+import { useCallback, useEffect, useState } from 'react'
+import { z } from 'zod'
+
+// フォームデータスキーマ
+const SubjectFormDataSchema = z.object({
+  name: z.string().min(1, '教科名は必須です').max(100, '教科名は100文字以内で入力してください'),
+  specialClassroom: z.string().optional().default(''),
+  weekly_hours: z
+    .number()
+    .min(0, '週間授業数は0以上です')
+    .max(10, '週間授業数は10以下です')
+    .default(1),
+  target_grades: z.array(z.number().min(1).max(6)).default([]),
+})
+
+type SubjectFormData = z.infer<typeof SubjectFormDataSchema>
 
 export const useSubjectForm = (initialSubject: Subject | null) => {
   // フォーム状態
@@ -133,7 +145,7 @@ export const useSubjectForm = (initialSubject: Subject | null) => {
   }, [])
 
   // フィールド更新処理
-  const updateField = useCallback((field: keyof SubjectFormData, value: any) => {
+  const updateField = useCallback((field: keyof SubjectFormData, value: unknown) => {
     setFormData(prev => ({ ...prev, [field]: value }))
   }, [])
 

@@ -1,8 +1,10 @@
-import { lazy, Suspense, useState } from 'react'
+import { ValidationError } from '@shared/schemas'
+import { useState } from 'react'
+import { z } from 'zod'
+import { DataManagementPage } from '../pages/DataManagementPage'
 import { Sidebar } from './Sidebar'
 // 直接インポートに変更してlazyローディング問題を回避
 import { TimetableGenerate } from './TimetableGenerate'
-import { DataManagementPage } from '../pages/DataManagementPage'
 import { TimetableView } from './TimetableView'
 import { TimetableDetailView } from './timetable/TimetableDetailView'
 
@@ -17,34 +19,83 @@ import { TimetableDetailView } from './timetable/TimetableDetailView'
 //   import('./TimetableView').then(module => ({ default: module.TimetableView }))
 // )
 
+// MainAppプロパティ検証スキーマ
+const MainAppPropsSchema = z.object({
+  onLogout: z.function(z.tuple([]), z.void()),
+})
+
 interface MainAppProps {
   onLogout: () => void
 }
 
+// ページ状態検証スキーマ
+const PageStateSchema = z.union([z.literal('generate'), z.literal('data'), z.literal('view')])
+
+type PageState = z.infer<typeof PageStateSchema>
+
+// 時間割詳細ID検証スキーマ
+const TimetableDetailIdSchema = z.string().min(1, '時間割IDは必須です').nullable()
+
 export function MainApp({ onLogout }: MainAppProps) {
-  const [currentPage, setCurrentPage] = useState('generate')
+  // Props validation
+  try {
+    MainAppPropsSchema.parse({ onLogout })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('MainApp props validation failed:', error.errors)
+      throw new ValidationError('MainAppのプロパティ検証に失敗しました', error.errors)
+    }
+    throw error
+  }
+
+  // 型安全なstate管理
+  const [currentPage, setCurrentPage] = useState<PageState>('generate')
   const [timetableDetailId, setTimetableDetailId] = useState<string | null>(null)
-  
+
   const handlePageChange = (page: string) => {
-    setCurrentPage(page)
-    // 詳細表示状態をリセット
-    if (page !== 'view') {
+    try {
+      const validatedPage = PageStateSchema.parse(page)
+      setCurrentPage(validatedPage)
+      // 詳細表示状態をリセット
+      if (validatedPage !== 'view') {
+        setTimetableDetailId(null)
+      }
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error('Page change validation failed:', error.errors)
+        // フォールバック処理 - デフォルトページに戻る
+        setCurrentPage('generate')
+      }
+      // エラーは静かに処理し、UIを壊さない
+    }
+  }
+
+  // 型安全な時間割詳細表示ハンドラ
+  const handleViewTimetableDetail = (id: string) => {
+    try {
+      const validatedId = TimetableDetailIdSchema.parse(id)
+      setTimetableDetailId(validatedId)
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        console.error('Timetable detail ID validation failed:', error.errors)
+        // エラーは静かに処理し、UIを壊さない
+      }
+    }
+  }
+
+  // 型安全な詳細表示から一覧に戻るハンドラ
+  const handleBackToList = () => {
+    try {
+      const validatedId = TimetableDetailIdSchema.parse(null)
+      setTimetableDetailId(validatedId)
+    } catch (_error) {
+      // null値の検証なので、エラーは基本的に発生しない
       setTimetableDetailId(null)
     }
   }
 
-  // 時間割詳細表示ハンドラ
-  const handleViewTimetableDetail = (id: string) => {
-    setTimetableDetailId(id)
-  }
-
-  // 詳細表示から一覧に戻るハンドラ
-  const handleBackToList = () => {
-    setTimetableDetailId(null)
-  }
-
   const renderCurrentPage = () => {
-    const LoadingSpinner = () => (
+    const _LoadingSpinner = () => (
       <div className='flex items-center justify-center p-8'>
         <div className='animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900'></div>
         <span className='ml-2'>読み込み中...</span>
@@ -60,10 +111,10 @@ export function MainApp({ onLogout }: MainAppProps) {
         // 詳細表示モードかどうかチェック
         if (timetableDetailId) {
           return (
-            <TimetableDetailView 
-              key={timetableDetailId} 
+            <TimetableDetailView
+              key={timetableDetailId}
               timetableId={timetableDetailId}
-              onBackToList={handleBackToList} 
+              onBackToList={handleBackToList}
             />
           )
         } else {

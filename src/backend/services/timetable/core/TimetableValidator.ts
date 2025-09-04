@@ -2,7 +2,7 @@
  * 時間割バリデーションクラス
  */
 
-import type { Subject, Teacher, TimetableSlot } from '../../../../shared/types'
+import type { Subject, Teacher, TimetableSlot } from '@shared/schemas'
 import type { ConstraintChecker } from '../constraints'
 import type {
   AssignmentCandidate,
@@ -161,12 +161,20 @@ export class TimetableValidator {
       }
 
       // 学年別時数設定がある場合
-      if (typeof subject.weeklyHours === 'object' && subject.weeklyHours && subject.weeklyHours[grade]) {
+      if (
+        typeof subject.weeklyHours === 'object' &&
+        subject.weeklyHours &&
+        subject.weeklyHours[grade]
+      ) {
         return subject.weeklyHours[grade]
       }
 
       // デフォルト時数
-      if (typeof subject.weeklyHours === 'object' && subject.weeklyHours && subject.weeklyHours[0]) {
+      if (
+        typeof subject.weeklyHours === 'object' &&
+        subject.weeklyHours &&
+        subject.weeklyHours[0]
+      ) {
         return subject.weeklyHours[0]
       }
 
@@ -177,7 +185,10 @@ export class TimetableValidator {
 
       return 0
     } catch (error) {
-      console.log(`❌ TimetableValidator getRequiredHoursForSubject エラー (${subject?.name || 'unknown'}):`, error)
+      console.log(
+        `❌ TimetableValidator getRequiredHoursForSubject エラー (${subject?.name || 'unknown'}):`,
+        error
+      )
       return 0
     }
   }
