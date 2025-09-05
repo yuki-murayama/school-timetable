@@ -467,17 +467,15 @@ const deleteSubjectRoute = createRoute({
 subjectsApp.openapi(getSubjectsRoute, async c => {
   try {
     console.log('🎯 統合API subjects一覧取得開始')
-    
+
     const db = c.env.DB
     console.log('📊 Database:', !!db)
-    
+
     const query = SubjectQuerySchema.parse(c.req.query())
     console.log('✅ Query parsed:', query)
 
     // データベースから実際のデータを取得
-    const subjects = await db
-      .prepare('SELECT * FROM subjects ORDER BY name')
-      .all()
+    const subjects = await db.prepare('SELECT * FROM subjects ORDER BY name').all()
 
     console.log('📊 Subjects retrieved:', subjects.results?.length || 0)
 

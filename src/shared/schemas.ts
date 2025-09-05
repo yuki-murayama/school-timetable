@@ -10,7 +10,7 @@ import { z } from 'zod'
 
 /** 一意識別子 - CUID2形式（21-25文字）またはUUID v4形式 */
 export const IdSchema = z.string().refine(
-  (val) => {
+  val => {
     // CUID2形式: 21-25文字の英数字（小文字・数字のみ）
     const cuid2Pattern = /^[a-z0-9]{21,25}$/
     // UUID形式
@@ -275,7 +275,13 @@ export const SubjectSchema = z
     subject_code: z.string().nullable().optional().describe('教科コード'),
     category: z.string().nullable().optional().describe('教科カテゴリ'),
     weekly_hours: z.number().int().nullable().optional().describe('週間時間数'),
-    requires_special_room: z.number().int().min(0).max(1).default(0).describe('特別教室必要フラグ (0/1)'),
+    requires_special_room: z
+      .number()
+      .int()
+      .min(0)
+      .max(1)
+      .default(0)
+      .describe('特別教室必要フラグ (0/1)'),
     color: z.string().nullable().optional().describe('表示色'),
     settings: z.string().default('{}').describe('設定JSON文字列'),
     is_active: z.number().int().min(0).max(1).default(1).describe('有効フラグ (0/1)'),
@@ -623,6 +629,70 @@ export const createDefaultSchoolSettings = (): SchoolSettings => {
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
   })
+}
+
+// =============================
+// D1Database 結果型定義
+// =============================
+
+/** D1Databaseクエリ結果の基本型 */
+export interface D1QueryResult<T = unknown> {
+  results: T[]
+  success: boolean
+  meta: {
+    changes: number
+    last_row_id: number
+    duration: number
+  }
+}
+
+/** 教師データベース行型 */
+export type TeacherDbRow = {
+  id: string
+  name: string
+  school_id: string
+  subjects: string | null
+  grades: string | null
+  assignment_restrictions: string | null
+  is_active: number
+  order: number | null
+  created_at: string
+  updated_at: string
+  employee_number: string | null
+  email: string | null
+  phone: string | null
+  specialization: string | null
+  employment_type: string | null
+  max_hours_per_week: number | null
+}
+
+/** 教科データベース行型 */
+export type SubjectDbRow = {
+  id: string
+  name: string
+  school_id: string
+  color: string | null
+  order: number | null
+  created_at: string
+  updated_at: string
+}
+
+/** 教室データベース行型 */
+export type ClassroomDbRow = {
+  id: string
+  name: string
+  school_id: string
+  capacity: number | null
+  room_type: string | null
+  equipment: string | null
+  order: number | null
+  created_at: string
+  updated_at: string
+}
+
+/** カウント結果型 */
+export type CountResult = {
+  count: number
 }
 
 // ======================

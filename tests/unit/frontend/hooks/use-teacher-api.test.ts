@@ -369,12 +369,15 @@ describe('useTeacherApi', () => {
       })
 
       expect(savedTeacher).toEqual(createdTeacher)
-      expect(mockCreateTeacher).toHaveBeenCalledWith({
-        name: '新規先生',
-        subjects: ['数学'],
-        grades: [1],
-        assignmentRestrictions: [],
-      }, { token: 'test-token' })
+      expect(mockCreateTeacher).toHaveBeenCalledWith(
+        {
+          name: '新規先生',
+          subjects: ['数学'],
+          grades: [1],
+          assignmentRestrictions: [],
+        },
+        { token: 'test-token' }
+      )
       expect(mockToast).toHaveBeenCalledWith({
         title: '保存完了',
         description: '新しい教師を追加しました',
@@ -407,12 +410,16 @@ describe('useTeacherApi', () => {
       })
 
       expect(savedTeacher).toEqual(updatedTeacher)
-      expect(mockUpdateTeacher).toHaveBeenCalledWith('existing-teacher-id', {
-        name: existingTeacher.name,
-        subjects: existingTeacher.subjects,
-        grades: existingTeacher.grades,
-        assignmentRestrictions: existingTeacher.assignmentRestrictions,
-      }, { token: 'test-token' })
+      expect(mockUpdateTeacher).toHaveBeenCalledWith(
+        'existing-teacher-id',
+        {
+          name: existingTeacher.name,
+          subjects: existingTeacher.subjects,
+          grades: existingTeacher.grades,
+          assignmentRestrictions: existingTeacher.assignmentRestrictions,
+        },
+        { token: 'test-token' }
+      )
       expect(mockToast).toHaveBeenCalledWith({
         title: '保存完了',
         description: '教師情報を更新しました',

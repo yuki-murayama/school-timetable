@@ -1,7 +1,5 @@
-import { Loader2, Save } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useToast } from '../../hooks/use-toast'
-import { conditionsApi } from '../../lib/api'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
 import { Textarea } from '../ui/textarea'
@@ -18,7 +16,7 @@ export function ConditionsSection({
   conditions,
   onConditionsUpdate,
   token,
-  getFreshToken,
+  getFreshToken: _getFreshToken,
   isLoading,
 }: ConditionsSectionProps) {
   const { toast } = useToast()

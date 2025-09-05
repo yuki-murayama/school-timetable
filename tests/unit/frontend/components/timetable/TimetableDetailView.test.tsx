@@ -1,40 +1,40 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { TimetableDetailView } from './TimetableDetailView'
 
 // 依存関係をモック
 vi.mock('../../hooks/use-auth', () => ({
-  useAuth: vi.fn()
+  useAuth: vi.fn(),
 }))
 
 vi.mock('../../hooks/use-toast', () => ({
-  useToast: vi.fn()
+  useToast: vi.fn(),
 }))
 
 vi.mock('./TimetableGrid', () => ({
-  TimetableGrid: ({ 
-    data, 
-    selectedClassLabel, 
-    onSlotChange 
-  }: { 
-    data: unknown[], 
-    selectedClassLabel: string, 
-    onSlotChange?: (slot: unknown) => void 
+  TimetableGrid: ({
+    data,
+    selectedClassLabel,
+    onSlotChange,
+  }: {
+    data: unknown[]
+    selectedClassLabel: string
+    onSlotChange?: (slot: unknown) => void
   }) => (
-    <div data-testid="timetable-grid">
-      <div data-testid="selected-class">{selectedClassLabel}</div>
-      <div data-testid="data-length">{data.length}</div>
+    <div data-testid='timetable-grid'>
+      <div data-testid='selected-class'>{selectedClassLabel}</div>
+      <div data-testid='data-length'>{data.length}</div>
       {onSlotChange && (
-        <button 
-          data-testid="change-slot-button" 
+        <button
+          data-testid='change-slot-button'
           onClick={() => onSlotChange({ subject: 'テスト教科', teacher: 'テスト教師' })}
         >
           Change Slot
         </button>
       )}
     </div>
-  )
+  ),
 }))
 
 vi.mock('react-router-dom', async () => {
@@ -42,13 +42,13 @@ vi.mock('react-router-dom', async () => {
   return {
     ...actual,
     useParams: vi.fn(),
-    useNavigate: vi.fn()
+    useNavigate: vi.fn(),
   }
 })
 
+import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/use-auth'
 import { useToast } from '../../hooks/use-toast'
-import { useParams, useNavigate } from 'react-router-dom'
 
 const mockUseAuth = vi.mocked(useAuth)
 const mockUseToast = vi.mocked(useToast)
@@ -68,15 +68,17 @@ describe('TimetableDetailView', () => {
     id: 'test-timetable-id',
     name: 'テスト時間割',
     timetable: [
-      [ // 1年生
-        [ // 1-1クラス
+      [
+        // 1年生
+        [
+          // 1-1クラス
           {
             subject: '数学',
             teacher: '田中先生',
             period: '1',
             day: 'monday',
             classGrade: 1,
-            classSection: 1
+            classSection: 1,
           },
           {
             subject: '国語',
@@ -84,32 +86,33 @@ describe('TimetableDetailView', () => {
             period: '2',
             day: 'monday',
             classGrade: 1,
-            classSection: 1
-          }
+            classSection: 1,
+          },
         ],
-        [ // 1-2クラス
+        [
+          // 1-2クラス
           {
             subject: '理科',
             teacher: '山田先生',
             period: '1',
             day: 'monday',
             classGrade: 1,
-            classSection: 2
-          }
-        ]
-      ]
+            classSection: 2,
+          },
+        ],
+      ],
     ],
     assignmentRate: 85.5,
     totalSlots: 100,
     assignedSlots: 85,
     generationMethod: 'automatic',
     createdAt: '2025-01-15T10:00:00Z',
-    updatedAt: '2025-01-15T15:00:00Z'
+    updatedAt: '2025-01-15T15:00:00Z',
   }
 
   beforeEach(() => {
     vi.clearAllMocks()
-    
+
     // デフォルトモック設定
     mockUseAuth.mockReturnValue({
       token: 'test-token',
@@ -125,11 +128,11 @@ describe('TimetableDetailView', () => {
       hasRole: vi.fn(),
       isAdmin: vi.fn(),
       isTeacher: vi.fn(),
-      getAuthHeaders: vi.fn()
+      getAuthHeaders: vi.fn(),
     })
 
     mockUseToast.mockReturnValue({
-      toast: mockToast
+      toast: mockToast,
     })
 
     mockUseParams.mockReturnValue({ id: 'test-id' })
@@ -138,7 +141,7 @@ describe('TimetableDetailView', () => {
     // 成功レスポンスをデフォルトに設定
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ success: true, data: mockTimetableData })
+      json: () => Promise.resolve({ success: true, data: mockTimetableData }),
     })
   })
 
@@ -147,7 +150,7 @@ describe('TimetableDetailView', () => {
       // When: TimetableDetailViewをレンダリング
       render(
         <MemoryRouter>
-          <TimetableDetailView timetableId="test-id" />
+          <TimetableDetailView timetableId='test-id' />
         </MemoryRouter>
       )
 
@@ -162,7 +165,7 @@ describe('TimetableDetailView', () => {
       // When: propsでtimetableIdを渡してレンダリング
       render(
         <MemoryRouter>
-          <TimetableDetailView timetableId="props-id" />
+          <TimetableDetailView timetableId='props-id' />
         </MemoryRouter>
       )
 
@@ -197,13 +200,13 @@ describe('TimetableDetailView', () => {
       // Given: 正常なAPIレスポンス
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ success: true, data: mockTimetableData })
+        json: () => Promise.resolve({ success: true, data: mockTimetableData }),
       })
 
       // When: コンポーネントをレンダリング
       render(
         <MemoryRouter>
-          <TimetableDetailView timetableId="test-id" />
+          <TimetableDetailView timetableId='test-id' />
         </MemoryRouter>
       )
 
@@ -214,8 +217,8 @@ describe('TimetableDetailView', () => {
           expect.objectContaining({
             method: 'GET',
             headers: expect.objectContaining({
-              'Content-Type': 'application/json'
-            })
+              'Content-Type': 'application/json',
+            }),
           })
         )
       })
@@ -226,13 +229,13 @@ describe('TimetableDetailView', () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 404,
-        json: () => Promise.resolve({ success: false, error: 'Not found' })
+        json: () => Promise.resolve({ success: false, error: 'Not found' }),
       })
 
       // When: コンポーネントをレンダリング
       render(
         <MemoryRouter>
-          <TimetableDetailView timetableId="invalid-id" />
+          <TimetableDetailView timetableId='invalid-id' />
         </MemoryRouter>
       )
 
@@ -241,7 +244,7 @@ describe('TimetableDetailView', () => {
         expect(mockToast).toHaveBeenCalledWith({
           title: '時間割の読み込みに失敗しました',
           description: 'サーバーからデータを取得できませんでした',
-          variant: 'destructive'
+          variant: 'destructive',
         })
       })
     })
@@ -253,7 +256,7 @@ describe('TimetableDetailView', () => {
       // When: コンポーネントをレンダリング
       render(
         <MemoryRouter>
-          <TimetableDetailView timetableId="test-id" />
+          <TimetableDetailView timetableId='test-id' />
         </MemoryRouter>
       )
 
@@ -262,7 +265,7 @@ describe('TimetableDetailView', () => {
         expect(mockToast).toHaveBeenCalledWith({
           title: '時間割の読み込みに失敗しました',
           description: 'ネットワークエラーが発生しました',
-          variant: 'destructive'
+          variant: 'destructive',
         })
       })
     })
@@ -273,12 +276,12 @@ describe('TimetableDetailView', () => {
       // Given: 時間割データが取得済み
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ success: true, data: mockTimetableData })
+        json: () => Promise.resolve({ success: true, data: mockTimetableData }),
       })
 
       render(
         <MemoryRouter>
-          <TimetableDetailView timetableId="test-id" />
+          <TimetableDetailView timetableId='test-id' />
         </MemoryRouter>
       )
 
@@ -294,12 +297,12 @@ describe('TimetableDetailView', () => {
       // Given: 時間割データが取得済み
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ success: true, data: mockTimetableData })
+        json: () => Promise.resolve({ success: true, data: mockTimetableData }),
       })
 
       render(
         <MemoryRouter>
-          <TimetableDetailView timetableId="test-id" />
+          <TimetableDetailView timetableId='test-id' />
         </MemoryRouter>
       )
 
@@ -313,16 +316,16 @@ describe('TimetableDetailView', () => {
       // Given: 空の時間割データ
       const emptyTimetableData = {
         ...mockTimetableData,
-        timetable: []
+        timetable: [],
       }
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ success: true, data: emptyTimetableData })
+        json: () => Promise.resolve({ success: true, data: emptyTimetableData }),
       })
 
       render(
         <MemoryRouter>
-          <TimetableDetailView timetableId="test-id" />
+          <TimetableDetailView timetableId='test-id' />
         </MemoryRouter>
       )
 
@@ -338,12 +341,12 @@ describe('TimetableDetailView', () => {
       // Given: データが読み込まれた状態
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ success: true, data: mockTimetableData })
+        json: () => Promise.resolve({ success: true, data: mockTimetableData }),
       })
 
       render(
         <MemoryRouter>
-          <TimetableDetailView timetableId="test-id" />
+          <TimetableDetailView timetableId='test-id' />
         </MemoryRouter>
       )
 
@@ -363,12 +366,12 @@ describe('TimetableDetailView', () => {
       // Given: 編集モードの状態
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ success: true, data: mockTimetableData })
+        json: () => Promise.resolve({ success: true, data: mockTimetableData }),
       })
 
       render(
         <MemoryRouter>
-          <TimetableDetailView timetableId="test-id" />
+          <TimetableDetailView timetableId='test-id' />
         </MemoryRouter>
       )
 
@@ -395,12 +398,12 @@ describe('TimetableDetailView', () => {
       const mockOnBackToList = vi.fn()
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ success: true, data: mockTimetableData })
+        json: () => Promise.resolve({ success: true, data: mockTimetableData }),
       })
 
       render(
         <MemoryRouter>
-          <TimetableDetailView timetableId="test-id" onBackToList={mockOnBackToList} />
+          <TimetableDetailView timetableId='test-id' onBackToList={mockOnBackToList} />
         </MemoryRouter>
       )
 
@@ -420,12 +423,12 @@ describe('TimetableDetailView', () => {
       // Given: onBackToListなし
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ success: true, data: mockTimetableData })
+        json: () => Promise.resolve({ success: true, data: mockTimetableData }),
       })
 
       render(
         <MemoryRouter>
-          <TimetableDetailView timetableId="test-id" />
+          <TimetableDetailView timetableId='test-id' />
         </MemoryRouter>
       )
 

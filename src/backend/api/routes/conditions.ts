@@ -47,10 +47,10 @@ const getConditionsRoute = createRoute({
     type: 'object',
     properties: {
       id: { type: 'string', example: 'default' },
-      conditions: { 
-        type: 'string', 
+      conditions: {
+        type: 'string',
         example: '体育は午後に配置、数学は1時間目を避ける',
-        description: '時間割生成時の特別な条件'
+        description: '時間割生成時の特別な条件',
       },
       created_at: { type: 'string', format: 'date-time' },
       updated_at: { type: 'string', format: 'date-time' },
@@ -89,7 +89,7 @@ const updateConditionsRoute = createRoute({
               conditions: {
                 type: 'string',
                 description: '時間割生成時の特別な条件',
-                example: '体育は午後に配置、数学は1時間目を避ける'
+                example: '体育は午後に配置、数学は1時間目を避ける',
               },
             },
             required: ['conditions'],
@@ -102,10 +102,10 @@ const updateConditionsRoute = createRoute({
     type: 'object',
     properties: {
       id: { type: 'string', example: 'default' },
-      conditions: { 
-        type: 'string', 
+      conditions: {
+        type: 'string',
         example: '体育は午後に配置、数学は1時間目を避ける',
-        description: '時間割生成時の特別な条件'
+        description: '時間割生成時の特別な条件',
       },
       updated_at: { type: 'string', format: 'date-time' },
     },
@@ -118,10 +118,7 @@ conditionsApp.openapi(getConditionsRoute, async c => {
     const db = c.env.DB
 
     // データベースから条件設定を取得
-    const result = await db
-      .prepare('SELECT * FROM conditions WHERE id = ?')
-      .bind('default')
-      .first()
+    const result = await db.prepare('SELECT * FROM conditions WHERE id = ?').bind('default').first()
 
     if (!result) {
       // データが存在しない場合は空の条件を返す
@@ -143,7 +140,7 @@ conditionsApp.openapi(getConditionsRoute, async c => {
       conditions = parsedData.constraints ? parsedData.constraints.join('\n') : ''
     } catch {
       // JSONでない場合は文字列として扱う
-      conditions = result.data as string || ''
+      conditions = (result.data as string) || ''
     }
 
     const conditionsData = {
@@ -194,15 +191,19 @@ conditionsApp.openapi(updateConditionsRoute, async c => {
     const body = await c.req.json()
 
     // リクエストデータをZodスキーマで検証
-    const updateData = z.object({
-      conditions: z.string(),
-    }).parse(body)
+    const updateData = z
+      .object({
+        conditions: z.string(),
+      })
+      .parse(body)
 
     const now = new Date().toISOString()
 
     // データベース形式に変換（JSON形式で保存）
     const dataToStore = JSON.stringify({
-      constraints: updateData.conditions ? updateData.conditions.split('\n').filter(line => line.trim()) : []
+      constraints: updateData.conditions
+        ? updateData.conditions.split('\n').filter(line => line.trim())
+        : [],
     })
 
     // データベース更新（INSERT OR REPLACE を使用）

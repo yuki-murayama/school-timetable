@@ -268,12 +268,12 @@ export const createTypeeSafeApiApp = () => {
 
     try {
       const db = c.env.DB
-      
+
       const result = await db
         .prepare('SELECT * FROM school_settings WHERE id = ?')
         .bind('default')
         .first()
-      
+
       return c.json({
         success: true,
         rawData: result,
@@ -286,21 +286,28 @@ export const createTypeeSafeApiApp = () => {
           updated_at: result?.updated_at,
         },
         convertedValues: {
-          created_at: result?.created_at ? new Date(result.created_at as string).toISOString() : null,
-          updated_at: result?.updated_at ? new Date(result.updated_at as string).toISOString() : null,
+          created_at: result?.created_at
+            ? new Date(result.created_at as string).toISOString()
+            : null,
+          updated_at: result?.updated_at
+            ? new Date(result.updated_at as string).toISOString()
+            : null,
         },
         dateConstructor: {
           created_at: result?.created_at ? new Date(result.created_at as string) : null,
           updated_at: result?.updated_at ? new Date(result.updated_at as string) : null,
-        }
+        },
       })
     } catch (error) {
       console.error('Debug raw school settings error:', error)
-      return c.json({
-        success: false,
-        error: error.message,
-        stack: error.stack
-      }, 500)
+      return c.json(
+        {
+          success: false,
+          error: error.message,
+          stack: error.stack,
+        },
+        500
+      )
     }
   })
 
@@ -344,10 +351,7 @@ export const createTypeeSafeApiApp = () => {
             'PUT /school/classrooms/{id}',
             'DELETE /school/classrooms/{id}',
           ],
-          conditions: [
-            'GET /school/conditions',
-            'PUT /school/conditions',
-          ],
+          conditions: ['GET /school/conditions', 'PUT /school/conditions'],
           debug: ['GET /debug/structure'],
         },
         middleware: [

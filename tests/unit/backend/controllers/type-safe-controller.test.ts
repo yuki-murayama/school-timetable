@@ -14,11 +14,11 @@
  * - TSC-SYSTEM: システムコントローラー（7分岐）
  */
 
+import type { D1Database } from '@cloudflare/workers-types'
 import type { Classroom, EnhancedSchoolSettings, Env, Subject, Teacher } from '@shared/schemas'
 import type { Context } from 'hono'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
-import { TypeSafeServiceError } from '../services/type-safe-service'
 import {
   TypeSafeClassroomController,
   TypeSafeController,
@@ -27,7 +27,8 @@ import {
   TypeSafeSystemController,
   TypeSafeTeacherController,
   typeSafeControllers,
-} from './type-safe-controller'
+} from '../../../../src/backend/controllers/type-safe-controller'
+import { TypeSafeServiceError } from '../../../../src/backend/services/type-safe-service'
 
 // ======================
 // モックデータ定義
@@ -136,6 +137,7 @@ const createMockContext = (
 
 // TypeSafeSchoolService モック
 const mockSchoolService = {
+  db: {} as D1Database, // Mock D1Database
   schoolSettings: {
     getSchoolSettings: vi.fn(),
     updateSchoolSettings: vi.fn(),
@@ -177,7 +179,12 @@ class TestController extends TypeSafeController {
     statusCode?: number,
     details?: Record<string, unknown>
   ) {
-    return this.errorResponse(c, error, statusCode, details)
+    return this.errorResponse(
+      c,
+      error as string | Error | TypeSafeServiceError,
+      statusCode,
+      details
+    )
   }
 
   public async testParseRequestBody<T>(c: Context, schema: z.ZodType<T>) {
@@ -194,7 +201,7 @@ class TestController extends TypeSafeController {
 
   // getTypeSafeSchoolServiceをモック化
   protected getTypeSafeSchoolService(_c: Context) {
-    return mockSchoolService as ReturnType<TypeSafeController['getTypeSafeSchoolService']>
+    return mockSchoolService as any
   }
 }
 
@@ -236,7 +243,7 @@ let subjectController: TestTypeSubjectController
 let classroomController: TestTypeClassroomController
 let systemController: TestTypeSystemController
 
-describe.skip('TypeSafeController - スキップ中', () => {
+describe('TypeSafeController', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     testController = new TestController()
@@ -762,8 +769,14 @@ describe.skip('TypeSafeController - スキップ中', () => {
     it('TSC-TEACHER-005: 教師作成正常', async () => {
       const teacherData = {
         name: '新しい先生',
-        subjects: ['数学'],
-        grades: [1, 2],
+        school_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d478',
+        subjects: '["数学"]',
+        grades: '[1,2]',
+        assignment_restrictions: '[]',
+        email: null,
+        max_hours_per_week: 25,
+        is_active: 1,
+        order: 1,
       }
       const context = createMockContext({ body: teacherData })
       const createdTeacher = { ...mockTeacher, ...teacherData, id: 'new-teacher' }
@@ -772,16 +785,7 @@ describe.skip('TypeSafeController - スキップ中', () => {
 
       const _result = await teacherController.createTeacher(context)
 
-      expect(mockSchoolService.teachers.createTeacher).toHaveBeenCalledWith({
-        name: '新しい先生',
-        subjects: ['数学'],
-        grades: [1, 2],
-        assignmentRestrictions: [],
-        email: undefined,
-        maxWeeklyHours: 25,
-        preferredTimeSlots: [],
-        unavailableSlots: [],
-      })
+      expect(mockSchoolService.teachers.createTeacher).toHaveBeenCalledWith(teacherData)
       expect(context.json).toHaveBeenCalledWith(
         {
           success: true,

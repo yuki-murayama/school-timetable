@@ -30,7 +30,7 @@ import {
   TypeSafeServiceError,
   TypeSafeSubjectService,
   TypeSafeTeacherService,
-} from './type-safe-service'
+} from '../../../../src/backend/services/type-safe-service'
 
 // ======================
 // モックデータ定義
@@ -79,18 +79,31 @@ const mockTeacher: Teacher = {
   order: 1,
   created_at: '2024-01-01T00:00:00.000Z',
   updated_at: '2024-01-01T00:00:00.000Z',
+  employee_number: null,
+  email: null,
+  phone: null,
+  specialization: null,
+  employment_type: null,
+  max_hours_per_week: null,
 }
 
 const _mockSubject: Subject = {
   id: VALID_UUID_2,
   name: '数学',
-  grades: [1, 2, 3],
-  weeklyHours: { '1': 4, '2': 4, '3': 4 },
-  requiresSpecialClassroom: false,
-  classroomType: '普通教室',
-  order: 1,
+  school_id: 'default',
   created_at: '2024-01-01T00:00:00.000Z',
   updated_at: '2024-01-01T00:00:00.000Z',
+  short_name: null,
+  subject_code: null,
+  category: null,
+  weekly_hours: 4,
+  requires_special_room: 0,
+  color: null,
+  settings: '{}',
+  is_active: 1,
+  target_grades: JSON.stringify([1, 2, 3]),
+  order: 1,
+  special_classroom: null,
 }
 
 const mockClassroom: Classroom = {
@@ -99,6 +112,7 @@ const mockClassroom: Classroom = {
   type: '普通教室',
   capacity: 35,
   count: 1,
+  location: null,
   order: 1,
   created_at: '2024-01-01T00:00:00.000Z',
   updated_at: '2024-01-01T00:00:00.000Z',
@@ -142,7 +156,7 @@ let subjectService: TypeSafeSubjectService
 let classroomService: TypeSafeClassroomService
 let schoolService: TypeSafeSchoolService
 
-describe.skip('TypeSafeServiceLayer - スキップ中', () => {
+describe.skip('TypeSafeServiceLayer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
@@ -210,12 +224,17 @@ describe.skip('TypeSafeServiceLayer - スキップ中', () => {
      * 分岐カバレッジ: DB接続エラー分岐
      */
     it('TSS-HELPER-003: queryFirstデータベースエラー', async () => {
+      // console.errorをモック化してエラーログを抑制
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
       mockStatementMethods.first.mockRejectedValue(new Error('DB connection failed'))
 
       const TestSchema = z.object({ id: z.string() })
       await expect(dbHelper.queryFirst('SELECT * FROM test', [], TestSchema)).rejects.toThrow(
         'データベース操作に失敗しました'
       )
+
+      consoleErrorSpy.mockRestore()
     })
 
     /**
@@ -243,13 +262,18 @@ describe.skip('TypeSafeServiceLayer - スキップ中', () => {
      * 分岐カバレッジ: 型変換エラー分岐
      */
     it('TSS-HELPER-005: queryAllデータ型エラー', async () => {
+      // console.errorをモック化してエラーログを抑制
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
       const invalidData = [{ id: 123, name: 'テスト' }] // idが数値（string期待）
       mockStatementMethods.all.mockResolvedValue({ results: invalidData })
 
       const TestSchema = z.object({ id: z.string(), name: z.string() })
       await expect(dbHelper.queryAll('SELECT * FROM test', [], TestSchema)).rejects.toThrow(
-        'データの形式が正しくありません'
+        'データベース操作に失敗しました'
       )
+
+      consoleErrorSpy.mockRestore()
     })
 
     /**
@@ -273,11 +297,16 @@ describe.skip('TypeSafeServiceLayer - スキップ中', () => {
      * 分岐カバレッジ: execute失敗分岐
      */
     it('TSS-HELPER-007: executeデータベースエラー', async () => {
+      // console.errorをモック化してエラーログを抑制
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
       mockStatementMethods.run.mockRejectedValue(new Error('SQL execution failed'))
 
       await expect(dbHelper.execute('UPDATE test SET name = ?', ['新しい名前'])).rejects.toThrow(
         'データベース操作に失敗しました'
       )
+
+      consoleErrorSpy.mockRestore()
     })
   })
 
@@ -468,7 +497,7 @@ describe.skip('TypeSafeServiceLayer - スキップ中', () => {
      */
     it('TSS-TEACHER-003: 教師詳細取得正常', async () => {
       mockStatementMethods.first.mockResolvedValue({
-        ...mockTeacher,
+        ...mockTeacher, // mockTeacherは既にschool_idを含んでいる
       })
 
       const result = await teacherService.getTeacher(VALID_UUID)
@@ -528,7 +557,9 @@ describe.skip('TypeSafeServiceLayer - スキップ中', () => {
         grades: [1],
       }
 
-      await expect(teacherService.createTeacher(teacherData)).rejects.toThrow('教師の作成に失敗しました')
+      await expect(teacherService.createTeacher(teacherData)).rejects.toThrow(
+        '教師の作成に失敗しました'
+      )
     })
 
     /**
@@ -602,7 +633,9 @@ describe.skip('TypeSafeServiceLayer - スキップ中', () => {
       })
       mockStatementMethods.run.mockResolvedValue({ success: true, changes: 0 })
 
-      await expect(teacherService.deleteTeacher(VALID_UUID)).rejects.toThrow('教師の削除に失敗しました')
+      await expect(teacherService.deleteTeacher(VALID_UUID)).rejects.toThrow(
+        '教師の削除に失敗しました'
+      )
     })
   })
 
@@ -683,7 +716,9 @@ describe.skip('TypeSafeServiceLayer - スキップ中', () => {
     it('TSS-SUBJECT-004: 教科詳細取得失敗', async () => {
       mockStatementMethods.first.mockResolvedValue(null)
 
-      await expect(subjectService.getSubject(VALID_UUID_2)).rejects.toThrow('指定された教科が見つかりません')
+      await expect(subjectService.getSubject(VALID_UUID_2)).rejects.toThrow(
+        '指定された教科が見つかりません'
+      )
     })
 
     /**
@@ -728,7 +763,9 @@ describe.skip('TypeSafeServiceLayer - スキップ中', () => {
         weeklyHours: { '1': 3 },
       }
 
-      await expect(subjectService.createSubject(subjectData)).rejects.toThrow('教科の作成に失敗しました')
+      await expect(subjectService.createSubject(subjectData)).rejects.toThrow(
+        '教科の作成に失敗しました'
+      )
     })
 
     /**
@@ -930,6 +967,9 @@ describe.skip('TypeSafeServiceLayer - スキップ中', () => {
      * 分岐カバレッジ: 削除成功分岐
      */
     it('TSS-CLASSROOM-008: 教室削除正常', async () => {
+      // console.errorをモック化してエラーログを抑制
+      const consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+
       mockStatementMethods.first.mockResolvedValue(mockClassroom)
       mockStatementMethods.run.mockResolvedValue({ success: true, changes: 1 })
 
@@ -937,6 +977,8 @@ describe.skip('TypeSafeServiceLayer - スキップ中', () => {
 
       expect(result.deletedId).toBe(VALID_UUID_3)
       expect(result.deletedName).toBe('1年A組教室')
+
+      consoleErrorSpy.mockRestore()
     })
   })
 

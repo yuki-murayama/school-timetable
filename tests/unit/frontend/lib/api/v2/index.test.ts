@@ -1514,11 +1514,7 @@ describe('統合APIクライアント', () => {
       // teachers keys
       expect(apiKeys.teachers.all()).toEqual(['teachers'])
       expect(apiKeys.teachers.list({ page: 1 })).toEqual(['teachers', 'list', { page: 1 }])
-      expect(apiKeys.teachers.detail('teacher-id')).toEqual([
-        'teachers',
-        'detail',
-        'teacher-id',
-      ])
+      expect(apiKeys.teachers.detail('teacher-id')).toEqual(['teachers', 'detail', 'teacher-id'])
 
       // subjects keys
       expect(apiKeys.subjects.all()).toEqual(['subjects'])
@@ -1527,11 +1523,7 @@ describe('統合APIクライアント', () => {
         'list',
         { search: 'math' },
       ])
-      expect(apiKeys.subjects.detail('subject-id')).toEqual([
-        'subjects',
-        'detail',
-        'subject-id',
-      ])
+      expect(apiKeys.subjects.detail('subject-id')).toEqual(['subjects', 'detail', 'subject-id'])
 
       // classrooms keys
       expect(apiKeys.classrooms.all()).toEqual(['classrooms'])

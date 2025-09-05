@@ -137,17 +137,15 @@ export function TimetableView({ onViewDetail }: TimetableViewProps) {
         const data = TimetableApiResponseSchema.parse(rawData)
 
         if (data?.success && data.data) {
-          const {
-            timetables: rawTimetables,
-            pagination: paginationData,
-          } = data.data
+          const { timetables: rawTimetables, pagination: paginationData } = data.data
 
           if (Array.isArray(rawTimetables)) {
             const timetablesList = rawTimetables.map(
               (item: Record<string, unknown>, index: number) => ({
                 ...item,
                 name:
-                  item.name || `時間割 #${paginationData.total - (paginationData.page - 1) * pagination.itemsPerPage - index}`,
+                  item.name ||
+                  `時間割 #${paginationData.total - (paginationData.page - 1) * pagination.itemsPerPage - index}`,
                 status: item.assignmentRate === 100 ? '完成' : '部分完成',
                 isGenerated: true,
               })
@@ -215,7 +213,7 @@ export function TimetableView({ onViewDetail }: TimetableViewProps) {
         setIsLoading(false)
       }
     },
-    [token, getFreshToken, pagination.itemsPerPage, toast]
+    [token, getFreshToken, pagination.itemsPerPage, toast, pagination.currentPage]
   )
 
   // 型安全なページ変更ハンドラ
@@ -256,7 +254,7 @@ export function TimetableView({ onViewDetail }: TimetableViewProps) {
   // 初期データ読み込み（マウント時のみ）
   useEffect(() => {
     loadTimetables(1)
-  }, []) // 空の依存配列でマウント時のみ実行
+  }, [loadTimetables]) // 空の依存配列でマウント時のみ実行
 
   return (
     <div className='space-y-6'>

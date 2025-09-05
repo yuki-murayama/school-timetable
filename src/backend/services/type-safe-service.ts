@@ -15,10 +15,12 @@ import {
   type SchoolSettings,
   SchoolSettingsSchema,
   type Subject,
+  type SubjectDbRow,
   SubjectSchema,
   safeJsonParse,
   safeJsonStringify,
   type Teacher,
+  type TeacherDbRow,
   TeacherSchema,
 } from '@shared/schemas'
 import { z } from 'zod'
@@ -62,10 +64,7 @@ export class TypeSafeDbHelper {
           return schema.parse(row)
         } catch (parseError) {
           console.warn('データ型変換警告:', parseError)
-          throw new TypeSafeServiceError(
-            'データの形式が正しくありません',
-            'DATA_VALIDATION_ERROR'
-          )
+          throw new TypeSafeServiceError('データの形式が正しくありません', 'DATA_VALIDATION_ERROR')
         }
       })
     } catch (error) {
@@ -329,14 +328,14 @@ export class TypeSafeTeacherService {
         .all()
 
       const subjectNameToIdMap = new Map<string, string>()
-      subjectMappingResult.results?.forEach((subject: any) => {
+      subjectMappingResult.results?.forEach((subject: SubjectDbRow) => {
         subjectNameToIdMap.set(subject.name, subject.id)
       })
       console.log('📚 教科マッピング作成完了:', Object.fromEntries(subjectNameToIdMap))
 
       // 生データをログ出力してから変換処理
       const teachers =
-        rawResults.results?.map((row: any) => {
+        rawResults.results?.map((row: TeacherDbRow) => {
           console.log('🔧 教師データ変換中:', row)
           try {
             // subjects配列の変換：フロントエンド互換性のため教科名をそのまま保持
@@ -1095,12 +1094,12 @@ export class TypeSafeClassroomService {
     console.log('📍 単一教室データ変換開始:', { id: classroomRaw.id, name: classroomRaw.name })
 
     // facilities の処理
-    let facilities: string[] = []
+    let _facilities: string[] = []
     if (classroomRaw.facilities) {
       if (typeof classroomRaw.facilities === 'string') {
-        facilities = safeJsonParse(classroomRaw.facilities, [])
+        _facilities = safeJsonParse(classroomRaw.facilities, [])
       } else if (Array.isArray(classroomRaw.facilities)) {
-        facilities = classroomRaw.facilities
+        _facilities = classroomRaw.facilities
       }
     }
 

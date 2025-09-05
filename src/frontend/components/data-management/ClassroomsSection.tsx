@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/sortable'
 import type { Classroom } from '@shared/schemas'
 import { Edit, Loader2, Plus, Save, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useToast } from '../../hooks/use-toast'
 import { classroomApi } from '../../lib/api'
 import { Badge } from '../ui/badge'
@@ -33,7 +33,13 @@ interface ClassroomsSectionProps {
   isLoading: boolean
 }
 
-export function ClassroomsSection({ classrooms, onClassroomsUpdate, token, getFreshToken, isLoading }: ClassroomsSectionProps) {
+export function ClassroomsSection({
+  classrooms,
+  onClassroomsUpdate,
+  token,
+  getFreshToken,
+  isLoading,
+}: ClassroomsSectionProps) {
   const { toast } = useToast()
 
   const sensors = useSensors(
@@ -112,7 +118,9 @@ export function ClassroomsSection({ classrooms, onClassroomsUpdate, token, getFr
           classroomData,
           { token, getFreshToken }
         )
-        onClassroomsUpdate(classrooms.map(c => (c.id === editingClassroom.id ? updatedClassroom : c)))
+        onClassroomsUpdate(
+          classrooms.map(c => (c.id === editingClassroom.id ? updatedClassroom : c))
+        )
         toast({
           title: '更新完了',
           description: '教室情報を更新しました',

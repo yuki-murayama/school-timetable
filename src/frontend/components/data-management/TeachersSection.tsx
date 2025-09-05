@@ -139,7 +139,8 @@ export const TeachersSection = memo(function TeachersSection({
         console.error('❌ 教師削除エラー:', error)
 
         if (isValidationError(error)) {
-          const errorMessage = error.issues?.map(issue => issue.message).join(', ') || 'バリデーションエラー'
+          const errorMessage =
+            error.issues?.map(issue => issue.message).join(', ') || 'バリデーションエラー'
           toast({
             title: '削除エラー',
             description: `入力データが無効です: ${errorMessage}`,
@@ -154,7 +155,7 @@ export const TeachersSection = memo(function TeachersSection({
         }
       }
     },
-    [token, teachers, onTeachersUpdate, toast]
+    [token, teachers, onTeachersUpdate, toast, getFreshToken]
   )
 
   const handleSaveAllTeachers = useCallback(async () => {
@@ -199,7 +200,7 @@ export const TeachersSection = memo(function TeachersSection({
     } finally {
       setIsSaving(false)
     }
-  }, [token, teachers, toast])
+  }, [token, teachers, toast, getFreshToken])
 
   const handleDragEnd = useCallback(
     (event: DragEndEvent) => {
@@ -237,10 +238,14 @@ export const TeachersSection = memo(function TeachersSection({
                   .filter(teacher => teacher.id)
                   .map(async (teacher, index) => {
                     if (!teacher.id) throw new Error('Teacher ID is required')
-                    return await teacherApi.updateTeacher(teacher.id, {
-                      ...teacher,
-                      order: index,
-                    }, { token, getFreshToken })
+                    return await teacherApi.updateTeacher(
+                      teacher.id,
+                      {
+                        ...teacher,
+                        order: index,
+                      },
+                      { token, getFreshToken }
+                    )
                   })
 
                 const results = await Promise.allSettled(updatePromises)
@@ -268,7 +273,7 @@ export const TeachersSection = memo(function TeachersSection({
         }
       }
     },
-    [teachers, onTeachersUpdate, token, toast, normalizeSubjects, normalizeGrades]
+    [teachers, onTeachersUpdate, token, toast, getFreshToken]
   )
 
   // メモ化されたソート済み教師リスト
@@ -455,10 +460,10 @@ export const TeachersSection = memo(function TeachersSection({
                                     data-testid={`delete-teacher-${teacher.id}`}
                                     aria-label={`教師「${teacher.name}」を削除`}
                                     title={`教師「${teacher.name}」を削除`}
-                                    style={{ 
-                                      position: 'relative', 
+                                    style={{
+                                      position: 'relative',
                                       zIndex: 10,
-                                      pointerEvents: 'auto' 
+                                      pointerEvents: 'auto',
                                     }}
                                   >
                                     <Trash2 className='w-4 h-4 text-red-500 hover:text-red-700' />
@@ -537,12 +542,12 @@ export const TeachersSection = memo(function TeachersSection({
             // Immediate state update with force refresh
             console.log('🚀 Immediate state update triggered')
             onTeachersUpdate(newTeachers)
-            
+
             // Force re-render after a brief delay to ensure UI consistency
             setTimeout(() => {
               console.log('🔄 Force refresh state update triggered')
               onTeachersUpdate([...newTeachers])
-              
+
               // Verify the update was applied
               setTimeout(() => {
                 console.log('✅ Verification: Current teachers after update:', newTeachers.length)

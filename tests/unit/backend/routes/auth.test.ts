@@ -1,11 +1,11 @@
 import { Hono } from 'hono'
 import { sign } from 'hono/jwt'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import authApp from './auth'
+import authApp from '../../../../src/backend/routes/auth'
 
 // createDatabase関数をモック
-vi.mock('../services/database', () => ({
-  createDatabase: vi.fn((db: any) => db),
+vi.mock('../../../../src/backend/services/database', () => ({
+  createDatabase: vi.fn((db: D1Database) => db),
 }))
 
 // テスト用の環境とデータベースモック
@@ -26,14 +26,14 @@ const createMockEnv = () => ({
 })
 
 // 有効なJWTトークンを生成するヘルパー関数
-const createValidJWTToken = async (payload: any, secret: string = 'test-secret-key') => {
+const createValidJWTToken = async (payload: Record<string, unknown>, secret: string = 'test-secret-key') => {
   return await sign(payload, secret)
 }
 
-describe.skip('認証API (auth.ts) - スキップ中', () => {
+describe('認証API (auth.ts)', () => {
   let app: Hono
-  let mockEnv: any
-  let mockDB: any
+  let mockEnv: unknown
+  let mockDB: unknown
 
   beforeEach(() => {
     vi.clearAllMocks()

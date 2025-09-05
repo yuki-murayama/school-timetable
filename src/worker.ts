@@ -1,9 +1,8 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
+import { createTypeeSafeApiApp } from './backend/api'
 import authApp from './backend/routes/auth'
 import testDbApp from './backend/routes/test-db'
-import createTypeSafeRoutes from './backend/routes/type-safe-routes'
-import { createTypeeSafeApiApp } from './backend/api'
 import { DatabaseService } from './backend/services/database'
 
 type Env = {
@@ -35,7 +34,7 @@ app.post('/api/init-db', async c => {
     // Use DatabaseService for consistent schema management
     const databaseService = new DatabaseService(db)
     await databaseService.createMasterTables()
-    
+
     // insertDefaultData() メソッドが学校設定、条件設定、テストユーザーを作成
     // これにより本番環境と一致するデータ構造となる
     console.log('📦 基本データ挿入開始（学校設定、条件設定、テストユーザー）')
@@ -43,13 +42,14 @@ app.post('/api/init-db', async c => {
     console.log('✅ 基本データ挿入完了')
 
     // Get final table schema info for debugging
-    const [teachersSchema, subjectsSchema, classroomsSchema, usersSchema, userSessionsSchema] = await Promise.all([
-      db.prepare('PRAGMA table_info(teachers)').all(),
-      db.prepare('PRAGMA table_info(subjects)').all(),
-      db.prepare('PRAGMA table_info(classrooms)').all(),
-      db.prepare('PRAGMA table_info(users)').all(),
-      db.prepare('PRAGMA table_info(user_sessions)').all()
-    ])
+    const [teachersSchema, subjectsSchema, classroomsSchema, usersSchema, userSessionsSchema] =
+      await Promise.all([
+        db.prepare('PRAGMA table_info(teachers)').all(),
+        db.prepare('PRAGMA table_info(subjects)').all(),
+        db.prepare('PRAGMA table_info(classrooms)').all(),
+        db.prepare('PRAGMA table_info(users)').all(),
+        db.prepare('PRAGMA table_info(user_sessions)').all(),
+      ])
 
     return c.json({
       success: true,
@@ -65,9 +65,9 @@ app.post('/api/init-db', async c => {
           subjects: subjectsSchema.results || [],
           classrooms: classroomsSchema.results || [],
           users: usersSchema.results || [],
-          user_sessions: userSessionsSchema.results || []
-        }
-      }
+          user_sessions: userSessionsSchema.results || [],
+        },
+      },
     })
   } catch (error) {
     console.error('Database initialization error:', error)
@@ -75,7 +75,7 @@ app.post('/api/init-db', async c => {
       {
         success: false,
         error: error.message,
-        stack: error.stack
+        stack: error.stack,
       },
       500
     )
@@ -102,7 +102,7 @@ app.post('/api/test-drop-teachers', async c => {
     console.log('🗑️ Dropping existing teachers table...')
     await db.prepare('DROP TABLE IF EXISTS teachers').run()
     console.log('✅ Teachers table dropped')
-    
+
     console.log('🔧 Creating new teachers table with correct schema...')
     const result = await db
       .prepare(`
@@ -119,8 +119,11 @@ app.post('/api/test-drop-teachers', async c => {
     `)
       .run()
     console.log('✅ New teachers table created:', result)
-    
-    return c.json({ success: true, message: 'Teachers table dropped and recreated with correct schema' })
+
+    return c.json({
+      success: true,
+      message: 'Teachers table dropped and recreated with correct schema',
+    })
   } catch (error) {
     console.error('Drop/recreate teachers table error:', error)
     return c.json({ success: false, error: error.message }, 500)
@@ -134,7 +137,7 @@ app.post('/api/test-drop-classrooms', async c => {
     console.log('🗑️ Dropping existing classrooms table...')
     await db.prepare('DROP TABLE IF EXISTS classrooms').run()
     console.log('✅ Classrooms table dropped')
-    
+
     console.log('🔧 Creating new classrooms table with correct schema...')
     const result = await db
       .prepare(`
@@ -152,8 +155,11 @@ app.post('/api/test-drop-classrooms', async c => {
     `)
       .run()
     console.log('✅ New classrooms table created:', result)
-    
-    return c.json({ success: true, message: 'Classrooms table dropped and recreated with correct schema successfully' })
+
+    return c.json({
+      success: true,
+      message: 'Classrooms table dropped and recreated with correct schema successfully',
+    })
   } catch (error) {
     console.error('Drop/recreate classrooms table error:', error)
     return c.json({ success: false, error: error.message }, 500)
@@ -408,7 +414,7 @@ app.post('/api/migrate-data', async c => {
               classroom.updated_at
             )
             .run()
-        } catch (error) {
+        } catch (_error) {
           console.log('Fallback: using basic columns only for classroom:', classroom.id)
           // Fallback to basic columns if count column doesn't exist
           await db
@@ -450,7 +456,7 @@ app.post('/api/migrate-data', async c => {
 app.get('/api/debug-table-schema', async c => {
   try {
     const db = c.env.DB
-    
+
     // Get table info for all main tables
     const [teachersSchema, subjectsSchema, classroomsSchema, usersSchema] = await Promise.all([
       db.prepare('PRAGMA table_info(teachers)').all(),
@@ -458,7 +464,7 @@ app.get('/api/debug-table-schema', async c => {
       db.prepare('PRAGMA table_info(classrooms)').all(),
       db.prepare('PRAGMA table_info(users)').all(),
     ])
-    
+
     return c.json({
       success: true,
       data: {
@@ -466,8 +472,8 @@ app.get('/api/debug-table-schema', async c => {
         subjectsSchema: subjectsSchema.results || [],
         classroomsSchema: classroomsSchema.results || [],
         usersSchema: usersSchema.results || [],
-        tableCount: 4
-      }
+        tableCount: 4,
+      },
     })
   } catch (error) {
     console.error('Debug table schema error:', error)
@@ -479,54 +485,78 @@ app.get('/api/debug-table-schema', async c => {
 app.post('/api/manual-insert-classrooms', async c => {
   try {
     const db = c.env.DB
-    
+
     // First get current table structure
     const schemaInfo = await db.prepare('PRAGMA table_info(classrooms)').all()
     const columns = (schemaInfo.results || []).map(col => col.name)
-    
+
     console.log('Available columns:', columns)
-    
+
     // Insert data using only available columns
     const basicInserts = [
       {
         sql: 'INSERT OR REPLACE INTO classrooms (id, name, type, capacity, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        values: ['classroom-001', '1年1組教室', 'normal', 30, '2025-08-31T08:00:00.000Z', '2025-08-31T08:00:00.000Z']
+        values: [
+          'classroom-001',
+          '1年1組教室',
+          'normal',
+          30,
+          '2025-08-31T08:00:00.000Z',
+          '2025-08-31T08:00:00.000Z',
+        ],
       },
       {
         sql: 'INSERT OR REPLACE INTO classrooms (id, name, type, capacity, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        values: ['classroom-002', '理科室', 'special', 24, '2025-08-31T08:00:00.000Z', '2025-08-31T08:00:00.000Z']
+        values: [
+          'classroom-002',
+          '理科室',
+          'special',
+          24,
+          '2025-08-31T08:00:00.000Z',
+          '2025-08-31T08:00:00.000Z',
+        ],
       },
       {
         sql: 'INSERT OR REPLACE INTO classrooms (id, name, type, capacity, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-        values: ['classroom-003', '音楽室', 'special', 20, '2025-08-31T08:00:00.000Z', '2025-08-31T08:00:00.000Z']
-      }
+        values: [
+          'classroom-003',
+          '音楽室',
+          'special',
+          20,
+          '2025-08-31T08:00:00.000Z',
+          '2025-08-31T08:00:00.000Z',
+        ],
+      },
     ]
-    
+
     const results = []
     for (const insert of basicInserts) {
       try {
-        const result = await db.prepare(insert.sql).bind(...insert.values).run()
-        results.push({ 
-          id: insert.values[0], 
-          success: true, 
-          changes: result.changes 
+        const result = await db
+          .prepare(insert.sql)
+          .bind(...insert.values)
+          .run()
+        results.push({
+          id: insert.values[0],
+          success: true,
+          changes: result.changes,
         })
         console.log(`✅ Successfully inserted classroom: ${insert.values[0]}`)
       } catch (error) {
-        results.push({ 
-          id: insert.values[0], 
-          success: false, 
-          error: error.message 
+        results.push({
+          id: insert.values[0],
+          success: false,
+          error: error.message,
         })
         console.log(`❌ Failed to insert classroom: ${insert.values[0]} - ${error.message}`)
       }
     }
-    
+
     return c.json({
       success: true,
       message: 'Manual classroom insertion attempted',
       tableColumns: columns,
-      results
+      results,
     })
   } catch (error) {
     console.error('Manual insert classrooms error:', error)

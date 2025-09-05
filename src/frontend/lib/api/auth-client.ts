@@ -5,11 +5,8 @@
 
 import { useCallback } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import type { TypeSafeApiOptions } from './type-safe-client'
 import { classroomsApi, schoolSettingsApi, subjectsApi, teachersApi } from '.'
-
-// 認証オプション付きAPI関数の型定義
-type AuthApiFunction<TArgs extends any[], TReturn> = (...args: TArgs) => Promise<TReturn>
+import type { TypeSafeApiOptions } from './type-safe-client'
 
 // 認証付きAPIクライアント作成
 export function useAuthApiClient() {

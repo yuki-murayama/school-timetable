@@ -1,4 +1,3 @@
-import { Hono } from 'hono'
 import { sign } from 'hono/jwt'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { authMiddleware, securityHeadersMiddleware, teacherOrAdminMiddleware } from './custom-auth'
@@ -14,7 +13,7 @@ const createMockDB = () => ({
 })
 
 // テスト用JWT生成関数
-const createTestJWT = async (payload: any, secret: string = 'test-secret') => {
+const createTestJWT = async (payload: Record<string, unknown>, secret: string = 'test-secret') => {
   return await sign(payload, secret)
 }
 
@@ -39,8 +38,8 @@ const createMockContext = (headers: Record<string, string> = {}) => ({
 })
 
 describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () => {
-  let mockNext: any
-  let mockDB: any
+  let mockNext: () => void
+  let mockDB: unknown
 
   beforeEach(() => {
     vi.clearAllMocks()
@@ -83,7 +82,7 @@ describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () 
       })
 
       const middleware = authMiddleware(() => mockDB)
-      await middleware(c as any, mockNext)
+      await middleware(c as unknown as Context, mockNext)
 
       expect(c.set).toHaveBeenCalledWith('user', {
         id: mockSession.id,
@@ -99,7 +98,7 @@ describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () 
       const c = createMockContext()
 
       const middleware = authMiddleware(() => mockDB)
-      await middleware(c as any, mockNext)
+      await middleware(c as unknown as Context, mockNext)
 
       expect(c.json).toHaveBeenCalledWith(
         {
@@ -117,7 +116,7 @@ describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () 
       })
 
       const middleware = authMiddleware(() => mockDB)
-      await middleware(c as any, mockNext)
+      await middleware(c as unknown as Context, mockNext)
 
       expect(c.json).toHaveBeenCalledWith(
         {
@@ -148,7 +147,7 @@ describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () 
       })
 
       const middleware = authMiddleware(() => mockDB)
-      await middleware(c as any, mockNext)
+      await middleware(c as unknown as Context, mockNext)
 
       expect(c.json).toHaveBeenCalledWith(
         {
@@ -166,7 +165,7 @@ describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () 
       })
 
       const middleware = authMiddleware(() => mockDB)
-      await middleware(c as any, mockNext)
+      await middleware(c as unknown as Context, mockNext)
 
       // JWT検証エラーの場合は500エラーまたは401エラーが返される
       expect(c.json).toHaveBeenCalled()
@@ -194,7 +193,7 @@ describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () 
       })
 
       const middleware = authMiddleware(() => mockDB)
-      await middleware(c as any, mockNext)
+      await middleware(c as unknown as Context, mockNext)
 
       expect(c.json).toHaveBeenCalledWith(
         {
@@ -213,7 +212,7 @@ describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () 
       c.get = vi.fn().mockReturnValue({ role: 'teacher' })
 
       const middleware = teacherOrAdminMiddleware()
-      await middleware(c as any, mockNext)
+      await middleware(c as unknown as Context, mockNext)
 
       expect(mockNext).toHaveBeenCalled()
     })
@@ -223,7 +222,7 @@ describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () 
       c.get = vi.fn().mockReturnValue({ role: 'admin' })
 
       const middleware = teacherOrAdminMiddleware()
-      await middleware(c as any, mockNext)
+      await middleware(c as unknown as Context, mockNext)
 
       expect(mockNext).toHaveBeenCalled()
     })
@@ -233,7 +232,7 @@ describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () 
       c.get = vi.fn().mockReturnValue({ role: 'user' })
 
       const middleware = teacherOrAdminMiddleware()
-      await middleware(c as any, mockNext)
+      await middleware(c as unknown as Context, mockNext)
 
       expect(c.json).toHaveBeenCalledWith(
         {
@@ -250,7 +249,7 @@ describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () 
       c.get = vi.fn().mockReturnValue(null)
 
       const middleware = teacherOrAdminMiddleware()
-      await middleware(c as any, mockNext)
+      await middleware(c as unknown as Context, mockNext)
 
       expect(c.json).toHaveBeenCalledWith(
         {
@@ -268,7 +267,7 @@ describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () 
       const c = createMockContext()
 
       const middleware = securityHeadersMiddleware()
-      await middleware(c as any, mockNext)
+      await middleware(c as unknown as Context, mockNext)
 
       expect(c.header).toHaveBeenCalledWith('X-Content-Type-Options', 'nosniff')
       expect(c.header).toHaveBeenCalledWith('X-Frame-Options', 'DENY')
@@ -289,7 +288,7 @@ describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () 
       })
 
       const middleware = authMiddleware(() => mockDB)
-      await middleware(c as any, mockNext)
+      await middleware(c as unknown as Context, mockNext)
 
       // 認証バイパスは削除されているため、認証エラーが発生するはず
       expect(c.json).toHaveBeenCalledWith(
@@ -305,7 +304,7 @@ describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () 
     it('AUTH-MW-013: optionalAuthMiddleware関数が存在しない', async () => {
       // optionalAuthMiddleware は削除されているため、importできないはず
       const customAuth = await import('./custom-auth')
-      expect((customAuth as any).optionalAuthMiddleware).toBeUndefined()
+      expect((customAuth as Record<string, unknown>).optionalAuthMiddleware).toBeUndefined()
     })
   })
 })

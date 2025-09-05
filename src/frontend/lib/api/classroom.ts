@@ -9,12 +9,14 @@ import { type ApiOptions, apiClient } from './client'
 // APIリクエスト・レスポンス型定義
 const ClassroomsListResponseSchema = z.object({
   classrooms: z.array(ClassroomSchema),
-  pagination: z.object({
-    page: z.number(),
-    limit: z.number(),
-    total: z.number(),
-    totalPages: z.number(),
-  }).optional(),
+  pagination: z
+    .object({
+      page: z.number(),
+      limit: z.number(),
+      total: z.number(),
+      totalPages: z.number(),
+    })
+    .optional(),
 })
 const CreateClassroomRequestSchema = z.object({
   name: z.string().min(1, '教室名は必須です').max(100, '教室名は100文字以内で入力してください'),
@@ -39,12 +41,14 @@ const ClassroomReorderResponseSchema = z.object({
 const VoidResponseSchema = z.object({}).or(z.null()).or(z.undefined())
 
 export const classroomApi = {
-  async getClassrooms(options?: ApiOptions): Promise<{ classrooms: Classroom[]; pagination?: { page: number; limit: number; total: number; totalPages: number } }> {
-    return apiClient.get<{ classrooms: Classroom[]; pagination?: { page: number; limit: number; total: number; totalPages: number } }>(
-      '/school/classrooms',
-      ClassroomsListResponseSchema,
-      options
-    )
+  async getClassrooms(options?: ApiOptions): Promise<{
+    classrooms: Classroom[]
+    pagination?: { page: number; limit: number; total: number; totalPages: number }
+  }> {
+    return apiClient.get<{
+      classrooms: Classroom[]
+      pagination?: { page: number; limit: number; total: number; totalPages: number }
+    }>('/school/classrooms', ClassroomsListResponseSchema, options)
   },
 
   async createClassroom(

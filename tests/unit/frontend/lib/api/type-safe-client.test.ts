@@ -74,7 +74,7 @@ describe('TypeSafeApiClient', () => {
     })
 
     // デフォルトのタイムアウト設定 - すべてのタイムアウトを即座に実行
-    mockSetTimeout.mockImplementation((callback, delay) => {
+    mockSetTimeout.mockImplementation((callback, _delay) => {
       // テスト環境ではすべてのタイムアウトを即座に実行（無限再帰を避けるため直接実行）
       queueMicrotask(() => callback())
       return 1 // タイムアウトIDを返す

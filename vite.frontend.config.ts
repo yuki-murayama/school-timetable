@@ -60,8 +60,8 @@ export default defineConfig(({ mode }) => {
         '/api': {
           target: env.VITE_API_URL || 'http://localhost:8787',
           changeOrigin: true,
-          configure: (proxy, options) => {
-            proxy.on('proxyReq', (proxyReq, req, res) => {
+          configure: (proxy, _options) => {
+            proxy.on('proxyReq', (proxyReq, req, _res) => {
               // プロキシリクエストの修正
               if (proxyReq.path.startsWith('/api/api/')) {
                 proxyReq.path = proxyReq.path.replace(/^\/api\/api\//, '/api/')
@@ -70,10 +70,10 @@ export default defineConfig(({ mode }) => {
                 console.log('🔄 Proxying request:', req.method, req.url, '→', proxyReq.path)
               }
             })
-            proxy.on('proxyRes', (proxyRes, req, res) => {
+            proxy.on('proxyRes', (proxyRes, req, _res) => {
               console.log('📨 Proxy response:', req.method, req.url, '→', proxyRes.statusCode)
             })
-            proxy.on('error', (err, req, res) => {
+            proxy.on('error', (err, _req, _res) => {
               console.error('🚨 Proxy error:', err)
             })
           },

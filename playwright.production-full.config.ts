@@ -2,17 +2,17 @@ import { defineConfig, devices } from '@playwright/test'
 
 /**
  * 本番環境全量テスト用Playwright設定
- * 
+ *
  * 🚨 注意：この設定は以下の場合にのみ使用してください：
  * - サービスイン前の開発・検証段階
  * - メンテナンス時の全量動作確認
  * - 本番データベースに影響しない統一テストデータ管理システムを使用
- * 
+ *
  * 使用方法：
  * npm run test:e2e:production-full
  * または
  * npx playwright test --config=playwright.production-full.config.ts
- * 
+ *
  * @see https://playwright.dev/docs/test-configuration
  */
 export default defineConfig({
@@ -93,17 +93,14 @@ export default defineConfig({
     // 本番環境未認証全量テスト（API testing用）
     {
       name: 'production-full-chromium-unauthenticated',
-      use: { 
+      use: {
         ...devices['Desktop Chrome'],
         extraHTTPHeaders: {
           'X-Test-Mode': 'production-full-api',
         },
       },
       // APIテストと基本テストのみ
-      testMatch: [
-        /.*api.*\.spec\.ts/,
-        /.*simple-app.*\.spec\.ts/,
-      ],
+      testMatch: [/.*api.*\.spec\.ts/, /.*simple-app.*\.spec\.ts/],
     },
 
     // Firefox クロスブラウザテスト（重要なテストのみ）
@@ -131,10 +128,7 @@ export default defineConfig({
       },
       dependencies: ['production-full-setup'],
       // 認証と基本機能のみ
-      testMatch: [
-        /.*01-authentication\.spec\.ts/,
-        /.*simple-app.*\.spec\.ts/,
-      ],
+      testMatch: [/.*01-authentication\.spec\.ts/, /.*simple-app.*\.spec\.ts/],
     },
 
     // Mobile Chrome（レスポンシブテスト）
@@ -162,10 +156,7 @@ export default defineConfig({
       },
       dependencies: ['production-full-setup'],
       // iOS Safari対応確認（最小限）
-      testMatch: [
-        /.*01-authentication\.spec\.ts/,
-        /.*simple-app.*\.spec\.ts/,
-      ],
+      testMatch: [/.*01-authentication\.spec\.ts/, /.*simple-app.*\.spec\.ts/],
     },
   ],
 

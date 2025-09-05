@@ -15,7 +15,7 @@ import {
 } from '@dnd-kit/sortable'
 import type { Subject } from '@shared/schemas'
 import { Edit, Loader2, Plus, Save, Trash2 } from 'lucide-react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useToast } from '../../hooks/use-toast'
 import { subjectApi } from '../../lib/api'
 import { Badge } from '../ui/badge'
@@ -33,7 +33,13 @@ interface SubjectsSectionProps {
   isLoading: boolean
 }
 
-export function SubjectsSection({ subjects, onSubjectsUpdate, token, getFreshToken, isLoading }: SubjectsSectionProps) {
+export function SubjectsSection({
+  subjects,
+  onSubjectsUpdate,
+  token,
+  getFreshToken,
+  isLoading,
+}: SubjectsSectionProps) {
   const { toast } = useToast()
 
   const sensors = useSensors(
@@ -122,24 +128,29 @@ export function SubjectsSection({ subjects, onSubjectsUpdate, token, getFreshTok
       if (editingSubject?.id) {
         // Update
         console.log('🔄 統一型安全APIで教科更新:', subjectData)
-        const result = await subjectApi.updateSubject(editingSubject.id, subjectData, { token, getFreshToken })
+        const result = await subjectApi.updateSubject(editingSubject.id, subjectData, {
+          token,
+          getFreshToken,
+        })
         const updatedSubject = result
         console.log('✅ 教科更新成功:', updatedSubject)
 
-        onSubjectsUpdate(subjects.map(s => {
-          if (s.id === editingSubject.id) {
-            console.log(
-              '🔄 Replacing subject:',
-              s.id,
-              'old targetGrades:',
-              s.targetGrades,
-              'new targetGrades:',
-              updatedSubject.targetGrades
-            )
-            return updatedSubject
-          }
-          return s
-        }))
+        onSubjectsUpdate(
+          subjects.map(s => {
+            if (s.id === editingSubject.id) {
+              console.log(
+                '🔄 Replacing subject:',
+                s.id,
+                'old targetGrades:',
+                s.targetGrades,
+                'new targetGrades:',
+                updatedSubject.targetGrades
+              )
+              return updatedSubject
+            }
+            return s
+          })
+        )
 
         toast({
           title: '更新完了',
@@ -248,18 +259,22 @@ export function SubjectsSection({ subjects, onSubjectsUpdate, token, getFreshTok
         orderUpdateTimeoutRef.current = setTimeout(async () => {
           try {
             console.log('🔄 教科順序更新開始:', itemsWithOrder.length, '件')
-            
+
             // Update each subject with new order via API
             const updatePromises = itemsWithOrder.map(async (subject, index) => {
               if (!subject.id) throw new Error('Subject ID is required')
-              return await subjectApi.updateSubject(subject.id, { 
-                ...subject, 
-                order: index 
-              }, { token })
+              return await subjectApi.updateSubject(
+                subject.id,
+                {
+                  ...subject,
+                  order: index,
+                },
+                { token }
+              )
             })
 
             await Promise.all(updatePromises)
-            
+
             console.log('✅ 教科順序更新完了')
             toast({
               title: '順序変更',
@@ -431,9 +446,7 @@ export function SubjectsSection({ subjects, onSubjectsUpdate, token, getFreshTok
     return (
       <div className='p-4 border rounded-md bg-red-50 border-red-200'>
         <h3 className='text-red-800 font-semibold'>教科情報の表示エラー</h3>
-        <p className='text-red-600 text-sm mt-1'>
-          教科情報コンポーネントでエラーが発生しました。
-        </p>
+        <p className='text-red-600 text-sm mt-1'>教科情報コンポーネントでエラーが発生しました。</p>
       </div>
     )
   }

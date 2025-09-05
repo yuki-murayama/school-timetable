@@ -831,11 +831,7 @@ export const conditionsApiV2 = {
    * @returns 条件設定データ
    */
   async getConditions(options?: TypeSafeApiOptions): Promise<ConditionsData> {
-    return typeSafeApiClient.get(
-      `${API_BASE}/school/conditions`,
-      ConditionsSchema,
-      options
-    )
+    return typeSafeApiClient.get(`${API_BASE}/school/conditions`, ConditionsSchema, options)
   },
 
   /**
@@ -960,7 +956,6 @@ export type ApiClient = typeof api
 // デフォルトエクスポート
 export default api
 
-
 // ======================
 // ユーティリティ関数
 // ======================
@@ -1032,4 +1027,3 @@ export const apiKeys = {
     metrics: (): QueryKeyBase => ['system', 'metrics'] as const,
   },
 } as const
-

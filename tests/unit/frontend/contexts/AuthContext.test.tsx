@@ -1,11 +1,10 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-import React from 'react'
-import { AuthProvider, useAuth, withAuth, usePermissions } from './AuthContext'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { AuthProvider, useAuth, usePermissions, withAuth } from './AuthContext'
 
 // useCustomAuthフックをモック
 vi.mock('../hooks/use-auth', () => ({
-  useCustomAuth: vi.fn()
+  useCustomAuth: vi.fn(),
 }))
 
 import { useCustomAuth } from '../hooks/use-auth'
@@ -14,16 +13,16 @@ const mockUseCustomAuth = vi.mocked(useCustomAuth)
 
 // テスト用コンポーネント
 function TestComponent() {
-  return <div data-testid="test-component">Test Component</div>
+  return <div data-testid='test-component'>Test Component</div>
 }
 
 function AuthContextConsumer() {
   const auth = useAuth()
   return (
-    <div data-testid="auth-consumer">
-      <div data-testid="is-authenticated">{auth.isAuthenticated.toString()}</div>
-      <div data-testid="is-loading">{auth.isLoading.toString()}</div>
-      <div data-testid="user-email">{auth.user?.email || 'No user'}</div>
+    <div data-testid='auth-consumer'>
+      <div data-testid='is-authenticated'>{auth.isAuthenticated.toString()}</div>
+      <div data-testid='is-loading'>{auth.isLoading.toString()}</div>
+      <div data-testid='user-email'>{auth.user?.email || 'No user'}</div>
     </div>
   )
 }
@@ -31,12 +30,12 @@ function AuthContextConsumer() {
 function PermissionsConsumer() {
   const permissions = usePermissions()
   return (
-    <div data-testid="permissions-consumer">
-      <div data-testid="is-admin">{permissions.isAdmin.toString()}</div>
-      <div data-testid="can-manage-users">{permissions.canManageUsers.toString()}</div>
-      <div data-testid="can-manage-school">{permissions.canManageSchoolSettings.toString()}</div>
-      <div data-testid="can-manage-teachers">{permissions.canManageTeachers.toString()}</div>
-      <div data-testid="current-role">{permissions.currentRole || 'No role'}</div>
+    <div data-testid='permissions-consumer'>
+      <div data-testid='is-admin'>{permissions.isAdmin.toString()}</div>
+      <div data-testid='can-manage-users'>{permissions.canManageUsers.toString()}</div>
+      <div data-testid='can-manage-school'>{permissions.canManageSchoolSettings.toString()}</div>
+      <div data-testid='can-manage-teachers'>{permissions.canManageTeachers.toString()}</div>
+      <div data-testid='current-role'>{permissions.currentRole || 'No role'}</div>
     </div>
   )
 }
@@ -57,7 +56,7 @@ describe('AuthContext', () => {
           id: 'user-123',
           email: 'test@example.com',
           name: 'Test User',
-          role: 'admin'
+          role: 'admin',
         },
         token: 'test-token',
         sessionId: 'session-123',
@@ -68,7 +67,7 @@ describe('AuthContext', () => {
         hasRole: vi.fn().mockReturnValue(true),
         isAdmin: vi.fn().mockReturnValue(true),
         isTeacher: vi.fn().mockReturnValue(false),
-        getAuthHeaders: vi.fn().mockReturnValue({})
+        getAuthHeaders: vi.fn().mockReturnValue({}),
       })
 
       // When: AuthProviderで子コンポーネントをラップ
@@ -96,7 +95,7 @@ describe('AuthContext', () => {
           id: 'user-123',
           email: 'test@example.com',
           name: 'Test User',
-          role: 'teacher' as const
+          role: 'teacher' as const,
         },
         token: 'test-token',
         sessionId: 'session-123',
@@ -107,7 +106,7 @@ describe('AuthContext', () => {
         hasRole: vi.fn().mockReturnValue(true),
         isAdmin: vi.fn().mockReturnValue(false),
         isTeacher: vi.fn().mockReturnValue(true),
-        getAuthHeaders: vi.fn().mockReturnValue({ Authorization: 'Bearer test-token' })
+        getAuthHeaders: vi.fn().mockReturnValue({ Authorization: 'Bearer test-token' }),
       }
       mockUseCustomAuth.mockReturnValue(mockAuth)
 
@@ -127,12 +126,15 @@ describe('AuthContext', () => {
     it('AC-003: AuthProvider外でuseAuthを使用するとエラーが発生する', () => {
       // Given: AuthProvider外のコンポーネント
       const TestComponentOutsideProvider = () => {
-        expect(() => useAuth()).toThrow('useAuth must be used within an AuthProvider')
         return <div>Test</div>
       }
 
       // When: AuthProvider外でuseAuthを使用
       // Then: エラーが発生する
+      expect(() => {
+        render(<TestComponentOutsideProvider />)
+        useAuth()
+      }).toThrow('useAuth must be used within an AuthProvider')
       expect(() => render(<TestComponentOutsideProvider />)).toThrow()
     })
   })
@@ -150,7 +152,7 @@ describe('AuthContext', () => {
           id: 'user-123',
           email: 'test@example.com',
           name: 'Test User',
-          role: 'admin'
+          role: 'admin',
         },
         token: 'test-token',
         sessionId: 'session-123',
@@ -161,7 +163,7 @@ describe('AuthContext', () => {
         hasRole: vi.fn().mockReturnValue(true),
         isAdmin: vi.fn().mockReturnValue(true),
         isTeacher: vi.fn().mockReturnValue(false),
-        getAuthHeaders: vi.fn()
+        getAuthHeaders: vi.fn(),
       })
 
       // When: withAuthでラップされたコンポーネントをレンダリング
@@ -191,7 +193,7 @@ describe('AuthContext', () => {
         hasRole: vi.fn(),
         isAdmin: vi.fn(),
         isTeacher: vi.fn(),
-        getAuthHeaders: vi.fn()
+        getAuthHeaders: vi.fn(),
       })
 
       // When: withAuthでラップされたコンポーネントをレンダリング
@@ -222,7 +224,7 @@ describe('AuthContext', () => {
         hasRole: vi.fn(),
         isAdmin: vi.fn(),
         isTeacher: vi.fn(),
-        getAuthHeaders: vi.fn()
+        getAuthHeaders: vi.fn(),
       })
 
       // When: withAuthでラップされたコンポーネントをレンダリング
@@ -248,7 +250,7 @@ describe('AuthContext', () => {
           id: 'user-123',
           email: 'test@example.com',
           name: 'Test User',
-          role: 'user'
+          role: 'user',
         },
         token: 'test-token',
         sessionId: 'session-123',
@@ -259,7 +261,7 @@ describe('AuthContext', () => {
         hasRole: vi.fn().mockReturnValue(false), // admin権限なし
         isAdmin: vi.fn().mockReturnValue(false),
         isTeacher: vi.fn().mockReturnValue(false),
-        getAuthHeaders: vi.fn()
+        getAuthHeaders: vi.fn(),
       })
 
       const AdminOnlyComponent = withAuth(TestComponent, { requiredRole: 'admin' })
@@ -293,10 +295,10 @@ describe('AuthContext', () => {
         hasRole: vi.fn(),
         isAdmin: vi.fn(),
         isTeacher: vi.fn(),
-        getAuthHeaders: vi.fn()
+        getAuthHeaders: vi.fn(),
       })
 
-      const CustomFallback = <div data-testid="custom-fallback">Custom Fallback</div>
+      const CustomFallback = <div data-testid='custom-fallback'>Custom Fallback</div>
       const ComponentWithFallback = withAuth(TestComponent, { fallback: CustomFallback })
 
       // When: fallback付きコンポーネントをレンダリング
@@ -323,7 +325,7 @@ describe('AuthContext', () => {
           id: 'user-123',
           email: 'admin@example.com',
           name: 'Admin User',
-          role: 'admin'
+          role: 'admin',
         },
         token: 'test-token',
         sessionId: 'session-123',
@@ -331,10 +333,10 @@ describe('AuthContext', () => {
         login: vi.fn(),
         verifyToken: vi.fn(),
         getFreshToken: vi.fn(),
-        hasRole: vi.fn().mockImplementation((role) => role === 'admin'),
+        hasRole: vi.fn().mockImplementation(role => role === 'admin'),
         isAdmin: vi.fn().mockReturnValue(true),
         isTeacher: vi.fn().mockReturnValue(false),
-        getAuthHeaders: vi.fn()
+        getAuthHeaders: vi.fn(),
       })
 
       // When: usePermissionsを使用
@@ -361,7 +363,7 @@ describe('AuthContext', () => {
           id: 'user-123',
           email: 'teacher@example.com',
           name: 'Teacher User',
-          role: 'teacher'
+          role: 'teacher',
         },
         token: 'test-token',
         sessionId: 'session-123',
@@ -369,10 +371,10 @@ describe('AuthContext', () => {
         login: vi.fn(),
         verifyToken: vi.fn(),
         getFreshToken: vi.fn(),
-        hasRole: vi.fn().mockImplementation((role) => role === 'teacher' || role === 'user'),
+        hasRole: vi.fn().mockImplementation(role => role === 'teacher' || role === 'user'),
         isAdmin: vi.fn().mockReturnValue(false),
         isTeacher: vi.fn().mockReturnValue(true),
-        getAuthHeaders: vi.fn()
+        getAuthHeaders: vi.fn(),
       })
 
       // When: usePermissionsを使用
@@ -400,7 +402,7 @@ describe('AuthContext', () => {
           id: 'user-123',
           email: 'user@example.com',
           name: 'Regular User',
-          role: 'user'
+          role: 'user',
         },
         token: 'test-token',
         sessionId: 'session-123',
@@ -408,10 +410,10 @@ describe('AuthContext', () => {
         login: vi.fn(),
         verifyToken: vi.fn(),
         getFreshToken: vi.fn(),
-        hasRole: vi.fn().mockImplementation((role) => role === 'user'),
+        hasRole: vi.fn().mockImplementation(role => role === 'user'),
         isAdmin: vi.fn().mockReturnValue(false),
         isTeacher: vi.fn().mockReturnValue(false),
-        getAuthHeaders: vi.fn()
+        getAuthHeaders: vi.fn(),
       })
 
       // When: usePermissionsを使用

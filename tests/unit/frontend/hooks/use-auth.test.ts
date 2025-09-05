@@ -32,16 +32,16 @@ const createMockLocalStorage = () => {
 
 // グローバルオブジェクトのモック
 global.fetch = createMockFetch()
-global.localStorage = createMockLocalStorage() as any
+global.localStorage = createMockLocalStorage() as unknown as Storage
 
 describe('フロントエンド認証フック (use-auth.ts)', () => {
-  let mockFetch: any
-  let mockLocalStorage: any
+  let mockFetch: unknown
+  let mockLocalStorage: unknown
 
   beforeEach(() => {
     vi.clearAllMocks()
-    mockFetch = global.fetch as any
-    mockLocalStorage = global.localStorage as any
+    mockFetch = global.fetch
+    mockLocalStorage = global.localStorage
 
     // LocalStorageをクリア
     mockLocalStorage.clear()
@@ -198,7 +198,9 @@ describe('フロントエンド認証フック (use-auth.ts)', () => {
       const { result } = renderHook(() => useCustomAuth())
 
       await act(async () => {
-        const loginResult = await result.current.login(invalidCredentials as any)
+        const loginResult = await result.current.login(
+          invalidCredentials as { email: string; password: string }
+        )
         expect(loginResult.success).toBe(false)
         expect(loginResult.error).toContain('ログイン処理でエラーが発生しました')
       })

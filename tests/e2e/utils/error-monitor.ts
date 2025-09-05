@@ -1,6 +1,6 @@
 /**
  * E2Eテスト用コンソールエラー監視ユーティリティ
- * 
+ *
  * 機能:
  * - ブラウザコンソールエラー、ネットワークエラー、ページエラーの監視
  * - テストケース毎のログ分離
@@ -8,7 +8,7 @@
  * - テスト終了時の詳細エラーレポート生成
  */
 
-import { Page } from '@playwright/test'
+import type { Page } from '@playwright/test'
 
 export interface ErrorMonitorConfig {
   testName: string
@@ -45,7 +45,7 @@ export class ErrorMonitor {
       enableNetworkLogging: true,
       enablePageErrorLogging: true,
       fatalErrorThreshold: 1,
-      ...config
+      ...config,
     }
     this.startTime = new Date().toISOString()
     this.setupMonitoring()
@@ -107,28 +107,29 @@ export class ErrorMonitor {
    */
   private detectFatalErrors(): string[] {
     const allErrors = [...this.consoleErrors, ...this.networkErrors, ...this.pageErrors]
-    
-    const fatalErrors = allErrors.filter(error => 
-      error.includes('SQLITE_ERROR') || 
-      error.includes('D1_ERROR') ||
-      error.includes('Authorization token required') ||
-      error.includes('TypeError') ||
-      error.includes('is not iterable') ||
-      error.includes('no such column') ||
-      error.includes('ReferenceError') ||
-      error.includes('SyntaxError') ||
-      error.includes('Cannot read propert') ||
-      error.includes('undefined is not a function') ||
-      error.includes('null is not an object') ||
-      error.includes('Network request failed') ||
-      error.includes('ValidationError') ||  // バリデーションエラーを致命的エラーに追加
-      error.includes('Validation failed') || // バリデーション失敗も致命的エラーに追加
-      error.includes('500') ||
-      error.includes('502') ||
-      error.includes('503') ||
-      error.includes('504')
+
+    const fatalErrors = allErrors.filter(
+      error =>
+        error.includes('SQLITE_ERROR') ||
+        error.includes('D1_ERROR') ||
+        error.includes('Authorization token required') ||
+        error.includes('TypeError') ||
+        error.includes('is not iterable') ||
+        error.includes('no such column') ||
+        error.includes('ReferenceError') ||
+        error.includes('SyntaxError') ||
+        error.includes('Cannot read propert') ||
+        error.includes('undefined is not a function') ||
+        error.includes('null is not an object') ||
+        error.includes('Network request failed') ||
+        error.includes('ValidationError') || // バリデーションエラーを致命的エラーに追加
+        error.includes('Validation failed') || // バリデーション失敗も致命的エラーに追加
+        error.includes('500') ||
+        error.includes('502') ||
+        error.includes('503') ||
+        error.includes('504')
     )
-    
+
     return fatalErrors
   }
 
@@ -137,7 +138,7 @@ export class ErrorMonitor {
    */
   generateReport(): ErrorReport {
     const fatalErrors = this.detectFatalErrors()
-    
+
     const report: ErrorReport = {
       testName: this.config.testName,
       consoleErrors: [...this.consoleErrors],
@@ -147,7 +148,7 @@ export class ErrorMonitor {
       totalErrors: this.consoleErrors.length + this.networkErrors.length + this.pageErrors.length,
       hasFatalErrors: fatalErrors.length >= this.config.fatalErrorThreshold,
       startTime: this.startTime,
-      endTime: new Date().toISOString()
+      endTime: new Date().toISOString(),
     }
 
     return report
@@ -158,45 +159,45 @@ export class ErrorMonitor {
    */
   printReport(): ErrorReport {
     const report = this.generateReport()
-    
+
     console.log(`\n📊 [${this.config.testName}] エラー監視レポート`)
     console.log(`⏰ 監視期間: ${this.startTime} ~ ${report.endTime}`)
-    
+
     if (report.totalErrors === 0) {
       console.log('✅ エラーは検出されませんでした')
       return report
     }
 
     console.log(`🚨 総エラー数: ${report.totalErrors}件`)
-    
+
     if (report.consoleErrors.length > 0) {
       console.error(`🔍 コンソールエラー (${report.consoleErrors.length}件):`)
       report.consoleErrors.forEach((error, index) => {
         console.error(`  ${index + 1}. ${error}`)
       })
     }
-    
+
     if (report.networkErrors.length > 0) {
       console.error(`🌐 ネットワークエラー (${report.networkErrors.length}件):`)
       report.networkErrors.forEach((error, index) => {
         console.error(`  ${index + 1}. ${error}`)
       })
     }
-    
+
     if (report.pageErrors.length > 0) {
       console.error(`💥 ページエラー (${report.pageErrors.length}件):`)
       report.pageErrors.forEach((error, index) => {
         console.error(`  ${index + 1}. ${error}`)
       })
     }
-    
+
     if (report.hasFatalErrors) {
       console.error(`💀 致命的なエラーが検出されました (${report.fatalErrors.length}件):`)
       report.fatalErrors.forEach((error, index) => {
         console.error(`  FATAL ${index + 1}: ${error}`)
       })
     }
-    
+
     return report
   }
 
@@ -205,9 +206,11 @@ export class ErrorMonitor {
    */
   throwIfFatal(): void {
     const report = this.generateReport()
-    
+
     if (report.hasFatalErrors) {
-      throw new Error(`[${this.config.testName}] 致命的なエラーが${report.fatalErrors.length}件検出されました。システムの修復が必要です。`)
+      throw new Error(
+        `[${this.config.testName}] 致命的なエラーが${report.fatalErrors.length}件検出されました。システムの修復が必要です。`
+      )
     }
   }
 
@@ -225,13 +228,13 @@ export class ErrorMonitor {
    */
   getStats(): { console: number; network: number; page: number; total: number; fatal: number } {
     const fatalErrors = this.detectFatalErrors()
-    
+
     return {
       console: this.consoleErrors.length,
-      network: this.networkErrors.length, 
+      network: this.networkErrors.length,
       page: this.pageErrors.length,
       total: this.consoleErrors.length + this.networkErrors.length + this.pageErrors.length,
-      fatal: fatalErrors.length
+      fatal: fatalErrors.length,
     }
   }
 }
@@ -239,21 +242,25 @@ export class ErrorMonitor {
 /**
  * テスト用のヘルパー関数
  */
-export function createErrorMonitor(page: Page, testName: string, options?: Partial<ErrorMonitorConfig>): ErrorMonitor {
+export function createErrorMonitor(
+  page: Page,
+  testName: string,
+  options?: Partial<ErrorMonitorConfig>
+): ErrorMonitor {
   return new ErrorMonitor(page, { testName, ...options })
 }
 
 /**
  * テストケース用のデコレーター関数
  */
-export function withErrorMonitoring<T extends any[]>(
+export function withErrorMonitoring<T extends unknown[]>(
   testName: string,
   testFunction: (errorMonitor: ErrorMonitor, ...args: T) => Promise<void>,
   options?: Partial<ErrorMonitorConfig>
 ) {
   return async (page: Page, ...args: T): Promise<void> => {
     const errorMonitor = createErrorMonitor(page, testName, options)
-    
+
     try {
       await testFunction(errorMonitor, ...args)
     } finally {

@@ -118,10 +118,10 @@ export const useTeacherApi = (
       } catch (error) {
         console.error('❌ 教師の保存に失敗:', error)
 
-        if (error instanceof Error && (error as any).validationErrors) {
+        if (error instanceof Error && 'validationErrors' in error) {
           toast({
             title: '保存エラー',
-            description: `入力データが無効です: ${(error as any).validationErrors.map((e: any) => e.message).join(', ')}`,
+            description: `入力データが無効です: ${(error as { validationErrors: { message: string }[] }).validationErrors.map(e => e.message).join(', ')}`,
             variant: 'destructive',
           })
         } else {

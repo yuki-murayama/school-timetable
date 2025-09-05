@@ -1,17 +1,17 @@
 /**
  * 統一テストデータ管理サービス
- * 
+ *
  * 環境に依存しないテストデータ管理システムの実装。
  * ローカル開発環境と本番環境での一貫したテスト実行を保証。
- * 
+ *
  * ユーザー要求の完全実装:
  * 1. initialize backup tables → バックアップテーブル初期化
- * 2. backup existing data → 既存データバックアップ  
+ * 2. backup existing data → 既存データバックアップ
  * 3. clear target tables → 対象テーブルクリア
  * 4. insert test data → テストデータ挿入（外部キー制約対応）
  * 5. run tests → テスト実行（外部で）
  * 6. restore data regardless of test outcome → 結果問わずデータ復元
- * 
+ *
  * 技術的特徴:
  * - 外部キー制約の適切な処理
  * - 依存関係順序を考慮したデータ挿入
@@ -27,11 +27,24 @@ export interface TestDataOptions {
   userCount?: number
 }
 
+import type { ClassroomDbRow, SubjectDbRow, TeacherDbRow } from '@shared/schemas'
+
+export interface UserDbRow {
+  id: string
+  email: string
+  name: string
+  role: string
+  hashed_password: string
+  is_active: number
+  created_at: string
+  updated_at: string
+}
+
 export interface BackupData {
-  teachers: any[]
-  subjects: any[]
-  classrooms: any[]
-  users: any[]
+  teachers: TeacherDbRow[]
+  subjects: SubjectDbRow[]
+  classrooms: ClassroomDbRow[]
+  users: UserDbRow[]
   timestamp: string
 }
 
@@ -46,27 +59,35 @@ export class TestDatabaseService {
 
     // 既存のバックアップテーブル削除
     const backupTables = ['teachers_backup', 'subjects_backup', 'classrooms_backup', 'users_backup']
-    
+
     for (const table of backupTables) {
       await this.db.prepare(`DROP TABLE IF EXISTS ${table}`).run()
     }
 
     // バックアップテーブルを実際のテーブルと同じ構造で作成（ローカル開発環境スキーマ）
-    await this.db.prepare(`
+    await this.db
+      .prepare(`
       CREATE TABLE teachers_backup AS SELECT * FROM teachers WHERE 1=0
-    `).run()
+    `)
+      .run()
 
-    await this.db.prepare(`
+    await this.db
+      .prepare(`
       CREATE TABLE subjects_backup AS SELECT * FROM subjects WHERE 1=0
-    `).run()
+    `)
+      .run()
 
-    await this.db.prepare(`
+    await this.db
+      .prepare(`
       CREATE TABLE classrooms_backup AS SELECT * FROM classrooms WHERE 1=0
-    `).run()
+    `)
+      .run()
 
-    await this.db.prepare(`
+    await this.db
+      .prepare(`
       CREATE TABLE users_backup AS SELECT * FROM users WHERE 1=0
-    `).run()
+    `)
+      .run()
 
     console.log('✅ バックアップ用テーブル初期化完了')
   }
@@ -103,7 +124,7 @@ export class TestDatabaseService {
       teachers: backupData.teachers.length,
       subjects: backupData.subjects.length,
       classrooms: backupData.classrooms.length,
-      users: backupData.users.length
+      users: backupData.users.length,
     })
 
     return backupData
@@ -131,31 +152,34 @@ export class TestDatabaseService {
     console.log('📝 テスト用データ挿入開始')
 
     const timestamp = new Date().toISOString()
-    const {
-      teacherCount = 3,
-      subjectCount = 5,
-      classroomCount = 6,
-      userCount = 3
-    } = options
+    const { teacherCount = 3, subjectCount = 5, classroomCount = 6, userCount = 3 } = options
 
     // 外部キー制約対応: 依存関係順序での基本データ挿入
     console.log('🔧 外部キー制約を考慮した基本データ挿入...')
-    
+
     // Step 1: school_settingsテーブル（他に依存しない基本設定）
-    await this.db.prepare(`
+    await this.db
+      .prepare(`
       INSERT OR IGNORE INTO school_settings (id, grade1Classes, grade2Classes, grade3Classes, dailyPeriods, saturdayPeriods)
       VALUES ('default', 4, 4, 3, 6, 4)
-    `).run()
-    
+    `)
+      .run()
+
     // Step 2: schoolsテーブル（subjectsテーブルの外部キー参照元）
     try {
-      await this.db.prepare(`
+      await this.db
+        .prepare(`
         INSERT OR IGNORE INTO schools (id, name, created_at, updated_at)
         VALUES ('default', 'テスト学校', ?, ?)
-      `).bind(timestamp, timestamp).run()
+      `)
+        .bind(timestamp, timestamp)
+        .run()
       console.log('✅ schools テーブルに基本レコード挿入完了')
     } catch (error) {
-      console.log('ℹ️  schools テーブルが存在しないため、school_id制約なしで処理:', error.message.substring(0, 100))
+      console.log(
+        'ℹ️  schools テーブルが存在しないため、school_id制約なしで処理:',
+        error.message.substring(0, 100)
+      )
     }
 
     // 動的スキーマ検出: teachersテーブル
@@ -170,29 +194,35 @@ export class TestDatabaseService {
     for (let i = 1; i <= teacherCount; i++) {
       if (hasTeacherSchoolId) {
         // school_idカラムが存在する場合
-        await this.db.prepare(`
+        await this.db
+          .prepare(`
           INSERT INTO teachers (id, school_id, name, subjects, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?)
-        `).bind(
-          createId(),
-          'default',
-          `テスト教師${i}`,
-          JSON.stringify([`subject-${i}`]),
-          timestamp,
-          timestamp
-        ).run()
+        `)
+          .bind(
+            createId(),
+            'default',
+            `テスト教師${i}`,
+            JSON.stringify([`subject-${i}`]),
+            timestamp,
+            timestamp
+          )
+          .run()
       } else {
         // school_idカラムが存在しない場合
-        await this.db.prepare(`
+        await this.db
+          .prepare(`
           INSERT INTO teachers (id, name, subjects, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?)
-        `).bind(
-          createId(),
-          `テスト教師${i}`,
-          JSON.stringify([`subject-${i}`]),
-          timestamp,
-          timestamp
-        ).run()
+        `)
+          .bind(
+            createId(),
+            `テスト教師${i}`,
+            JSON.stringify([`subject-${i}`]),
+            timestamp,
+            timestamp
+          )
+          .run()
       }
     }
 
@@ -205,39 +235,45 @@ export class TestDatabaseService {
     const hasSubjectSchoolId = subjectColumns.includes('school_id')
 
     // テスト教科データ（動的スキーマ検出でカラムに応じて適応）
-    const subjectNames = ['数学', '国語', '英語', '理科', '社会', '音楽', '美術', '体育', '技術', '家庭']
-    
+    const subjectNames = [
+      '数学',
+      '国語',
+      '英語',
+      '理科',
+      '社会',
+      '音楽',
+      '美術',
+      '体育',
+      '技術',
+      '家庭',
+    ]
+
     for (let i = 1; i <= subjectCount; i++) {
       const baseData = {
         id: createId(),
         name: subjectNames[i - 1] || `テスト教科${i}`,
         created_at: timestamp,
-        updated_at: timestamp
+        updated_at: timestamp,
       }
 
       if (hasSubjectSchoolId) {
         // school_idカラムが存在する場合の最小構成
-        await this.db.prepare(`
+        await this.db
+          .prepare(`
           INSERT INTO subjects (id, school_id, name, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?)
-        `).bind(
-          baseData.id,
-          'default',
-          baseData.name,
-          baseData.created_at,
-          baseData.updated_at
-        ).run()
+        `)
+          .bind(baseData.id, 'default', baseData.name, baseData.created_at, baseData.updated_at)
+          .run()
       } else {
         // school_idカラムが存在しない場合の最小構成
-        await this.db.prepare(`
+        await this.db
+          .prepare(`
           INSERT INTO subjects (id, name, created_at, updated_at)
           VALUES (?, ?, ?, ?)
-        `).bind(
-          baseData.id,
-          baseData.name,
-          baseData.created_at,
-          baseData.updated_at
-        ).run()
+        `)
+          .bind(baseData.id, baseData.name, baseData.created_at, baseData.updated_at)
+          .run()
       }
     }
 
@@ -253,40 +289,31 @@ export class TestDatabaseService {
     for (let i = 1; i <= classroomCount; i++) {
       if (hasClassroomType && hasClassroomCapacity) {
         // type, capacityカラムが両方存在する場合
-        await this.db.prepare(`
+        await this.db
+          .prepare(`
           INSERT INTO classrooms (id, name, type, capacity, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?)
-        `).bind(
-          createId(),
-          `テスト教室${i}`,
-          '普通教室',
-          30,
-          timestamp,
-          timestamp
-        ).run()
+        `)
+          .bind(createId(), `テスト教室${i}`, '普通教室', 30, timestamp, timestamp)
+          .run()
       } else if (hasClassroomType) {
         // typeカラムのみ存在する場合
-        await this.db.prepare(`
+        await this.db
+          .prepare(`
           INSERT INTO classrooms (id, name, type, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?)
-        `).bind(
-          createId(),
-          `テスト教室${i}`,
-          '普通教室',
-          timestamp,
-          timestamp
-        ).run()
+        `)
+          .bind(createId(), `テスト教室${i}`, '普通教室', timestamp, timestamp)
+          .run()
       } else {
         // 基本カラムのみ存在する場合
-        await this.db.prepare(`
+        await this.db
+          .prepare(`
           INSERT INTO classrooms (id, name, created_at, updated_at)
           VALUES (?, ?, ?, ?)
-        `).bind(
-          createId(),
-          `テスト教室${i}`,
-          timestamp,
-          timestamp
-        ).run()
+        `)
+          .bind(createId(), `テスト教室${i}`, timestamp, timestamp)
+          .run()
       }
     }
 
@@ -294,27 +321,30 @@ export class TestDatabaseService {
     const userRoles = ['admin', 'teacher', 'teacher']
     const userEmails = ['test@school.local', 'teacher1@test.local', 'teacher2@test.local'] // E2Eテスト用メール
     const testPasswordHash = '482c811da5d5b4bc6d497ffa98491e38' // "password123"のMD5ハッシュ
-    
+
     for (let i = 1; i <= userCount; i++) {
-      await this.db.prepare(`
+      await this.db
+        .prepare(`
         INSERT INTO users (id, email, hashed_password, name, role, is_active, created_at, updated_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).bind(
-        createId(),
-        userEmails[i - 1] || `test${i}@test.local`,
-        testPasswordHash, // 全テストユーザーに同じパスワード"test123"を設定
-        `テストユーザー${i}`,
-        userRoles[i - 1] || 'teacher',
-        1,
-        timestamp,
-        timestamp
-      ).run()
+      `)
+        .bind(
+          createId(),
+          userEmails[i - 1] || `test${i}@test.local`,
+          testPasswordHash, // 全テストユーザーに同じパスワード"test123"を設定
+          `テストユーザー${i}`,
+          userRoles[i - 1] || 'teacher',
+          1,
+          timestamp,
+          timestamp
+        )
+        .run()
     }
 
     // データベースの整合性確認（外部キー制約が有効な状態で）
     console.log('🔍 外部キー制約の整合性を確認中...')
     await this.db.prepare(`PRAGMA foreign_keys = ON`).run()
-    
+
     console.log('✅ テスト用データ挿入完了:', {
       teachers: teacherCount,
       subjects: subjectCount,
@@ -323,8 +353,8 @@ export class TestDatabaseService {
       dynamicSchema: {
         teacherSchoolId: hasTeacherSchoolId,
         subjectSchoolId: hasSubjectSchoolId,
-        classroomType: hasClassroomType
-      }
+        classroomType: hasClassroomType,
+      },
     })
   }
 
@@ -387,7 +417,6 @@ export class TestDatabaseService {
       const result = await testFunction()
 
       return result
-
     } finally {
       // Step 6: 必ずデータ復元（成功・失敗問わず）
       if (backupData) {

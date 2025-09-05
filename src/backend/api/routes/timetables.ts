@@ -1,10 +1,10 @@
 /**
  * 時間割管理API - シンプルなHono実装（safeParseAsync問題回避）
  */
+
+import type { Env } from '@shared/schemas'
 import { Hono } from 'hono'
-import { zValidator } from '@hono/zod-validator'
 import { z } from 'zod'
-import { type Env } from '@shared/schemas'
 
 // 時間割管理用アプリ
 const timetablesApp = new Hono<{ Bindings: Env }>()

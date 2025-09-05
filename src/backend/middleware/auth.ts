@@ -32,7 +32,7 @@ export async function customAuthMiddleware(c: Context<{ Bindings: Env }>, next: 
       console.error('🚫 Authorization header does not start with Bearer')
       throw new HTTPException(401, { message: 'Invalid authorization format' })
     }
-    
+
     const token = authHeader.substring(7) // 'Bearer '.length = 7
     if (!token) {
       console.error('🚫 Empty token after Bearer')
@@ -46,7 +46,12 @@ export async function customAuthMiddleware(c: Context<{ Bindings: Env }>, next: 
     }
 
     // カスタムJWTトークンの検証
-    console.log('🔍 Verifying token with length:', token.length, 'first 30 chars:', token.substring(0, 30))
+    console.log(
+      '🔍 Verifying token with length:',
+      token.length,
+      'first 30 chars:',
+      token.substring(0, 30)
+    )
     const userInfo = await verifyCustomToken(token, c.env.DB)
     if (!userInfo) {
       console.error('🚫 Token verification failed for token:', token.substring(0, 30))
@@ -74,9 +79,9 @@ export async function customAuthMiddleware(c: Context<{ Bindings: Env }>, next: 
       headers: {
         authorization: c.req.header('Authorization') || 'none',
         userAgent: c.req.header('User-Agent') || 'unknown',
-        origin: c.req.header('Origin') || 'unknown'
+        origin: c.req.header('Origin') || 'unknown',
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     })
 
     if (error instanceof HTTPException) {
@@ -132,15 +137,20 @@ async function verifyCustomToken(token: string, db: D1Database): Promise<UserInf
       WHERE s.token = ? AND s.expires_at > datetime('now') AND u.is_active = 1
     `
 
-    console.log('🔍 Searching session for token:', token.substring(0, 30) + '...', 'decoded user:', decodedPayload.sub)
+    console.log(
+      '🔍 Searching session for token:',
+      `${token.substring(0, 30)}...`,
+      'decoded user:',
+      decodedPayload.sub
+    )
     console.log('🔍 Token full length:', token.length)
     console.log('🔍 Executing query:', sessionQuery.trim())
-    
+
     // まずトークンが完全一致するレコードの存在確認
     const exactTokenQuery = 'SELECT COUNT(*) as count FROM user_sessions WHERE token = ?'
     const exactTokenResult = await db.prepare(exactTokenQuery).bind(token).first()
     console.log('🔍 Exact token match count:', exactTokenResult?.count)
-    
+
     // 有効期限チェックなしでトークン検索
     const tokenOnlyQuery = `
       SELECT s.id, s.user_id, s.expires_at, s.created_at, u.email, u.role, u.is_active
@@ -154,14 +164,14 @@ async function verifyCustomToken(token: string, db: D1Database): Promise<UserInf
       expires_at: tokenOnlyResult?.expires_at,
       created_at: tokenOnlyResult?.created_at,
       is_active: tokenOnlyResult?.is_active,
-      current_time: new Date().toISOString()
+      current_time: new Date().toISOString(),
     })
-    
+
     const session = await db.prepare(sessionQuery).bind(token).first()
 
     if (!session) {
-      console.error('🚫 Session not found or expired for token:', token.substring(0, 30) + '...')
-      
+      console.error('🚫 Session not found or expired for token:', `${token.substring(0, 30)}...`)
+
       // デバッグ: 同じユーザーの他のセッションを確認
       const debugQuery = `
         SELECT s.token, s.expires_at, s.created_at
@@ -171,12 +181,16 @@ async function verifyCustomToken(token: string, db: D1Database): Promise<UserInf
         LIMIT 3
       `
       const debugSessions = await db.prepare(debugQuery).bind(decodedPayload.sub).all()
-      console.log('🔍 Debug: Recent sessions for user:', decodedPayload.sub, debugSessions.results?.map(s => ({
-        token_prefix: s.token?.substring(0, 30) + '...',
-        expires_at: s.expires_at,
-        created_at: s.created_at
-      })))
-      
+      console.log(
+        '🔍 Debug: Recent sessions for user:',
+        decodedPayload.sub,
+        debugSessions.results?.map(s => ({
+          token_prefix: `${s.token?.substring(0, 30)}...`,
+          expires_at: s.expires_at,
+          created_at: s.created_at,
+        }))
+      )
+
       return null
     }
 

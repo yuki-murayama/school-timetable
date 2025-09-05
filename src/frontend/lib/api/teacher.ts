@@ -14,12 +14,14 @@ import { type ApiOptions, apiClient } from './client'
 // レスポンス型定義
 const TeachersListResponseSchema = z.object({
   teachers: z.array(LegacyTeacherSchema),
-  pagination: z.object({
-    page: z.number(),
-    limit: z.number(),
-    total: z.number(),
-    totalPages: z.number(),
-  }).optional(),
+  pagination: z
+    .object({
+      page: z.number(),
+      limit: z.number(),
+      total: z.number(),
+      totalPages: z.number(),
+    })
+    .optional(),
 })
 const TeacherReorderRequestSchema = z.object({
   teachers: z.array(
@@ -36,8 +38,14 @@ const TeacherReorderResponseSchema = z.object({
 const VoidResponseSchema = z.object({}).or(z.null()).or(z.undefined())
 
 export const teacherApi = {
-  async getTeachers(options?: ApiOptions): Promise<{ teachers: LegacyTeacher[]; pagination?: { page: number; limit: number; total: number; totalPages: number } }> {
-    return apiClient.get<{ teachers: LegacyTeacher[]; pagination?: { page: number; limit: number; total: number; totalPages: number } }>('/school/teachers', TeachersListResponseSchema, options)
+  async getTeachers(options?: ApiOptions): Promise<{
+    teachers: LegacyTeacher[]
+    pagination?: { page: number; limit: number; total: number; totalPages: number }
+  }> {
+    return apiClient.get<{
+      teachers: LegacyTeacher[]
+      pagination?: { page: number; limit: number; total: number; totalPages: number }
+    }>('/school/teachers', TeachersListResponseSchema, options)
   },
 
   async createTeacher(teacher: CreateTeacherRequest, options?: ApiOptions): Promise<LegacyTeacher> {

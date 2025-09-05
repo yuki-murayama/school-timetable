@@ -3,8 +3,8 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { z } from 'zod'
-import { ValidationError, isValidationError } from '../../lib/api/type-safe-client'
-import { teacherApi, subjectApi, schoolApi } from '../../lib/api'
+import { schoolApi, subjectApi, teacherApi } from '../../lib/api'
+import { isValidationError, ValidationError } from '../../lib/api/type-safe-client'
 import { TeachersSection } from './TeachersSection'
 
 // 個別APIモジュールのモック
@@ -26,7 +26,10 @@ vi.mock('../../lib/api', () => ({
 // type-safe-clientのモック
 vi.mock('../../lib/api/type-safe-client', () => ({
   ValidationError: class extends Error {
-    constructor(public issues: any[], public requestData?: any) {
+    constructor(
+      public issues: unknown[],
+      public requestData?: unknown
+    ) {
       super('Validation Error')
     }
   },
@@ -150,7 +153,7 @@ describe('TeachersSection', () => {
    */
   it('無効データ - teachersが配列でない場合', () => {
     // @ts-ignore - テスト用に意図的に無効な型を渡す
-    render(<TeachersSection {...defaultProps} teachers={null as any} />)
+    render(<TeachersSection {...defaultProps} teachers={null as unknown} />)
 
     expect(screen.getByText('教師情報が登録されていません')).toBeInTheDocument()
   })
@@ -243,9 +246,9 @@ describe('TeachersSection', () => {
     await user.click(deleteButtons[0]) // 最初の削除ボタンをクリック
 
     await waitFor(() => {
-      expect(teacherApi.deleteTeacher).toHaveBeenCalledWith('teacher-1', { 
-        token: defaultProps.token, 
-        getFreshToken: defaultProps.getFreshToken 
+      expect(teacherApi.deleteTeacher).toHaveBeenCalledWith('teacher-1', {
+        token: defaultProps.token,
+        getFreshToken: defaultProps.getFreshToken,
       })
       expect(mockOnTeachersUpdate).toHaveBeenCalledWith(
         expect.arrayContaining([expect.objectContaining({ id: 'teacher-2' })])
@@ -356,7 +359,7 @@ describe('TeachersSection', () => {
    */
   it('データ正規化 - subjects文字列が配列として表示される', () => {
     // TypeScript型エラーを回避するため、any型を使用
-    const teachersWithStringSubjects: any[] = [
+    const teachersWithStringSubjects: unknown[] = [
       {
         id: 'teacher-string',
         name: '文字列先生',
@@ -381,7 +384,7 @@ describe('TeachersSection', () => {
    */
   it('データ正規化 - 無効なJSON文字列は空配列にフォールバック', () => {
     // TypeScript型エラーを回避するため、any型を使用
-    const teachersWithInvalidJSON: any[] = [
+    const teachersWithInvalidJSON: unknown[] = [
       {
         id: 'teacher-invalid',
         name: '無効JSON先生',
@@ -443,7 +446,7 @@ describe('TeachersSection', () => {
    */
   it('エラー処理 - 教師行レンダリングエラー時のフォールバック', () => {
     // エラーを引き起こす可能性のある教師データ
-    const problematicTeacher: any[] = [
+    const problematicTeacher: unknown[] = [
       {
         id: 'error-teacher',
         name: null, // 意図的にnullを設定
@@ -487,7 +490,7 @@ describe('TeachersSection', () => {
     const user = userEvent.setup()
 
     // @ts-ignore - テスト用に意図的に無効な型を渡す
-    render(<TeachersSection {...defaultProps} teachers={null as any} />)
+    render(<TeachersSection {...defaultProps} teachers={null as unknown} />)
 
     const saveButton = screen.getByText('教師情報を保存')
     await user.click(saveButton)

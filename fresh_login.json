@@ -1,1 +1,13 @@
-{"success":true,"user":{"id":"uwhfy3v3cq9dymcfm6tp8gas","email":"test@school.local","name":"テストユーザー1","role":"admin","lastLoginAt":"2025-09-03T15:39:34.652Z"},"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1d2hmeTN2M2NxOWR5bWNmbTZ0cDhnYXMiLCJlbWFpbCI6InRlc3RAc2Nob29sLmxvY2FsIiwibmFtZSI6IuODhuOCueODiOODpuODvOOCtuODvDEiLCJyb2xlIjoiYWRtaW4iLCJleHAiOjE3NTcwMDAzNzQsImlhdCI6MTc1NjkxMzk3NH0.IrGbI1KMw0OOPQ2mejxYzRL6dejY_Fitl2HW3XBuDP8","sessionId":"8df8e8ff-39f4-4d06-a047-adc4b1897459","expiresAt":"2025-09-04T15:39:34.000Z"}
+{
+  "success": true,
+  "user": {
+    "id": "uwhfy3v3cq9dymcfm6tp8gas",
+    "email": "test@school.local",
+    "name": "テストユーザー1",
+    "role": "admin",
+    "lastLoginAt": "2025-09-03T15:39:34.652Z"
+  },
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ1d2hmeTN2M2NxOWR5bWNmbTZ0cDhnYXMiLCJlbWFpbCI6InRlc3RAc2Nob29sLmxvY2FsIiwibmFtZSI6IuODhuOCueODiOODpuODvOOCtuODvDEiLCJyb2xlIjoiYWRtaW4iLCJleHAiOjE3NTcwMDAzNzQsImlhdCI6MTc1NjkxMzk3NH0.IrGbI1KMw0OOPQ2mejxYzRL6dejY_Fitl2HW3XBuDP8",
+  "sessionId": "8df8e8ff-39f4-4d06-a047-adc4b1897459",
+  "expiresAt": "2025-09-04T15:39:34.000Z"
+}

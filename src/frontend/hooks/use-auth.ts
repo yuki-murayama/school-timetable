@@ -262,7 +262,7 @@ export function useCustomAuth() {
     }
 
     initializeAuth()
-  }, [restoreAuthState, clearAuthState])
+  }, [restoreAuthState])
 
   // 自動トークン更新（本番環境では無効化）
   useEffect(() => {

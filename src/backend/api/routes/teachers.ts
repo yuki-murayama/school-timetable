@@ -34,41 +34,51 @@ const CreateTeacherRequestSchema = z.object({
 const UpdateTeacherRequestSchema = CreateTeacherRequestSchema.partial()
 
 // 教師検索クエリスキーマ - 配列パラメータを含む柔軟な処理
-const TeacherQuerySchema = z.object({
-  page: z
-    .string()
-    .regex(/^\d+$/)
-    .transform(Number)
-    .pipe(z.number().min(1))
-    .optional()
-    .describe('ページ番号'),
-  limit: z
-    .string()
-    .regex(/^\d+$/)
-    .transform(Number)
-    .pipe(z.number().min(1).max(100))
-    .optional()
-    .describe('1ページの件数'),
-  search: z.string().max(100).optional().describe('名前検索'),
-  subject: z.string().min(1).optional().describe('担当教科フィルタ（文字列）'),
-  grade: z
-    .string()
-    .regex(/^[1-6]$/)
-    .transform(Number)
-    .optional()
-    .describe('担当学年フィルタ'),
-  sort: z.enum(['name', 'created_at', 'order']).optional().describe('並び順'),
-  order: z.enum(['asc', 'desc']).optional().describe('並び方向'),
-  // grades配列パラメータ対応 - grades[0], grades[1]等を無視
-  grades: z
-    .union([
-      z.string().transform((val) => parseInt(val, 10)).pipe(z.number().min(1).max(6)),
-      z.array(z.string().transform((val) => parseInt(val, 10)).pipe(z.number().min(1).max(6))),
-      z.array(z.number().min(1).max(6)),
-    ])
-    .optional()
-    .describe('担当学年配列（柔軟な処理）'),
-}).passthrough() // 未知のパラメータを許可
+const _TeacherQuerySchema = z
+  .object({
+    page: z
+      .string()
+      .regex(/^\d+$/)
+      .transform(Number)
+      .pipe(z.number().min(1))
+      .optional()
+      .describe('ページ番号'),
+    limit: z
+      .string()
+      .regex(/^\d+$/)
+      .transform(Number)
+      .pipe(z.number().min(1).max(100))
+      .optional()
+      .describe('1ページの件数'),
+    search: z.string().max(100).optional().describe('名前検索'),
+    subject: z.string().min(1).optional().describe('担当教科フィルタ（文字列）'),
+    grade: z
+      .string()
+      .regex(/^[1-6]$/)
+      .transform(Number)
+      .optional()
+      .describe('担当学年フィルタ'),
+    sort: z.enum(['name', 'created_at', 'order']).optional().describe('並び順'),
+    order: z.enum(['asc', 'desc']).optional().describe('並び方向'),
+    // grades配列パラメータ対応 - grades[0], grades[1]等を無視
+    grades: z
+      .union([
+        z
+          .string()
+          .transform(val => parseInt(val, 10))
+          .pipe(z.number().min(1).max(6)),
+        z.array(
+          z
+            .string()
+            .transform(val => parseInt(val, 10))
+            .pipe(z.number().min(1).max(6))
+        ),
+        z.array(z.number().min(1).max(6)),
+      ])
+      .optional()
+      .describe('担当学年配列（柔軟な処理）'),
+  })
+  .passthrough() // 未知のパラメータを許可
 
 // 教師一覧取得ルート
 const getTeachersRoute = createRoute({
@@ -444,11 +454,11 @@ const deleteTeacherRoute = createRoute({
 teachersApp.openapi(getTeachersRoute, async c => {
   try {
     const db = c.env.DB
-    
+
     // デバッグ: 実際のクエリパラメータをログ出力
     const rawQuery = c.req.query()
     console.log('🔍 Raw query parameters:', JSON.stringify(rawQuery, null, 2))
-    
+
     // 一時的にZodバリデーションをスキップして、デフォルト値で処理
     const query = {
       page: parseInt(rawQuery.page || '1', 10),
@@ -456,10 +466,13 @@ teachersApp.openapi(getTeachersRoute, async c => {
       search: rawQuery.search || '',
       subject: rawQuery.subject || '',
       grade: rawQuery.grade ? parseInt(rawQuery.grade, 10) : undefined,
-      sort: (rawQuery.sort === 'name' || rawQuery.sort === 'created_at' || rawQuery.sort === 'order') ? rawQuery.sort : 'name',
-      order: (rawQuery.order === 'asc' || rawQuery.order === 'desc') ? rawQuery.order : 'asc'
+      sort:
+        rawQuery.sort === 'name' || rawQuery.sort === 'created_at' || rawQuery.sort === 'order'
+          ? rawQuery.sort
+          : 'name',
+      order: rawQuery.order === 'asc' || rawQuery.order === 'desc' ? rawQuery.order : 'asc',
     }
-    
+
     console.log('🔍 Processed query:', JSON.stringify(query, null, 2))
 
     const page = query.page || 1

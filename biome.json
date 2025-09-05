@@ -43,7 +43,7 @@
     }
   },
   "files": {
-    "includes": ["src/**/*", "*.js", "*.ts", "*.tsx", "*.json"],
+    "includes": ["src/**/*", "tests/**/*", "*.js", "*.ts", "*.tsx", "*.json"],
     "experimentalScannerIgnores": [
       "node_modules",
       "dist",

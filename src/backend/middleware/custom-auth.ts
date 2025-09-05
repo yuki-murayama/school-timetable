@@ -46,7 +46,7 @@ export const authMiddleware = (getDB: () => Database) => {
       try {
         // JWTトークン検証
         const jwtSecret = c.env?.JWT_SECRET || JWT_SECRET
-        const payload = (await verify(token, jwtSecret)) as any
+        const _payload = await verify(token, jwtSecret)
 
         // セッション存在確認とユーザー状態確認
         const db = getDB()

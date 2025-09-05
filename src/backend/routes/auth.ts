@@ -12,7 +12,7 @@ interface D1Database {
 }
 
 interface D1PreparedStatement {
-  bind(...values: any[]): D1PreparedStatement
+  bind(...values: unknown[]): D1PreparedStatement
   first<T = unknown>(): Promise<T | null>
   run(): Promise<D1Result>
   all<T = unknown>(): Promise<D1Result<T>>
@@ -47,7 +47,7 @@ const logoutSchema = z.object({
 
 // JWT設定（環境変数から取得、デフォルト値あり）
 const JWT_SECRET = 'your-super-secret-jwt-key-change-in-production'
-const JWT_EXPIRES_IN = '24h' // 24時間有効
+const _JWT_EXPIRES_IN = '24h' // 24時間有効
 
 // MD5ハッシュ関数（開発用のみ、本番では bcrypt を使用）
 async function md5Hash(password: string): Promise<string> {
@@ -55,10 +55,10 @@ async function md5Hash(password: string): Promise<string> {
   // 本番環境では必ずMD5を使用してデータベースの既存ハッシュと互換性を保つ
   try {
     // Node.js環境では常にMD5を使用
-    const crypto = await import('crypto')
+    const crypto = await import('node:crypto')
     const hash = crypto.createHash('md5').update(password).digest('hex')
     return hash
-  } catch (error) {
+  } catch (_error) {
     // Workers環境でもMD5を使用する必要があるため、簡易MD5実装を使用
     // 注意: これは開発・テスト用です。本番環境では適切なハッシュライブラリを使用してください
     return await simpleMD5(password)
@@ -105,7 +105,7 @@ interface UserSession {
 const authApp = new Hono<{ Bindings: Env }>()
 
 // CORS設定 - 環境変数から取得
-const getAllowedOrigins = (origin: string, c: any) => {
+const getAllowedOrigins = (origin: string, c: { env: Env }) => {
   const env = c.env as Env
   const baseOrigins = ['http://localhost:5174', 'http://localhost:5173', 'http://localhost:5176']
 
@@ -137,7 +137,7 @@ authApp.get('/debug', async c => {
 })
 
 // ログインエンドポイント - デバッグ版
-authApp.post('/login', zValidator('json', loginSchema as any), async c => {
+authApp.post('/login', zValidator('json', loginSchema), async c => {
   console.log('🔍 ログインエンドポイントが呼ばれました')
   try {
     const { email, password } = c.req.valid('json')
@@ -234,20 +234,20 @@ authApp.post('/login', zValidator('json', loginSchema as any), async c => {
       console.log('🔍 Preparing session creation:', {
         sessionId,
         userId: user.id,
-        tokenPrefix: token.substring(0, 30) + '...',
+        tokenPrefix: `${token.substring(0, 30)}...`,
         sessionExpiry,
         ip: c.req.header('CF-Connecting-IP') || c.req.header('X-Forwarded-For') || 'unknown',
-        userAgent: (c.req.header('User-Agent') || 'unknown').substring(0, 50)
+        userAgent: (c.req.header('User-Agent') || 'unknown').substring(0, 50),
       })
-      
+
       // 既存のセッションを削除（同じユーザーIDのもの）
       const deleteResult = await db
         .prepare('DELETE FROM user_sessions WHERE user_id = ?')
         .bind(user.id)
         .run()
-      
+
       console.log('🗑️ Cleaned existing sessions:', deleteResult)
-      
+
       // 新しいセッションを挿入
       const insertResult = await db
         .prepare(`
@@ -263,17 +263,18 @@ authApp.post('/login', zValidator('json', loginSchema as any), async c => {
           c.req.header('User-Agent') || 'unknown'
         )
         .run()
-        
+
       console.log('✅ Session creation successful:', insertResult)
-      
+
       // 作成されたセッションを確認
       const verifyResult = await db
-        .prepare('SELECT id, user_id, substr(token, 1, 30) as token_prefix FROM user_sessions WHERE id = ?')
+        .prepare(
+          'SELECT id, user_id, substr(token, 1, 30) as token_prefix FROM user_sessions WHERE id = ?'
+        )
         .bind(sessionId)
         .first()
-        
+
       console.log('🔍 Session verification:', verifyResult)
-      
     } catch (insertError) {
       console.error('❌ Session creation failed:', insertError)
       throw new Error(`Session creation failed: ${insertError.message}`)
@@ -312,7 +313,7 @@ authApp.post('/login', zValidator('json', loginSchema as any), async c => {
 })
 
 // ログアウトエンドポイント
-authApp.post('/logout', zValidator('json', logoutSchema as any), async c => {
+authApp.post('/logout', zValidator('json', logoutSchema), async c => {
   try {
     const authHeader = c.req.header('Authorization')
     const { sessionId } = c.req.valid('json')
@@ -385,7 +386,7 @@ authApp.post('/verify', async c => {
     const db = c.env.DB
 
     // JWT検証
-    const payload = await verify(token, jwtSecret)
+    const _payload = await verify(token, jwtSecret)
 
     // セッション存在確認
     const session = await db

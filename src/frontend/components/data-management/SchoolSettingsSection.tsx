@@ -53,7 +53,10 @@ export function SchoolSettingsSection({
         dailyPeriods: settings.dailyPeriods,
         saturdayPeriods: settings.saturdayPeriods,
       }
-      const updatedSettings = await schoolApi.updateSettings(basicSettings, { token, getFreshToken })
+      const updatedSettings = await schoolApi.updateSettings(basicSettings, {
+        token,
+        getFreshToken,
+      })
       onSettingsUpdate(updatedSettings)
       toast({
         title: '保存完了',

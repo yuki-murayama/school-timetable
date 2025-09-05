@@ -1,4 +1,10 @@
-import type { Classroom, SchoolSettings, Subject, Teacher, EnhancedSchoolSettings } from '@shared/schemas'
+import type {
+  Classroom,
+  EnhancedSchoolSettings,
+  SchoolSettings,
+  Subject,
+  Teacher,
+} from '@shared/schemas'
 import { Upload } from 'lucide-react'
 import { useCallback, useEffect, useState } from 'react'
 import { ClassroomsSection } from '../components/data-management/ClassroomsSection'
@@ -10,13 +16,13 @@ import { Button } from '../components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { useAuth } from '../hooks/use-auth'
 import { useToast } from '../hooks/use-toast'
-import { schoolApi, teacherApi, subjectApi, classroomApi } from '../lib/api'
+import { classroomApi, schoolApi, subjectApi, teacherApi } from '../lib/api'
 
 export function DataManagementPage() {
   const { token, getFreshToken } = useAuth()
   const { toast } = useToast()
 
-  // School settings state  
+  // School settings state
   const [classSettings, setClassSettings] = useState<EnhancedSchoolSettings | SchoolSettings>({
     grade1Classes: 0,
     grade2Classes: 0,
@@ -286,7 +292,9 @@ export function DataManagementPage() {
 
     try {
       const classroomsResponse = await classroomApi.getClassrooms({ token })
-      const classrooms = Array.isArray(classroomsResponse.classrooms) ? classroomsResponse.classrooms : []
+      const classrooms = Array.isArray(classroomsResponse.classrooms)
+        ? classroomsResponse.classrooms
+        : []
 
       // Sort by order field, then by name if no order
       const sortedClassrooms = classrooms.sort((a, b) => {

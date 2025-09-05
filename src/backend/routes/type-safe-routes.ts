@@ -3,7 +3,7 @@
  * 既存のAPIエンドポイントを型安全化したもの
  */
 
-import type { Env } from '@shared/schemas'
+import type { ClassroomDbRow, Env, SubjectDbRow, TeacherDbRow } from '@shared/schemas'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
@@ -16,7 +16,6 @@ import { customAuthMiddleware } from '../middleware/auth'
 /**
  * 型安全APIルーター作成
  */
-
 
 export function createTypeSafeRoutes() {
   const app = new Hono<{ Bindings: Env }>()
@@ -218,7 +217,6 @@ export function createTypeSafeRoutes() {
     }
   })
 
-
   // ======================
   // 学校設定管理ルート - テスト実装
   // ======================
@@ -376,7 +374,7 @@ export function createTypeSafeRoutes() {
         success: true,
         data: convertedData,
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ /school/settings エラー:', error)
       return c.json(
         {
@@ -443,7 +441,7 @@ export function createTypeSafeRoutes() {
         success: true,
         data: convertedData,
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ PUT /school/settings エラー:', error)
       return c.json(
         {
@@ -478,7 +476,7 @@ export function createTypeSafeRoutes() {
       }
 
       // 安全なJSONパース関数
-      const safeJsonParse = (jsonString: any, defaultValue: any) => {
+      const safeJsonParse = (jsonString: string | null, defaultValue: unknown) => {
         if (!jsonString) return defaultValue
         try {
           return JSON.parse(jsonString)
@@ -488,7 +486,7 @@ export function createTypeSafeRoutes() {
       }
 
       // 教師データの変換（フロントエンドスキーマに合わせて）
-      const convertedData = results.results.map((teacher: any) => ({
+      const convertedData = results.results.map((teacher: TeacherDbRow) => ({
         id: teacher.id,
         name: teacher.name,
         email: teacher.email || undefined,
@@ -556,7 +554,7 @@ export function createTypeSafeRoutes() {
       }
 
       // 安全なJSONパース関数
-      const safeJsonParse = (jsonString: any, defaultValue: any) => {
+      const safeJsonParse = (jsonString: string | null, defaultValue: unknown) => {
         if (!jsonString) return defaultValue
         try {
           return JSON.parse(jsonString)
@@ -566,7 +564,7 @@ export function createTypeSafeRoutes() {
       }
 
       // 教科データの変換（フロントエンドスキーマに合わせて）
-      const convertedData = results.results.map((subject: any) => ({
+      const convertedData = results.results.map((subject: SubjectDbRow) => ({
         id: subject.id,
         name: subject.name,
         grades: safeJsonParse(subject.target_grades, []),
@@ -601,7 +599,7 @@ export function createTypeSafeRoutes() {
           },
         },
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ /school/subjects エラー:', error)
       return c.json(
         {
@@ -636,7 +634,7 @@ export function createTypeSafeRoutes() {
       }
 
       // datetimeフィールドをISO8601形式に変換
-      const convertedData = results.results.map((classroom: any) => ({
+      const convertedData = results.results.map((classroom: ClassroomDbRow) => ({
         ...classroom,
         created_at: classroom.created_at
           ? new Date(classroom.created_at).toISOString()
@@ -660,7 +658,7 @@ export function createTypeSafeRoutes() {
           },
         },
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ /school/classrooms エラー:', error)
       return c.json(
         {
@@ -724,7 +722,7 @@ export function createTypeSafeRoutes() {
         success: true,
         data: createdClassroom,
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ POST /school/classrooms エラー:', error)
       return c.json(
         {
@@ -755,7 +753,7 @@ export function createTypeSafeRoutes() {
       const now = new Date().toISOString()
 
       // weeklyHoursをJSON文字列に変換
-      const weeklyHoursJson = JSON.stringify(body.weeklyHours || {})
+      const _weeklyHoursJson = JSON.stringify(body.weeklyHours || {})
 
       // DBにsubjectを挿入 (school_idを含む)
       const result = await c.env.DB.prepare(`
@@ -794,7 +792,7 @@ export function createTypeSafeRoutes() {
         success: true,
         data: createdSubject,
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ POST /school/subjects エラー:', error)
       return c.json(
         {
@@ -828,7 +826,7 @@ export function createTypeSafeRoutes() {
       try {
         const tableInfo = await c.env.DB.prepare(`PRAGMA table_info(teachers)`).all()
         console.log('🔍 Teachers table structure:', tableInfo.results)
-        
+
         const columns = (tableInfo.results || []).map(col => col.name)
         console.log('📋 Available columns:', columns)
       } catch (debugError) {
@@ -873,7 +871,7 @@ export function createTypeSafeRoutes() {
         success: true,
         data: createdTeacher,
       })
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ POST /school/teachers エラー:', error)
       return c.json(
         {

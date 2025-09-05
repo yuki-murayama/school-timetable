@@ -2,7 +2,7 @@
  * テストデータ管理API
  * 環境統一化のためのバックアップ・リストア機能
  */
-import { OpenAPIHono, createRoute, z } from '@hono/zod-openapi'
+import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import { TestDatabaseService } from '../../services/TestDatabaseService'
 
 // 環境設定の型定義
@@ -184,7 +184,6 @@ testDataApp.openapi(prepareTestDataRoute, async c => {
       },
       timestamp: new Date().toISOString(),
     })
-
   } catch (error) {
     console.error('テストデータ準備エラー:', error)
     return c.json(
@@ -209,22 +208,23 @@ testDataApp.openapi(backupRestoreRoute, async c => {
 
     console.log('🔄 バックアップ・リストア操作開始:', { operation, testDataOptions })
 
-    let result: any = {}
+    let result: Record<string, unknown> = {}
 
     switch (operation) {
-      case 'backup':
+      case 'backup': {
         await testDbService.initializeBackupTables()
         const backupData = await testDbService.backupExistingData()
-        result = { 
+        result = {
           operation: 'backup',
           backedUp: {
             teachers: backupData.teachers.length,
             subjects: backupData.subjects.length,
             classrooms: backupData.classrooms.length,
             users: backupData.users.length,
-          }
+          },
         }
         break
+      }
 
       case 'restore':
         await testDbService.restoreFromBackup()
@@ -255,7 +255,6 @@ testDataApp.openapi(backupRestoreRoute, async c => {
       data: result,
       timestamp: new Date().toISOString(),
     })
-
   } catch (error) {
     console.error('バックアップ・リストア操作エラー:', error)
     return c.json(
@@ -283,24 +282,25 @@ testDataApp.openapi(testStatusRoute, async c => {
     ])
 
     // バックアップテーブルの存在確認
-    const backupTables = await db.prepare(`
+    const backupTables = await db
+      .prepare(`
       SELECT name FROM sqlite_master 
       WHERE type='table' AND name LIKE '%_backup'
-    `).all()
+    `)
+      .all()
 
     return c.json({
       success: true,
       data: {
-        teachers: (teachers as any)?.count || 0,
-        subjects: (subjects as any)?.count || 0,
-        classrooms: (classrooms as any)?.count || 0,
-        users: (users as any)?.count || 0,
+        teachers: (teachers as { count: number }).count || 0,
+        subjects: (subjects as { count: number }).count || 0,
+        classrooms: (classrooms as { count: number }).count || 0,
+        users: (users as { count: number }).count || 0,
         hasBackupTables: (backupTables.results || []).length > 0,
         environment: c.env.NODE_ENV || 'unknown',
       },
       timestamp: new Date().toISOString(),
     })
-
   } catch (error) {
     console.error('テスト環境状態確認エラー:', error)
     return c.json(
@@ -348,7 +348,6 @@ testDataApp.openapi(cleanupRoute, async c => {
       message: 'テスト環境クリーンアップ完了',
       timestamp: new Date().toISOString(),
     })
-
   } catch (error) {
     console.error('テスト環境クリーンアップエラー:', error)
     return c.json(

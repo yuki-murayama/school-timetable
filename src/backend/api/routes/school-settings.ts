@@ -249,8 +249,12 @@ schoolSettingsApp.openapi(getSchoolSettingsRoute, async c => {
       grade3Classes: result.grade3Classes as number,
       dailyPeriods: result.dailyPeriods as number,
       saturdayPeriods: result.saturdayPeriods as number,
-      created_at: result.created_at ? new Date(result.created_at as string).toISOString() : undefined,
-      updated_at: result.updated_at ? new Date(result.updated_at as string).toISOString() : undefined,
+      created_at: result.created_at
+        ? new Date(result.created_at as string).toISOString()
+        : undefined,
+      updated_at: result.updated_at
+        ? new Date(result.updated_at as string).toISOString()
+        : undefined,
     }
 
     // Zodスキーマでバリデーション
@@ -373,8 +377,12 @@ schoolSettingsApp.openapi(updateSchoolSettingsRoute, async c => {
       grade3Classes: updatedResult.grade3Classes as number,
       dailyPeriods: updatedResult.dailyPeriods as number,
       saturdayPeriods: updatedResult.saturdayPeriods as number,
-      created_at: updatedResult.created_at ? new Date(updatedResult.created_at as string).toISOString() : undefined,
-      updated_at: updatedResult.updated_at ? new Date(updatedResult.updated_at as string).toISOString() : undefined,
+      created_at: updatedResult.created_at
+        ? new Date(updatedResult.created_at as string).toISOString()
+        : undefined,
+      updated_at: updatedResult.updated_at
+        ? new Date(updatedResult.updated_at as string).toISOString()
+        : undefined,
     }
 
     // Zodスキーマでバリデーション
@@ -434,12 +442,12 @@ schoolSettingsApp.openapi(updateSchoolSettingsRoute, async c => {
 schoolSettingsApp.get('/debug/raw', async c => {
   try {
     const db = c.env.DB
-    
+
     const result = await db
       .prepare('SELECT * FROM school_settings WHERE id = ?')
       .bind('default')
       .first()
-    
+
     return c.json({
       success: true,
       rawData: result,
@@ -454,15 +462,18 @@ schoolSettingsApp.get('/debug/raw', async c => {
       convertedValues: {
         created_at: result?.created_at ? new Date(result.created_at as string).toISOString() : null,
         updated_at: result?.updated_at ? new Date(result.updated_at as string).toISOString() : null,
-      }
+      },
     })
   } catch (error) {
     console.error('Debug raw data error:', error)
-    return c.json({
-      success: false,
-      error: error.message,
-      stack: error.stack
-    }, 500)
+    return c.json(
+      {
+        success: false,
+        error: error.message,
+        stack: error.stack,
+      },
+      500
+    )
   }
 })
 

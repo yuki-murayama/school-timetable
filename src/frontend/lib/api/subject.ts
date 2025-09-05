@@ -9,12 +9,14 @@ import { type ApiOptions, apiClient } from './client'
 // APIリクエスト・レスポンス型定義
 const SubjectsListResponseSchema = z.object({
   subjects: z.array(SubjectSchema),
-  pagination: z.object({
-    page: z.number(),
-    limit: z.number(),
-    total: z.number(),
-    totalPages: z.number(),
-  }).optional(),
+  pagination: z
+    .object({
+      page: z.number(),
+      limit: z.number(),
+      total: z.number(),
+      totalPages: z.number(),
+    })
+    .optional(),
 })
 const CreateSubjectRequestSchema = z.object({
   name: z.string().min(1, '教科名は必須です').max(100, '教科名は100文字以内で入力してください'),
@@ -40,8 +42,14 @@ const SubjectReorderResponseSchema = z.object({
 const VoidResponseSchema = z.object({}).or(z.null()).or(z.undefined())
 
 export const subjectApi = {
-  async getSubjects(options?: ApiOptions): Promise<{ subjects: Subject[]; pagination?: { page: number; limit: number; total: number; totalPages: number } }> {
-    return apiClient.get<{ subjects: Subject[]; pagination?: { page: number; limit: number; total: number; totalPages: number } }>('/school/subjects', SubjectsListResponseSchema, options)
+  async getSubjects(options?: ApiOptions): Promise<{
+    subjects: Subject[]
+    pagination?: { page: number; limit: number; total: number; totalPages: number }
+  }> {
+    return apiClient.get<{
+      subjects: Subject[]
+      pagination?: { page: number; limit: number; total: number; totalPages: number }
+    }>('/school/subjects', SubjectsListResponseSchema, options)
   },
 
   async createSubject(
