@@ -14,7 +14,7 @@ import {
   typeSafeApiClient,
   ValidationError,
   validateResponseType,
-} from './type-safe-client'
+} from '../../../../../src/frontend/lib/api/type-safe-client'
 
 // ======================
 // テストスキーマ定義

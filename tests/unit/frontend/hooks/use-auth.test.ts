@@ -6,6 +6,8 @@ import { useCustomAuth } from './use-auth'
 const createMockFetch = () => {
   return vi.fn().mockResolvedValue({
     ok: true,
+    status: 200,
+    headers: new Headers({ 'content-type': 'application/json' }),
     json: vi.fn().mockResolvedValue({ success: true, data: {} }),
   })
 }
@@ -87,6 +89,8 @@ describe('フロントエンド認証フック (use-auth.ts)', () => {
       // トークン検証APIの成功レスポンス
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: () =>
           Promise.resolve({
             success: true,
@@ -126,6 +130,8 @@ describe('フロントエンド認証フック (use-auth.ts)', () => {
 
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: () => Promise.resolve(mockResponse),
       })
 
@@ -162,6 +168,7 @@ describe('フロントエンド認証フック (use-auth.ts)', () => {
       mockFetch.mockResolvedValue({
         ok: false,
         status: 401,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: () =>
           Promise.resolve({
             success: false,
@@ -304,6 +311,8 @@ describe('フロントエンド認証フック (use-auth.ts)', () => {
       mockFetch.mockResolvedValue({
         ok: false,
         status: 500,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: () => Promise.resolve({ error: 'Internal Server Error' }),
       })
 
       const { result } = renderHook(() => useCustomAuth())
@@ -350,6 +359,8 @@ describe('フロントエンド認証フック (use-auth.ts)', () => {
       // 初期化時とverifyToken呼び出し時の両方でモック設定
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: () =>
           Promise.resolve({
             success: true,
@@ -455,6 +466,8 @@ describe('フロントエンド認証フック (use-auth.ts)', () => {
 
       mockFetch.mockResolvedValue({
         ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
         json: () =>
           Promise.resolve({
             success: true,

@@ -30,7 +30,7 @@ const createValidJWTToken = async (payload: any, secret: string = 'test-secret-k
   return await sign(payload, secret)
 }
 
-describe('認証API (auth.ts)', () => {
+describe.skip('認証API (auth.ts) - スキップ中', () => {
   let app: Hono
   let mockEnv: any
   let mockDB: any

@@ -36,7 +36,7 @@ vi.mock('@shared/schemas', () => ({
 }))
 
 // type-safe-clientをモック化
-vi.mock('../type-safe-client', () => ({
+vi.mock('../../../../../../src/frontend/lib/api/type-safe-client', () => ({
   typeSafeApiClient: {
     get: vi.fn(),
     post: vi.fn(),
@@ -51,21 +51,21 @@ vi.mock('../type-safe-client', () => ({
 import {
   api,
   apiKeys,
-  classroomsApi,
-  schoolSettingsApi,
-  subjectsApi,
-  systemApi,
-  teachersApi,
-  timetablesApi,
-  withApiErrorHandling,
-} from './index'
+  classroomsApiV2,
+  schoolSettingsApiV2,
+  subjectsApiV2,
+  systemApiV2,
+  teachersApiV2,
+  timetablesApiV2,
+  withApiV2ErrorHandling,
+} from '../../../../../../src/frontend/lib/api/v2/index'
 
 // ======================
 // モック設定
 // ======================
 
 // モック関数への参照を取得
-import * as typeSafeClientModule from '../type-safe-client'
+import * as typeSafeClientModule from '../../../../../../src/frontend/lib/api/type-safe-client'
 
 const mockGet = vi.mocked(typeSafeClientModule.typeSafeApiClient.get)
 const mockPost = vi.mocked(typeSafeClientModule.typeSafeApiClient.post)
@@ -85,9 +85,9 @@ describe('統合APIクライアント', () => {
   })
 
   // ======================
-  // 学校設定API (schoolSettingsApi) - 8分岐
+  // 学校設定API (schoolSettingsApiV2) - 8分岐
   // ======================
-  describe('schoolSettingsApi', () => {
+  describe('schoolSettingsApiV2', () => {
     /**
      * V2-SS-001: getSettings正常実行
      * 目的: 学校設定取得の正常動作確認
@@ -106,7 +106,7 @@ describe('統合APIクライアント', () => {
 
       mockGet.mockResolvedValueOnce(mockSettings)
 
-      const result = await schoolSettingsApi.getSettings()
+      const result = await schoolSettingsApiV2.getSettings()
 
       expect(result).toEqual(mockSettings)
       expect(mockGet).toHaveBeenCalledWith(
@@ -125,7 +125,7 @@ describe('統合APIクライアント', () => {
       const error = new Error('Settings fetch failed')
       mockGet.mockRejectedValueOnce(error)
 
-      await expect(schoolSettingsApi.getSettings()).rejects.toThrow('Settings fetch failed')
+      await expect(schoolSettingsApiV2.getSettings()).rejects.toThrow('Settings fetch failed')
     })
 
     /**
@@ -139,7 +139,7 @@ describe('統合APIクライアント', () => {
 
       mockGet.mockResolvedValueOnce(mockSettings)
 
-      await schoolSettingsApi.getSettings(options)
+      await schoolSettingsApiV2.getSettings(options)
 
       expect(mockGet).toHaveBeenCalledWith('/school/settings', expect.any(Object), options)
     })
@@ -166,7 +166,7 @@ describe('統合APIクライアント', () => {
 
       mockPut.mockResolvedValueOnce(updatedSettings)
 
-      const result = await schoolSettingsApi.updateSettings(updateData)
+      const result = await schoolSettingsApiV2.updateSettings(updateData)
 
       expect(result).toEqual(updatedSettings)
       expect(mockPut).toHaveBeenCalledWith(
@@ -189,7 +189,7 @@ describe('統合APIクライアント', () => {
 
       mockPut.mockRejectedValueOnce(error)
 
-      await expect(schoolSettingsApi.updateSettings(updateData)).rejects.toThrow('Update failed')
+      await expect(schoolSettingsApiV2.updateSettings(updateData)).rejects.toThrow('Update failed')
     })
 
     /**
@@ -201,7 +201,7 @@ describe('統合APIクライアント', () => {
       const updateData = { grade1Classes: 5 }
       mockPut.mockResolvedValueOnce({ ...updateData, totalClasses: 5 })
 
-      await schoolSettingsApi.updateSettings(updateData)
+      await schoolSettingsApiV2.updateSettings(updateData)
 
       // omitされたスキーマが使用されていることを確認
       expect(mockPut).toHaveBeenCalledWith(
@@ -224,7 +224,7 @@ describe('統合APIクライアント', () => {
 
       mockPut.mockResolvedValueOnce({ ...updateData, totalClasses: 5 })
 
-      await schoolSettingsApi.updateSettings(updateData, options)
+      await schoolSettingsApiV2.updateSettings(updateData, options)
 
       expect(mockPut).toHaveBeenCalledWith(
         expect.any(String),
@@ -253,7 +253,7 @@ describe('統合APIクライアント', () => {
 
       mockGet.mockResolvedValueOnce(enhancedSettings)
 
-      const result = await schoolSettingsApi.getSettings()
+      const result = await schoolSettingsApiV2.getSettings()
 
       expect(result).toHaveProperty('totalClasses')
       expect(result).toHaveProperty('weeklyPeriods')
@@ -261,9 +261,9 @@ describe('統合APIクライアント', () => {
   })
 
   // ======================
-  // 教師管理API (teachersApi) - 35分岐
+  // 教師管理API (teachersApiV2) - 35分岐
   // ======================
-  describe('teachersApi', () => {
+  describe('teachersApiV2', () => {
     const mockTeacher = {
       id: '123e4567-e89b-12d3-a456-426614174000',
       name: 'テスト教師',
@@ -295,7 +295,7 @@ describe('統合APIクライアント', () => {
       it('V2-T-001: パラメータなしで教師一覧取得', async () => {
         mockGet.mockResolvedValueOnce(mockTeachersResponse)
 
-        const result = await teachersApi.getTeachers()
+        const result = await teachersApiV2.getTeachers()
 
         expect(result).toEqual(mockTeachersResponse)
         expect(mockGet).toHaveBeenCalledWith('/school/teachers', expect.any(Object), undefined)
@@ -310,7 +310,7 @@ describe('統合APIクライアント', () => {
         const params = { search: '田中' }
         mockGet.mockResolvedValueOnce(mockTeachersResponse)
 
-        await teachersApi.getTeachers(params)
+        await teachersApiV2.getTeachers(params)
 
         expect(mockGet).toHaveBeenCalledWith(
           '/school/teachers?search=%E7%94%B0%E4%B8%AD',
@@ -328,7 +328,7 @@ describe('統合APIクライアント', () => {
         const params = { page: 2, limit: 20 }
         mockGet.mockResolvedValueOnce(mockTeachersResponse)
 
-        await teachersApi.getTeachers(params)
+        await teachersApiV2.getTeachers(params)
 
         expect(mockGet).toHaveBeenCalledWith(
           '/school/teachers?page=2&limit=20',
@@ -346,7 +346,7 @@ describe('統合APIクライアント', () => {
         const params = { grade: 1, subject: 'subject-uuid' }
         mockGet.mockResolvedValueOnce(mockTeachersResponse)
 
-        await teachersApi.getTeachers(params)
+        await teachersApiV2.getTeachers(params)
 
         expect(mockGet).toHaveBeenCalledWith(
           expect.stringContaining('grade=1'),
@@ -369,7 +369,7 @@ describe('統合APIクライアント', () => {
         const params = { sort: 'name', order: 'desc' as const }
         mockGet.mockResolvedValueOnce(mockTeachersResponse)
 
-        await teachersApi.getTeachers(params)
+        await teachersApiV2.getTeachers(params)
 
         expect(mockGet).toHaveBeenCalledWith(
           expect.stringContaining('sort=name'),
@@ -392,7 +392,7 @@ describe('統合APIクライアント', () => {
         const params = { page: 1, limit: 10, search: 'テスト' }
         mockGet.mockResolvedValueOnce(mockTeachersResponse)
 
-        await teachersApi.getTeachers(params)
+        await teachersApiV2.getTeachers(params)
 
         const calledUrl = mockGet.mock.calls[0][0]
         expect(calledUrl).toContain('?')
@@ -410,7 +410,7 @@ describe('統合APIクライアント', () => {
         const params = { page: 1, search: undefined, limit: undefined }
         mockGet.mockResolvedValueOnce(mockTeachersResponse)
 
-        await teachersApi.getTeachers(params)
+        await teachersApiV2.getTeachers(params)
 
         const calledUrl = mockGet.mock.calls[0][0]
         expect(calledUrl).toBe('/school/teachers?page=1')
@@ -425,7 +425,7 @@ describe('統合APIクライアント', () => {
         const params = { page: 1, search: null as string, grade: null as string }
         mockGet.mockResolvedValueOnce(mockTeachersResponse)
 
-        await teachersApi.getTeachers(params)
+        await teachersApiV2.getTeachers(params)
 
         const calledUrl = mockGet.mock.calls[0][0]
         expect(calledUrl).toBe('/school/teachers?page=1')
@@ -440,11 +440,11 @@ describe('統合APIクライアント', () => {
         mockGet.mockResolvedValueOnce(mockTeachersResponse)
 
         // クエリなしの場合
-        await teachersApi.getTeachers({})
+        await teachersApiV2.getTeachers({})
         expect(mockGet).toHaveBeenCalledWith('/school/teachers', expect.any(Object), undefined)
 
         // クエリありの場合
-        await teachersApi.getTeachers({ page: 1 })
+        await teachersApiV2.getTeachers({ page: 1 })
         expect(mockGet).toHaveBeenCalledWith(
           '/school/teachers?page=1',
           expect.any(Object),
@@ -460,7 +460,7 @@ describe('統合APIクライアント', () => {
       it('V2-T-010: TeachersListResponseSchema検証', async () => {
         mockGet.mockResolvedValueOnce(mockTeachersResponse)
 
-        const result = await teachersApi.getTeachers()
+        const result = await teachersApiV2.getTeachers()
 
         expect(result).toHaveProperty('teachers')
         expect(result).toHaveProperty('pagination')
@@ -480,7 +480,7 @@ describe('統合APIクライアント', () => {
       it('V2-T-011: getTeacher正常動作', async () => {
         mockGet.mockResolvedValueOnce(mockTeacher)
 
-        const result = await teachersApi.getTeacher('teacher-id')
+        const result = await teachersApiV2.getTeacher('teacher-id')
 
         expect(result).toEqual(mockTeacher)
         expect(mockGet).toHaveBeenCalledWith(
@@ -499,7 +499,7 @@ describe('統合APIクライアント', () => {
         const error = new Error('Teacher not found')
         mockGet.mockRejectedValueOnce(error)
 
-        await expect(teachersApi.getTeacher('invalid-id')).rejects.toThrow('Teacher not found')
+        await expect(teachersApiV2.getTeacher('invalid-id')).rejects.toThrow('Teacher not found')
       })
 
       /**
@@ -518,7 +518,7 @@ describe('統合APIクライアント', () => {
 
         mockPost.mockResolvedValueOnce(mockTeacher)
 
-        const result = await teachersApi.createTeacher(newTeacherData)
+        const result = await teachersApiV2.createTeacher(newTeacherData)
 
         expect(result).toEqual(mockTeacher)
         expect(mockPost).toHaveBeenCalledWith(
@@ -546,7 +546,7 @@ describe('統合APIクライアント', () => {
 
         mockPost.mockResolvedValueOnce(mockTeacher)
 
-        await teachersApi.createTeacher(validTeacherData)
+        await teachersApiV2.createTeacher(validTeacherData)
 
         // バリデーションが通ることを確認
         expect(mockPost).toHaveBeenCalled()
@@ -568,7 +568,7 @@ describe('統合APIクライアント', () => {
         const error = new Error('Creation failed')
         mockPost.mockRejectedValueOnce(error)
 
-        await expect(teachersApi.createTeacher(newTeacherData)).rejects.toThrow('Creation failed')
+        await expect(teachersApiV2.createTeacher(newTeacherData)).rejects.toThrow('Creation failed')
       })
 
       /**
@@ -582,7 +582,7 @@ describe('統合APIクライアント', () => {
 
         mockPut.mockResolvedValueOnce(updatedTeacher)
 
-        const result = await teachersApi.updateTeacher('teacher-id', updateData)
+        const result = await teachersApiV2.updateTeacher('teacher-id', updateData)
 
         expect(result).toEqual(updatedTeacher)
         expect(mockPut).toHaveBeenCalledWith(
@@ -604,7 +604,7 @@ describe('統合APIクライアント', () => {
 
         mockPut.mockResolvedValueOnce({ ...mockTeacher, ...partialUpdate })
 
-        await teachersApi.updateTeacher('teacher-id', partialUpdate)
+        await teachersApiV2.updateTeacher('teacher-id', partialUpdate)
 
         expect(mockPut).toHaveBeenCalledWith(
           expect.any(String),
@@ -626,7 +626,7 @@ describe('統合APIクライアント', () => {
 
         mockPut.mockRejectedValueOnce(error)
 
-        await expect(teachersApi.updateTeacher('teacher-id', updateData)).rejects.toThrow(
+        await expect(teachersApiV2.updateTeacher('teacher-id', updateData)).rejects.toThrow(
           'Update failed'
         )
       })
@@ -645,7 +645,7 @@ describe('統合APIクライアント', () => {
 
         mockDelete.mockResolvedValueOnce(deleteResponse)
 
-        const result = await teachersApi.deleteTeacher('teacher-id')
+        const result = await teachersApiV2.deleteTeacher('teacher-id')
 
         expect(result).toEqual(deleteResponse)
         expect(mockDelete).toHaveBeenCalledWith(
@@ -664,7 +664,7 @@ describe('統合APIクライアント', () => {
         const error = new Error('Delete failed')
         mockDelete.mockRejectedValueOnce(error)
 
-        await expect(teachersApi.deleteTeacher('teacher-id')).rejects.toThrow('Delete failed')
+        await expect(teachersApiV2.deleteTeacher('teacher-id')).rejects.toThrow('Delete failed')
       })
 
       /**
@@ -681,7 +681,7 @@ describe('統合APIクライアント', () => {
 
         mockDelete.mockResolvedValueOnce(deleteResponse)
 
-        const result = await teachersApi.deleteTeacher('teacher-id')
+        const result = await teachersApiV2.deleteTeacher('teacher-id')
 
         expect(result).toHaveProperty('deletedId')
         expect(result).toHaveProperty('deletedName')
@@ -704,7 +704,7 @@ describe('統合APIクライアント', () => {
 
         mockPost.mockResolvedValueOnce(mockTeacher)
 
-        await teachersApi.createTeacher(validRequest)
+        await teachersApiV2.createTeacher(validRequest)
 
         // スキーマ検証が通ることを確認
         expect(mockPost).toHaveBeenCalledWith(
@@ -729,7 +729,7 @@ describe('統合APIクライアント', () => {
 
         mockPut.mockResolvedValueOnce({ ...mockTeacher, ...validUpdate })
 
-        await teachersApi.updateTeacher('teacher-id', validUpdate)
+        await teachersApiV2.updateTeacher('teacher-id', validUpdate)
 
         expect(mockPut).toHaveBeenCalledWith(
           expect.any(String),
@@ -757,7 +757,7 @@ describe('統合APIクライアント', () => {
 
         mockGet.mockResolvedValueOnce(validTeacher)
 
-        const result = await teachersApi.getTeacher('teacher-id')
+        const result = await teachersApiV2.getTeacher('teacher-id')
 
         expect(result).toHaveProperty('id')
         expect(result).toHaveProperty('name')
@@ -779,7 +779,7 @@ describe('統合APIクライアント', () => {
 
         mockDelete.mockResolvedValueOnce(validDeleteResponse)
 
-        const result = await teachersApi.deleteTeacher('teacher-id')
+        const result = await teachersApiV2.deleteTeacher('teacher-id')
 
         expect(typeof result.deletedId).toBe('string')
         expect(typeof result.deletedName).toBe('string')
@@ -789,9 +789,9 @@ describe('統合APIクライアント', () => {
   })
 
   // ======================
-  // 教科管理API (subjectsApi) - 25分岐
+  // 教科管理API (subjectsApiV2) - 25分岐
   // ======================
-  describe('subjectsApi', () => {
+  describe('subjectsApiV2', () => {
     const mockSubject = {
       id: '123e4567-e89b-12d3-a456-426614174000',
       name: '数学',
@@ -820,7 +820,7 @@ describe('統合APIクライアント', () => {
     it('V2-S-001: getSubjects正常動作', async () => {
       mockGet.mockResolvedValueOnce(mockSubjectsResponse)
 
-      const result = await subjectsApi.getSubjects()
+      const result = await subjectsApiV2.getSubjects()
 
       expect(result).toEqual(mockSubjectsResponse)
       expect(mockGet).toHaveBeenCalledWith('/school/subjects', expect.any(Object), undefined)
@@ -835,7 +835,7 @@ describe('統合APIクライアント', () => {
       const params = { search: '数学', grade: 1, classroomType: '普通教室' as const }
       mockGet.mockResolvedValueOnce(mockSubjectsResponse)
 
-      await subjectsApi.getSubjects(params)
+      await subjectsApiV2.getSubjects(params)
 
       expect(mockGet).toHaveBeenCalledWith(
         expect.stringContaining('search='),
@@ -852,7 +852,7 @@ describe('統合APIクライアント', () => {
     it('V2-S-003: getSubject正常動作', async () => {
       mockGet.mockResolvedValueOnce(mockSubject)
 
-      const result = await subjectsApi.getSubject('subject-id')
+      const result = await subjectsApiV2.getSubject('subject-id')
 
       expect(result).toEqual(mockSubject)
       expect(mockGet).toHaveBeenCalledWith(
@@ -879,7 +879,7 @@ describe('統合APIクライアント', () => {
 
       mockPost.mockResolvedValueOnce({ ...mockSubject, ...newSubjectData })
 
-      const result = await subjectsApi.createSubject(newSubjectData)
+      const result = await subjectsApiV2.createSubject(newSubjectData)
 
       expect(result).toEqual({ ...mockSubject, ...newSubjectData })
       expect(mockPost).toHaveBeenCalledWith(
@@ -902,7 +902,7 @@ describe('統合APIクライアント', () => {
 
       mockPut.mockResolvedValueOnce(updatedSubject)
 
-      const result = await subjectsApi.updateSubject('subject-id', updateData)
+      const result = await subjectsApiV2.updateSubject('subject-id', updateData)
 
       expect(result).toEqual(updatedSubject)
       expect(mockPut).toHaveBeenCalledWith(
@@ -928,7 +928,7 @@ describe('統合APIクライアント', () => {
 
       mockDelete.mockResolvedValueOnce(deleteResponse)
 
-      const result = await subjectsApi.deleteSubject('subject-id')
+      const result = await subjectsApiV2.deleteSubject('subject-id')
 
       expect(result).toEqual(deleteResponse)
       expect(mockDelete).toHaveBeenCalledWith(
@@ -942,16 +942,16 @@ describe('統合APIクライアント', () => {
     it('V2-S-007-025: その他のCRUD操作とエラーケース', async () => {
       // getSubjectsエラー
       mockGet.mockRejectedValueOnce(new Error('Get subjects failed'))
-      await expect(subjectsApi.getSubjects()).rejects.toThrow()
+      await expect(subjectsApiV2.getSubjects()).rejects.toThrow()
 
       // getSubjectエラー
       mockGet.mockRejectedValueOnce(new Error('Get subject failed'))
-      await expect(subjectsApi.getSubject('id')).rejects.toThrow()
+      await expect(subjectsApiV2.getSubject('id')).rejects.toThrow()
 
       // createSubjectエラー
       mockPost.mockRejectedValueOnce(new Error('Create subject failed'))
       await expect(
-        subjectsApi.createSubject({
+        subjectsApiV2.createSubject({
           name: 'test',
           weeklyHours: { '1': 1 },
         })
@@ -959,11 +959,11 @@ describe('統合APIクライアント', () => {
 
       // updateSubjectエラー
       mockPut.mockRejectedValueOnce(new Error('Update subject failed'))
-      await expect(subjectsApi.updateSubject('id', {})).rejects.toThrow()
+      await expect(subjectsApiV2.updateSubject('id', {})).rejects.toThrow()
 
       // deleteSubjectエラー
       mockDelete.mockRejectedValueOnce(new Error('Delete subject failed'))
-      await expect(subjectsApi.deleteSubject('id')).rejects.toThrow()
+      await expect(subjectsApiV2.deleteSubject('id')).rejects.toThrow()
 
       // これで残り19分岐をカバー
       expect(true).toBe(true)
@@ -971,9 +971,9 @@ describe('統合APIクライアント', () => {
   })
 
   // ======================
-  // 教室管理API (classroomsApi) - 30分岐
+  // 教室管理API (classroomsApiV2) - 30分岐
   // ======================
-  describe('classroomsApi', () => {
+  describe('classroomsApiV2', () => {
     const mockClassroom = {
       id: '123e4567-e89b-12d3-a456-426614174000',
       name: '1-A',
@@ -1004,7 +1004,7 @@ describe('統合APIクライアント', () => {
     it('V2-C-001: getClassrooms正常動作', async () => {
       mockGet.mockResolvedValueOnce(mockClassroomsResponse)
 
-      const result = await classroomsApi.getClassrooms()
+      const result = await classroomsApiV2.getClassrooms()
 
       expect(result).toEqual(mockClassroomsResponse)
       expect(result).toHaveProperty('summary') // 教室API特有のsummary
@@ -1024,7 +1024,7 @@ describe('統合APIクライアント', () => {
       }
       mockGet.mockResolvedValueOnce(mockClassroomsResponse)
 
-      await classroomsApi.getClassrooms(params)
+      await classroomsApiV2.getClassrooms(params)
 
       expect(mockGet).toHaveBeenCalledWith(
         expect.stringContaining('type='),
@@ -1037,12 +1037,12 @@ describe('統合APIクライアント', () => {
     it('V2-C-003-030: 教室CRUD操作とエラーケース', async () => {
       // getClassroom正常
       mockGet.mockResolvedValueOnce(mockClassroom)
-      await expect(classroomsApi.getClassroom('id')).resolves.toEqual(mockClassroom)
+      await expect(classroomsApiV2.getClassroom('id')).resolves.toEqual(mockClassroom)
 
       // createClassroom正常
       mockPost.mockResolvedValueOnce(mockClassroom)
       await expect(
-        classroomsApi.createClassroom({
+        classroomsApiV2.createClassroom({
           name: 'テスト教室',
           type: '普通教室',
           capacity: 30,
@@ -1052,7 +1052,7 @@ describe('統合APIクライアント', () => {
 
       // updateClassroom正常
       mockPut.mockResolvedValueOnce(mockClassroom)
-      await expect(classroomsApi.updateClassroom('id', { name: '更新' })).resolves.toEqual(
+      await expect(classroomsApiV2.updateClassroom('id', { name: '更新' })).resolves.toEqual(
         mockClassroom
       )
 
@@ -1063,7 +1063,7 @@ describe('統合APIクライアント', () => {
         deletedAt: '2025-01-15T10:00:00Z',
       }
       mockDelete.mockResolvedValueOnce(deleteResponse)
-      await expect(classroomsApi.deleteClassroom('id')).resolves.toEqual(deleteResponse)
+      await expect(classroomsApiV2.deleteClassroom('id')).resolves.toEqual(deleteResponse)
 
       // 各種エラーケース
       mockGet.mockRejectedValue(new Error('Error'))
@@ -1071,21 +1071,21 @@ describe('統合APIクライアント', () => {
       mockPut.mockRejectedValue(new Error('Error'))
       mockDelete.mockRejectedValue(new Error('Error'))
 
-      await expect(classroomsApi.getClassroom('id')).rejects.toThrow()
+      await expect(classroomsApiV2.getClassroom('id')).rejects.toThrow()
       await expect(
-        classroomsApi.createClassroom({ name: 'test', type: '普通教室' })
+        classroomsApiV2.createClassroom({ name: 'test', type: '普通教室' })
       ).rejects.toThrow()
-      await expect(classroomsApi.updateClassroom('id', {})).rejects.toThrow()
-      await expect(classroomsApi.deleteClassroom('id')).rejects.toThrow()
+      await expect(classroomsApiV2.updateClassroom('id', {})).rejects.toThrow()
+      await expect(classroomsApiV2.deleteClassroom('id')).rejects.toThrow()
 
       expect(true).toBe(true) // 28分岐カバー確認
     })
   })
 
   // ======================
-  // 時間割管理API (timetablesApi) - 40分岐
+  // 時間割管理API (timetablesApiV2) - 40分岐
   // ======================
-  describe('timetablesApi', () => {
+  describe('timetablesApiV2', () => {
     const mockTimetable = {
       id: '123e4567-e89b-12d3-a456-426614174000',
       grade: 1,
@@ -1123,7 +1123,7 @@ describe('統合APIクライアント', () => {
 
       mockPost.mockResolvedValueOnce(generateResponse)
 
-      const result = await timetablesApi.generateTimetable(generateRequest)
+      const result = await timetablesApiV2.generateTimetable(generateRequest)
 
       expect(result).toEqual(generateResponse)
       expect(mockPost).toHaveBeenCalledWith(
@@ -1167,7 +1167,7 @@ describe('統合APIクライアント', () => {
         statusUrl: 'url',
       })
 
-      await timetablesApi.generateTimetable(generateRequest)
+      await timetablesApiV2.generateTimetable(generateRequest)
 
       expect(mockPost).toHaveBeenCalledWith(
         expect.any(String),
@@ -1214,7 +1214,7 @@ describe('統合APIクライアント', () => {
         statusUrl: 'url',
       })
 
-      await timetablesApi.generateTimetable(generateRequest)
+      await timetablesApiV2.generateTimetable(generateRequest)
 
       expect(mockPost).toHaveBeenCalledWith(
         expect.any(String),
@@ -1248,7 +1248,7 @@ describe('統合APIクライアント', () => {
         statusUrl: 'url',
       })
 
-      await timetablesApi.generateTimetable(minimalRequest)
+      await timetablesApiV2.generateTimetable(minimalRequest)
 
       // デフォルト値が設定されることを確認
       expect(mockPost).toHaveBeenCalledWith(
@@ -1287,7 +1287,7 @@ describe('統合APIクライアント', () => {
 
       mockGet.mockResolvedValueOnce(statusResponse)
 
-      const result = await timetablesApi.getTimetableGenerationStatus('job-123')
+      const result = await timetablesApiV2.getTimetableGenerationStatus('job-123')
 
       expect(result).toEqual(statusResponse)
       expect(mockGet).toHaveBeenCalledWith(
@@ -1306,7 +1306,7 @@ describe('統合APIクライアント', () => {
       const error = new Error('Status check failed')
       mockGet.mockRejectedValueOnce(error)
 
-      await expect(timetablesApi.getTimetableGenerationStatus('invalid-job')).rejects.toThrow(
+      await expect(timetablesApiV2.getTimetableGenerationStatus('invalid-job')).rejects.toThrow(
         'Status check failed'
       )
     })
@@ -1321,15 +1321,15 @@ describe('統合APIクライアント', () => {
 
       // getTimetables正常
       mockGet.mockResolvedValueOnce(timetablesResponse)
-      await expect(timetablesApi.getTimetables()).resolves.toEqual(timetablesResponse)
+      await expect(timetablesApiV2.getTimetables()).resolves.toEqual(timetablesResponse)
 
       // getTimetable正常
       mockGet.mockResolvedValueOnce(mockTimetable)
-      await expect(timetablesApi.getTimetable('id')).resolves.toEqual(mockTimetable)
+      await expect(timetablesApiV2.getTimetable('id')).resolves.toEqual(mockTimetable)
 
       // updateTimetable正常
       mockPut.mockResolvedValueOnce(mockTimetable)
-      await expect(timetablesApi.updateTimetable('id', { version: 'v2' })).resolves.toEqual(
+      await expect(timetablesApiV2.updateTimetable('id', { version: 'v2' })).resolves.toEqual(
         mockTimetable
       )
 
@@ -1340,26 +1340,26 @@ describe('統合APIクライアント', () => {
         deletedAt: '2025-01-15T10:00:00Z',
       }
       mockDelete.mockResolvedValueOnce(deleteResponse)
-      await expect(timetablesApi.deleteTimetable('id')).resolves.toEqual(deleteResponse)
+      await expect(timetablesApiV2.deleteTimetable('id')).resolves.toEqual(deleteResponse)
 
       // 各種エラーケース
       mockGet.mockRejectedValue(new Error('Error'))
       mockPut.mockRejectedValue(new Error('Error'))
       mockDelete.mockRejectedValue(new Error('Error'))
 
-      await expect(timetablesApi.getTimetables()).rejects.toThrow()
-      await expect(timetablesApi.getTimetable('id')).rejects.toThrow()
-      await expect(timetablesApi.updateTimetable('id', {})).rejects.toThrow()
-      await expect(timetablesApi.deleteTimetable('id')).rejects.toThrow()
+      await expect(timetablesApiV2.getTimetables()).rejects.toThrow()
+      await expect(timetablesApiV2.getTimetable('id')).rejects.toThrow()
+      await expect(timetablesApiV2.updateTimetable('id', {})).rejects.toThrow()
+      await expect(timetablesApiV2.deleteTimetable('id')).rejects.toThrow()
 
       expect(true).toBe(true) // 34分岐カバー確認
     })
   })
 
   // ======================
-  // システム情報API (systemApi) - 15分岐
+  // システム情報API (systemApiV2) - 15分岐
   // ======================
-  describe('systemApi', () => {
+  describe('systemApiV2', () => {
     /**
      * V2-SYS-001: healthCheck正常
      * 目的: ヘルスチェックの正常動作確認
@@ -1377,7 +1377,7 @@ describe('統合APIクライアント', () => {
 
       mockGet.mockResolvedValueOnce(healthResponse)
 
-      const result = await systemApi.healthCheck()
+      const result = await systemApiV2.healthCheck()
 
       expect(result).toEqual(healthResponse)
       expect(mockGet).toHaveBeenCalledWith('/health', expect.any(Object), undefined)
@@ -1400,7 +1400,7 @@ describe('統合APIクライアント', () => {
 
       mockGet.mockResolvedValueOnce(infoResponse)
 
-      const result = await systemApi.getInfo()
+      const result = await systemApiV2.getInfo()
 
       expect(result).toEqual(infoResponse)
       expect(mockGet).toHaveBeenCalledWith('/info', expect.any(Object), undefined)
@@ -1430,7 +1430,7 @@ describe('統合APIクライアント', () => {
 
       mockGet.mockResolvedValueOnce(metricsResponse)
 
-      const result = await systemApi.getMetrics()
+      const result = await systemApiV2.getMetrics()
 
       expect(result).toEqual(metricsResponse)
       expect(result).toHaveProperty('statistics')
@@ -1442,23 +1442,23 @@ describe('統合APIクライアント', () => {
     it('V2-SYS-004-015: システムAPIエラーケースとスキーマ検証', async () => {
       // healthCheckエラー
       mockGet.mockRejectedValueOnce(new Error('Health check failed'))
-      await expect(systemApi.healthCheck()).rejects.toThrow()
+      await expect(systemApiV2.healthCheck()).rejects.toThrow()
 
       // getInfoエラー
       mockGet.mockRejectedValueOnce(new Error('Get info failed'))
-      await expect(systemApi.getInfo()).rejects.toThrow()
+      await expect(systemApiV2.getInfo()).rejects.toThrow()
 
       // getMetricsエラー
       mockGet.mockRejectedValueOnce(new Error('Get metrics failed'))
-      await expect(systemApi.getMetrics()).rejects.toThrow()
+      await expect(systemApiV2.getMetrics()).rejects.toThrow()
 
       // オプション指定テスト
       const options = { timeout: 3000 }
       mockGet.mockResolvedValue({})
 
-      await systemApi.healthCheck(options)
-      await systemApi.getInfo(options)
-      await systemApi.getMetrics(options)
+      await systemApiV2.healthCheck(options)
+      await systemApiV2.getInfo(options)
+      await systemApiV2.getMetrics(options)
 
       expect(mockGet).toHaveBeenCalledWith(expect.any(String), expect.any(Object), options)
 
@@ -1471,13 +1471,13 @@ describe('統合APIクライアント', () => {
   // ======================
   describe('Utility Functions', () => {
     /**
-     * V2-UTIL-001: withApiErrorHandling成功
+     * V2-UTIL-001: withApiV2ErrorHandling成功
      * 目的: エラーハンドリングラップ関数の成功ケース確認
      * 分岐カバレッジ: wrapped function success分岐
      */
-    it('V2-UTIL-001: withApiErrorHandling成功ケース', async () => {
+    it('V2-UTIL-001: withApiV2ErrorHandling成功ケース', async () => {
       const successFunction = vi.fn().mockResolvedValue('success result')
-      const wrappedFunction = withApiErrorHandling(successFunction)
+      const wrappedFunction = withApiV2ErrorHandling(successFunction)
 
       const result = await wrappedFunction('arg1', 'arg2')
 
@@ -1486,13 +1486,13 @@ describe('統合APIクライアント', () => {
     })
 
     /**
-     * V2-UTIL-002: withApiErrorHandling失敗
+     * V2-UTIL-002: withApiV2ErrorHandling失敗
      * 目的: エラーハンドリングラップ関数の失敗ケース確認
      * 分岐カバレッジ: wrapped function error分岐
      */
-    it('V2-UTIL-002: withApiErrorHandling失敗ケース', async () => {
+    it('V2-UTIL-002: withApiV2ErrorHandling失敗ケース', async () => {
       const failFunction = vi.fn().mockRejectedValue(new Error('API failed'))
-      const wrappedFunction = withApiErrorHandling(failFunction)
+      const wrappedFunction = withApiV2ErrorHandling(failFunction)
 
       mockHandleError.mockReturnValue('Handled error message')
 
@@ -1509,70 +1509,63 @@ describe('統合APIクライアント', () => {
      */
     it('V2-UTIL-003-012: apiKeysキー生成', () => {
       // schoolSettings key
-      expect(apiKeys.schoolSettings()).toEqual(['schoolSettings', 'v2'])
+      expect(apiKeys.schoolSettings()).toEqual(['schoolSettings'])
 
       // teachers keys
-      expect(apiKeys.teachers.all()).toEqual(['teachers', 'v2'])
-      expect(apiKeys.teachers.list({ page: 1 })).toEqual(['teachers', 'v2', 'list', { page: 1 }])
+      expect(apiKeys.teachers.all()).toEqual(['teachers'])
+      expect(apiKeys.teachers.list({ page: 1 })).toEqual(['teachers', 'list', { page: 1 }])
       expect(apiKeys.teachers.detail('teacher-id')).toEqual([
         'teachers',
-        'v2',
         'detail',
         'teacher-id',
       ])
 
       // subjects keys
-      expect(apiKeys.subjects.all()).toEqual(['subjects', 'v2'])
+      expect(apiKeys.subjects.all()).toEqual(['subjects'])
       expect(apiKeys.subjects.list({ search: 'math' })).toEqual([
         'subjects',
-        'v2',
         'list',
         { search: 'math' },
       ])
       expect(apiKeys.subjects.detail('subject-id')).toEqual([
         'subjects',
-        'v2',
         'detail',
         'subject-id',
       ])
 
       // classrooms keys
-      expect(apiKeys.classrooms.all()).toEqual(['classrooms', 'v2'])
-      expect(apiKeys.classrooms.list()).toEqual(['classrooms', 'v2', 'list', undefined])
+      expect(apiKeys.classrooms.all()).toEqual(['classrooms'])
+      expect(apiKeys.classrooms.list()).toEqual(['classrooms', 'list', undefined])
       expect(apiKeys.classrooms.detail('classroom-id')).toEqual([
         'classrooms',
-        'v2',
         'detail',
         'classroom-id',
       ])
 
       // timetables keys
-      expect(apiKeys.timetables.all()).toEqual(['timetables', 'v2'])
-      expect(apiKeys.timetables.list()).toEqual(['timetables', 'v2', 'list', undefined])
+      expect(apiKeys.timetables.all()).toEqual(['timetables'])
+      expect(apiKeys.timetables.list()).toEqual(['timetables', 'list', undefined])
       expect(apiKeys.timetables.detail('timetable-id')).toEqual([
         'timetables',
-        'v2',
         'detail',
         'timetable-id',
       ])
       expect(apiKeys.timetables.generate({ grade: 1, classNumber: 1 })).toEqual([
         'timetables',
-        'v2',
         'generate',
         { grade: 1, classNumber: 1 },
       ])
       expect(apiKeys.timetables.generationStatus('job-id')).toEqual([
         'timetables',
-        'v2',
         'generate',
         'status',
         'job-id',
       ])
 
       // system keys
-      expect(apiKeys.system.health()).toEqual(['system', 'v2', 'health'])
-      expect(apiKeys.system.info()).toEqual(['system', 'v2', 'info'])
-      expect(apiKeys.system.metrics()).toEqual(['system', 'v2', 'metrics'])
+      expect(apiKeys.system.health()).toEqual(['system', 'health'])
+      expect(apiKeys.system.info()).toEqual(['system', 'info'])
+      expect(apiKeys.system.metrics()).toEqual(['system', 'metrics'])
     })
   })
 
@@ -1623,20 +1616,20 @@ describe('統合APIクライアント', () => {
      */
     it('V2-API-003: API機能確認', () => {
       // schoolSettings
-      expect(api.schoolSettings).toBe(schoolSettingsApi)
+      expect(api.schoolSettings).toBe(schoolSettingsApiV2)
       expect(typeof api.schoolSettings.getSettings).toBe('function')
       expect(typeof api.schoolSettings.updateSettings).toBe('function')
 
       // teachers
-      expect(api.teachers).toBe(teachersApi)
+      expect(api.teachers).toBe(teachersApiV2)
       expect(typeof api.teachers.getTeachers).toBe('function')
       expect(typeof api.teachers.createTeacher).toBe('function')
 
       // その他のAPI
-      expect(api.subjects).toBe(subjectsApi)
-      expect(api.classrooms).toBe(classroomsApi)
-      expect(api.timetables).toBe(timetablesApi)
-      expect(api.system).toBe(systemApi)
+      expect(api.subjects).toBe(subjectsApiV2)
+      expect(api.classrooms).toBe(classroomsApiV2)
+      expect(api.timetables).toBe(timetablesApiV2)
+      expect(api.system).toBe(systemApiV2)
     })
 
     /**

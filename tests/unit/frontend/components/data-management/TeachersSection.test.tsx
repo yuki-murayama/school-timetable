@@ -3,26 +3,34 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { z } from 'zod'
-import { ValidationError } from '../../lib/api/type-safe-client'
-import api from '../../lib/api'
+import { ValidationError, isValidationError } from '../../lib/api/type-safe-client'
+import { teacherApi, subjectApi, schoolApi } from '../../lib/api'
 import { TeachersSection } from './TeachersSection'
 
-// 統合APIのモック
+// 個別APIモジュールのモック
 vi.mock('../../lib/api', () => ({
-  default: {
-    subjects: {
-      getSubjects: vi.fn(),
-    },
-    schoolSettings: {
-      getSettings: vi.fn(),
-    },
-    teachers: {
-      deleteTeacher: vi.fn(),
-      updateTeacher: vi.fn(),
-      createTeacher: vi.fn(),
-    },
-    isValidationError: vi.fn(),
+  teacherApi: {
+    createTeacher: vi.fn(),
+    updateTeacher: vi.fn(),
+    deleteTeacher: vi.fn(),
+    getTeachers: vi.fn(),
   },
+  subjectApi: {
+    getSubjects: vi.fn(),
+  },
+  schoolApi: {
+    getSettings: vi.fn(),
+  },
+}))
+
+// type-safe-clientのモック
+vi.mock('../../lib/api/type-safe-client', () => ({
+  ValidationError: class extends Error {
+    constructor(public issues: any[], public requestData?: any) {
+      super('Validation Error')
+    }
+  },
+  isValidationError: vi.fn(),
 }))
 
 // use-toastのモック
@@ -63,20 +71,24 @@ describe('TeachersSection', () => {
     vi.clearAllMocks()
 
     // APIモックのデフォルト戻り値を設定
-    vi.mocked(api.subjects.getSubjects).mockResolvedValue({
+    vi.mocked(subjectApi.getSubjects).mockResolvedValue({
       subjects: [],
       pagination: { page: 1, limit: 10, total: 0, totalPages: 0 },
     })
 
-    vi.mocked(api.schoolSettings.getSettings).mockResolvedValue({
+    vi.mocked(schoolApi.getSettings).mockResolvedValue({
+      id: 'default',
       grade1Classes: 4,
       grade2Classes: 3,
       grade3Classes: 3,
+      grade4Classes: 3,
+      grade5Classes: 3,
+      grade6Classes: 3,
       dailyPeriods: 6,
       saturdayPeriods: 4,
+      created_at: '2024-01-01T00:00:00.000Z',
+      updated_at: '2024-01-01T00:00:00.000Z',
     })
-
-    vi.mocked(api.isValidationError).mockReturnValue(false)
   })
 
   afterEach(() => {
@@ -220,8 +232,8 @@ describe('TeachersSection', () => {
     const user = userEvent.setup()
     const mockOnTeachersUpdate = vi.fn()
 
-    // api.teachers.deleteTeacherのモック設定
-    vi.mocked(api.teachers.deleteTeacher).mockResolvedValueOnce({
+    // teacherApi.deleteTeacherのモック設定
+    vi.mocked(teacherApi.deleteTeacher).mockResolvedValueOnce({
       success: true,
     })
 
@@ -231,7 +243,10 @@ describe('TeachersSection', () => {
     await user.click(deleteButtons[0]) // 最初の削除ボタンをクリック
 
     await waitFor(() => {
-      expect(api.teachers.deleteTeacher).toHaveBeenCalledWith('teacher-1')
+      expect(teacherApi.deleteTeacher).toHaveBeenCalledWith('teacher-1', { 
+        token: defaultProps.token, 
+        getFreshToken: defaultProps.getFreshToken 
+      })
       expect(mockOnTeachersUpdate).toHaveBeenCalledWith(
         expect.arrayContaining([expect.objectContaining({ id: 'teacher-2' })])
       )
@@ -255,8 +270,8 @@ describe('TeachersSection', () => {
       [{ message: 'Invalid ID', code: 'invalid_string', path: ['id'] }] as z.ZodIssue[],
       { id: 'invalid' }
     )
-    vi.mocked(api.teachers.deleteTeacher).mockRejectedValueOnce(validationError)
-    vi.mocked(api.isValidationError).mockReturnValueOnce(true)
+    vi.mocked(teacherApi.deleteTeacher).mockRejectedValueOnce(validationError)
+    vi.mocked(isValidationError).mockReturnValueOnce(true)
 
     render(<TeachersSection {...defaultProps} />)
 
@@ -282,8 +297,8 @@ describe('TeachersSection', () => {
 
     // 一般エラーのモック
     const generalError = new Error('Network error')
-    vi.mocked(api.teachers.deleteTeacher).mockRejectedValueOnce(generalError)
-    vi.mocked(api.isValidationError).mockReturnValueOnce(false)
+    vi.mocked(teacherApi.deleteTeacher).mockRejectedValueOnce(generalError)
+    vi.mocked(isValidationError).mockReturnValueOnce(false)
 
     render(<TeachersSection {...defaultProps} />)
 
@@ -313,7 +328,7 @@ describe('TeachersSection', () => {
     await user.click(deleteButtons[0])
 
     // tokenがないため、API呼び出しは実行されない
-    expect(api.teachers.deleteTeacher).not.toHaveBeenCalled()
+    expect(teacherApi.deleteTeacher).not.toHaveBeenCalled()
   })
 
   /**
@@ -411,7 +426,7 @@ describe('TeachersSection', () => {
     const mockOnTeachersUpdate = vi.fn()
 
     // updateTeacherのモック設定
-    vi.mocked(api.teachers.updateTeacher).mockResolvedValue({ data: mockTeachers[0] })
+    vi.mocked(teacherApi.updateTeacher).mockResolvedValue({ data: mockTeachers[0] })
 
     render(<TeachersSection {...defaultProps} onTeachersUpdate={mockOnTeachersUpdate} />)
 
@@ -460,7 +475,7 @@ describe('TeachersSection', () => {
     await user.click(saveButton)
 
     // tokenがないため、API呼び出しは実行されない
-    expect(api.teachers.updateTeacher).not.toHaveBeenCalled()
+    expect(teacherApi.updateTeacher).not.toHaveBeenCalled()
   })
 
   /**
@@ -478,7 +493,7 @@ describe('TeachersSection', () => {
     await user.click(saveButton)
 
     // 無効なデータのため、API呼び出しは実行されない
-    expect(api.teachers.updateTeacher).not.toHaveBeenCalled()
+    expect(teacherApi.updateTeacher).not.toHaveBeenCalled()
   })
 
   /**
@@ -490,7 +505,7 @@ describe('TeachersSection', () => {
     const mockOnTeachersUpdate = vi.fn()
 
     // updateTeacherでエラーを発生させる
-    vi.mocked(api.teachers.updateTeacher).mockRejectedValueOnce(new Error('Update failed'))
+    vi.mocked(teacherApi.updateTeacher).mockRejectedValueOnce(new Error('Update failed'))
 
     render(<TeachersSection {...defaultProps} onTeachersUpdate={mockOnTeachersUpdate} />)
 
@@ -509,7 +524,7 @@ describe('TeachersSection', () => {
     const user = userEvent.setup()
 
     // 各教師の更新APIを成功させる
-    vi.mocked(api.teachers.updateTeacher)
+    vi.mocked(teacherApi.updateTeacher)
       .mockResolvedValueOnce({ data: mockTeachers[0] })
       .mockResolvedValueOnce({ data: mockTeachers[1] })
 
@@ -519,7 +534,7 @@ describe('TeachersSection', () => {
     await user.click(saveButton)
 
     await waitFor(() => {
-      expect(api.teachers.updateTeacher).toHaveBeenCalledTimes(2)
+      expect(teacherApi.updateTeacher).toHaveBeenCalledTimes(2)
       // トーストが呼ばれたことを確認
       expect(mockToast).toHaveBeenCalled()
     })
@@ -534,7 +549,7 @@ describe('TeachersSection', () => {
     const user = userEvent.setup()
 
     // 一つ成功、一つ失敗
-    vi.mocked(api.teachers.updateTeacher)
+    vi.mocked(teacherApi.updateTeacher)
       .mockResolvedValueOnce({ data: mockTeachers[0] })
       .mockRejectedValueOnce(new Error('Update failed'))
 

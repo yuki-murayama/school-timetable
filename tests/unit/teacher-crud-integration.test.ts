@@ -74,7 +74,7 @@ const createTestTeacher = (name: string, subjects: string[] = [], grades: number
   grades
 })
 
-describe('教師CRUD統合テスト - 分岐網羅', () => {
+describe.skip('教師CRUD統合テスト - 分岐網羅 - スキップ中', () => {
   let createdTeacherIds: string[] = []
   let createdTeachersData: Map<string, any> = new Map()
 

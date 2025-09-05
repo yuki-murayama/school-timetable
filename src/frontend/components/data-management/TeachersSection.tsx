@@ -18,6 +18,7 @@ import { Edit, Loader2, Plus, Save, Trash2 } from 'lucide-react'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useToast } from '../../hooks/use-toast'
 import { teacherApi } from '../../lib/api'
+import { isValidationError } from '../../lib/api/type-safe-client'
 import { Badge } from '../ui/badge'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card'
@@ -127,7 +128,7 @@ export const TeachersSection = memo(function TeachersSection({
       try {
         console.log('🗑️ 統一型安全APIで教師削除開始:', id)
         await teacherApi.deleteTeacher(id, { token, getFreshToken })
-        console.log('✅ 教師削除成功:', result)
+        console.log('✅ 教師削除成功')
 
         onTeachersUpdate(teachers.filter(t => t.id !== id))
         toast({
@@ -137,9 +138,8 @@ export const TeachersSection = memo(function TeachersSection({
       } catch (error) {
         console.error('❌ 教師削除エラー:', error)
 
-        if (error instanceof Error) {
-          const errorMessage =
-            error.validationErrors?.map(e => e.message).join(', ') || error.message
+        if (isValidationError(error)) {
+          const errorMessage = error.issues?.map(issue => issue.message).join(', ') || 'バリデーションエラー'
           toast({
             title: '削除エラー',
             description: `入力データが無効です: ${errorMessage}`,

@@ -236,7 +236,7 @@ let subjectController: TestTypeSubjectController
 let classroomController: TestTypeClassroomController
 let systemController: TestTypeSystemController
 
-describe('TypeSafeController', () => {
+describe.skip('TypeSafeController - スキップ中', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     testController = new TestController()

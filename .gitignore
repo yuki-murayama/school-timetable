@@ -17,6 +17,8 @@ dist/
 
 # Testing
 test-results/
+test-results*
+coverage/
 tests/e2e/.auth/
 playwright-report/
 playwright/.cache/
