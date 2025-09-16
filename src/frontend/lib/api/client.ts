@@ -57,6 +57,7 @@ const sanitizeTeacherObject = (obj: Record<string, unknown>): Record<string, unk
 export interface ApiOptions {
   token?: string
   getFreshToken?: () => Promise<string | null>
+  onSessionExpired?: () => void  // セッション切れ時のコールバック
   timeout?: number
   retryCount?: number
 }
@@ -137,21 +138,37 @@ const makeApiRequest = async (
         response = await fetch(url, { ...options, headers: newHeaders })
         console.log(`🔄 再試行結果: ${response.status}`)
 
-        // まだ401の場合は認証の根本的な問題
+        // まだ401の場合は認証の根本的な問題（セッション切れ）
         if (response.status === 401) {
-          console.error('⚠️ 再試行後も401エラー、認証システムに問題があります')
-          throw new Error('認証に失敗しました。ページを再読み込みして再度ログインしてください。')
+          console.error('⚠️ 再試行後も401エラー、セッション切れと判定します')
+          // セッション切れ時のコールバックを呼び出し
+          if (apiOptions?.onSessionExpired) {
+            apiOptions.onSessionExpired()
+          }
+          throw new Error('セッションが期限切れになりました。再度ログインしてください。')
         }
       } else {
         console.error('❌ トークン更新失敗: 新しいトークンが取得できませんでした')
+        // セッション切れ時のコールバックを呼び出し
+        if (apiOptions?.onSessionExpired) {
+          apiOptions.onSessionExpired()
+        }
         throw new Error('認証トークンの更新に失敗しました。再度ログインしてください。')
       }
     } catch (refreshError: unknown) {
       console.error('❌ トークン更新処理でエラー:', refreshError)
       if (refreshError instanceof Error && refreshError.message.includes('認証')) {
+        // セッション切れ時のコールバックを呼び出し
+        if (apiOptions?.onSessionExpired) {
+          apiOptions.onSessionExpired()
+        }
         throw refreshError
       }
       const errorMessage = refreshError instanceof Error ? refreshError.message : '不明なエラー'
+      // セッション切れ時のコールバックを呼び出し
+      if (apiOptions?.onSessionExpired) {
+        apiOptions.onSessionExpired()
+      }
       throw new Error(`認証エラー: ${errorMessage}`)
     }
   }
@@ -160,6 +177,7 @@ const makeApiRequest = async (
 }
 
 export const apiClient = {
+  baseUrl: API_BASE_URL,
   async get<T>(endpoint: string, responseSchema: z.ZodType<T>, options?: ApiOptions): Promise<T> {
     // Making GET request to: ${API_BASE_URL}${endpoint}
     // Headers: createHeaders(options?.token)

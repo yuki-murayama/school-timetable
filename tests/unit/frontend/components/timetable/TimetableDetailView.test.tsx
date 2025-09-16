@@ -27,6 +27,7 @@ vi.mock('./TimetableGrid', () => ({
       <div data-testid='data-length'>{data.length}</div>
       {onSlotChange && (
         <button
+          type='button'
           data-testid='change-slot-button'
           onClick={() => onSlotChange({ subject: 'テスト教科', teacher: 'テスト教師' })}
         >

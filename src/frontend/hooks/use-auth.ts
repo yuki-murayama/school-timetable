@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 
 // 認証ユーザースキーマ
@@ -50,6 +51,7 @@ console.log('🔍 認証API Base URL:', API_BASE)
 console.log('🔍 VITE_API_URL 環境変数:', import.meta.env.VITE_API_URL)
 
 export function useCustomAuth() {
+  const navigate = useNavigate()
   const [user, setUser] = useState<AuthUser | null>(null)
   const [token, setToken] = useState<string | null>(null)
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -278,6 +280,24 @@ export function useCustomAuth() {
     // return () => clearInterval(interval)
   }, [token])
 
+  // セッション切れ時の自動ログアウト（ログインページに強制移動）
+  const handleSessionExpired = useCallback((): void => {
+    console.warn('🚨 セッション切れを検出、認証状態をクリアしてログインページに移動します')
+    clearAuthState()
+    setError('セッションが期限切れになりました。再度ログインしてください。')
+    // ログインページに強制移動
+    navigate('/login', { replace: true })
+  }, [clearAuthState, navigate])
+
+  // APIクライアント用の共通オプションを生成
+  const getApiOptions = useCallback(() => {
+    return {
+      token: token || tokenRef.current,
+      getFreshToken,
+      onSessionExpired: handleSessionExpired,
+    }
+  }, [token, getFreshToken, handleSessionExpired])
+
   // 権限チェック関数
   const hasRole = useCallback(
     (role: 'admin' | 'teacher' | 'user'): boolean => {
@@ -317,9 +337,11 @@ export function useCustomAuth() {
     hasRole,
     isAdmin,
     isTeacher,
+    handleSessionExpired, // セッション切れ時の自動処理
 
     // ユーティリティ
     getAuthHeaders,
+    getApiOptions, // API クライアント用共通オプション
   }
 }
 

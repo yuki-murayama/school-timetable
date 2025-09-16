@@ -1,6 +1,6 @@
 import type { Subject } from '@shared/schemas'
 import { Save } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useSubjectApi } from '../../hooks/use-subject-api'
 // モジュラー化されたフックをインポート
 import { useSubjectForm } from '../../hooks/use-subject-form'
@@ -42,27 +42,87 @@ export function SubjectEditDialog({
   // API統合フック
   const { classrooms, isSaving, isLoading, saveSubject } = useSubjectApi(token, getFreshToken)
 
+  // 重複クリック防止用の状態
+  const [isProcessing, setIsProcessing] = useState(false)
+  const processingRef = useRef(false)
+  const lastClickTimeRef = useRef(0)
+
   // ダイアログ閉じる時のクリーンアップ
   useEffect(() => {
     if (!isOpen) {
       resetForm()
+      setIsProcessing(false)
+      processingRef.current = false
     }
   }, [isOpen, resetForm])
 
-  // 保存処理
+  // 保存処理（重複実行防止機能付き）
   const handleSave = async () => {
+    const currentTime = Date.now()
+    const timeSinceLastClick = currentTime - lastClickTimeRef.current
+
+    // 500ミリ秒以内の連続クリックを防止
+    if (timeSinceLastClick < 500) {
+      console.warn('🚫 [UI] 重複クリックを検出しました。無視します。', {
+        timeSinceLastClick,
+        subjectName: formData.name
+      })
+      return
+    }
+
+    // 既に処理中の場合は無視
+    if (isProcessing || processingRef.current) {
+      console.warn('⏳ [UI] 既に保存処理が進行中です。重複実行を防止します。', {
+        isProcessing,
+        processingRef: processingRef.current,
+        subjectName: formData.name
+      })
+      return
+    }
+
     if (!validateForm()) return
+
+    // 処理開始
+    lastClickTimeRef.current = currentTime
+    setIsProcessing(true)
+    processingRef.current = true
 
     try {
       const apiData = getFormData()
       const isNewSubject = !subject?.id
 
+      console.log('🔄 [UI] 保存処理開始:', {
+        subjectName: apiData.name,
+        isNewSubject,
+        timestamp: new Date().toISOString()
+      })
+
       const result = await saveSubject(apiData, isNewSubject)
+      
+      console.log('✅ [UI] 保存処理完了:', {
+        subjectName: result.name,
+        resultId: result.id,
+        duration: Date.now() - currentTime
+      })
+
+      console.log('🔄 [SubjectEditDialog] onSaveコールバック呼び出し開始:', {
+        result,
+        resultName: result.name,
+        resultId: result.id,
+        hasOnSave: typeof onSave === 'function'
+      })
+      
       onSave(result)
+      
+      console.log('✅ [SubjectEditDialog] onSaveコールバック呼び出し完了、ダイアログを閉じます')
       onClose()
     } catch (error) {
       // エラーはuseSubjectApiフック内で処理済み
-      console.error('保存処理でエラー:', error)
+      console.error('❌ [UI] 保存処理でエラー:', error)
+    } finally {
+      // 処理完了時のクリーンアップ
+      setIsProcessing(false)
+      processingRef.current = false
     }
   }
 
@@ -207,11 +267,11 @@ export function SubjectEditDialog({
         )}
 
         <SheetFooter className='mt-6'>
-          <Button variant='outline' onClick={onClose} disabled={isSaving}>
+          <Button variant='outline' onClick={onClose} disabled={isSaving || isProcessing}>
             キャンセル
           </Button>
-          <Button onClick={handleSave} disabled={isSaving || isLoading}>
-            {isSaving ? (
+          <Button onClick={handleSave} disabled={isSaving || isLoading || isProcessing}>
+            {isSaving || isProcessing ? (
               <>
                 <Save className='h-4 w-4 mr-2 animate-spin' />
                 保存中...

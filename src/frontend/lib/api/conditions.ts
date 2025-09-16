@@ -13,7 +13,7 @@ const ConditionsSchema = z.object({
 export const conditionsApi = {
   async getConditions(options?: ApiOptions): Promise<{ conditions: string }> {
     return apiClient.get<{ conditions: string }>(
-      '/frontend/school/conditions',
+      '/conditions',
       ConditionsSchema,
       options
     )
@@ -24,7 +24,7 @@ export const conditionsApi = {
     options?: ApiOptions
   ): Promise<{ conditions: string }> {
     return apiClient.put<{ conditions: string }, { conditions: string }>(
-      '/frontend/school/conditions',
+      '/conditions',
       data,
       ConditionsSchema,
       ConditionsSchema,

@@ -26,7 +26,10 @@ const createMockEnv = () => ({
 })
 
 // 有効なJWTトークンを生成するヘルパー関数
-const createValidJWTToken = async (payload: Record<string, unknown>, secret: string = 'test-secret-key') => {
+const createValidJWTToken = async (
+  payload: Record<string, unknown>,
+  secret: string = 'test-secret-key'
+) => {
   return await sign(payload, secret)
 }
 

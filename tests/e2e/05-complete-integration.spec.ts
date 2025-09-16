@@ -11,8 +11,7 @@
 import { expect, test } from '@playwright/test'
 import { createErrorMonitor } from './utils/error-monitor'
 
-// 認証状態を使用
-test.use({ storageState: 'tests/e2e/.auth/user.json' })
+// 認証状態はPlaywright設定で自動管理される
 
 // 統合テスト用のデータセット
 const generateIntegrationTestData = () => {
@@ -170,11 +169,14 @@ test.describe('🔄 完全統合ワークフローE2Eテスト', () => {
     // ========================================
     console.log('\n🔵 Phase 3: 教師データ登録')
 
-    // 教師情報タブに切り替え
+    // 教師情報タブに切り替え（モーダル干渉回避）
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+    
     const teacherTab = page.locator('button:has-text("教師情報"), button:has-text("教師")').first()
     if ((await teacherTab.count()) > 0) {
-      await teacherTab.click()
-      await page.waitForTimeout(1000)
+      await teacherTab.click({ force: true })
+      await page.waitForTimeout(2000)
     }
 
     // 各教師を登録
@@ -271,23 +273,30 @@ test.describe('🔄 完全統合ワークフローE2Eテスト', () => {
     // ========================================
     console.log('\n🔵 Phase 4: 教科データ登録')
 
-    // 教科情報タブに切り替え
+    // 教科情報タブに切り替え（モーダル干渉回避）
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+    
     const subjectTab = page.locator('button:has-text("教科情報"), button:has-text("教科")').first()
     if ((await subjectTab.count()) > 0) {
-      await subjectTab.click()
-      await page.waitForTimeout(1000)
+      await subjectTab.click({ force: true })
+      await page.waitForTimeout(2000)
     }
 
     // 教科登録（簡略化 - 既存の教科があることを前提）
     for (const subject of testData.subjects) {
       console.log(`📚 教科: ${subject.name}`)
 
+      // モーダル状態クリア
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(500)
+      
       const addSubjectButton = page
         .locator('button:has-text("教科を追加"), button:has-text("追加")')
         .first()
       if ((await addSubjectButton.count()) > 0) {
-        await addSubjectButton.click()
-        await page.waitForTimeout(1000)
+        await addSubjectButton.click({ force: true })
+        await page.waitForTimeout(3000)
 
         const subjectNameInput = page
           .locator('input[name="name"], input[placeholder*="教科"]')
@@ -338,13 +347,16 @@ test.describe('🔄 完全統合ワークフローE2Eテスト', () => {
     // ========================================
     console.log('\n🔵 Phase 5: 教室データ登録')
 
-    // 教室情報タブに切り替え
+    // 教室情報タブに切り替え（モーダル干渉回避）
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(500)
+    
     const classroomTab = page
       .locator('button:has-text("教室情報"), button:has-text("教室")')
       .first()
     if ((await classroomTab.count()) > 0) {
-      await classroomTab.click()
-      await page.waitForTimeout(1000)
+      await classroomTab.click({ force: true })
+      await page.waitForTimeout(2000)
     }
 
     // 教室登録（簡略化）

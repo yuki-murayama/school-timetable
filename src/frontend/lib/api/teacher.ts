@@ -45,17 +45,11 @@ export const teacherApi = {
     return apiClient.get<{
       teachers: LegacyTeacher[]
       pagination?: { page: number; limit: number; total: number; totalPages: number }
-    }>('/school/teachers', TeachersListResponseSchema, options)
+    }>('/teachers', TeachersListResponseSchema, options)
   },
 
   async createTeacher(teacher: CreateTeacherRequest, options?: ApiOptions): Promise<LegacyTeacher> {
-    return apiClient.post<CreateTeacherRequest, LegacyTeacher>(
-      '/school/teachers',
-      teacher,
-      CreateTeacherRequestSchema,
-      LegacyTeacherSchema,
-      options
-    )
+    return apiClient.post<LegacyTeacher>('/teachers', teacher, LegacyTeacherSchema, options)
   },
 
   async updateTeacher(
@@ -63,19 +57,17 @@ export const teacherApi = {
     teacher: Partial<CreateTeacherRequest>,
     options?: ApiOptions
   ): Promise<LegacyTeacher> {
-    const updateSchema = CreateTeacherRequestSchema.partial()
-
     return apiClient.put<Partial<CreateTeacherRequest>, LegacyTeacher>(
-      `/school/teachers/${id}`,
+      `/teachers/${id}`,
       teacher,
-      updateSchema,
+      CreateTeacherRequestSchema.partial(),
       LegacyTeacherSchema,
       options
     )
   },
 
   async deleteTeacher(id: string, options?: ApiOptions): Promise<void> {
-    await apiClient.delete<void>(`/school/teachers/${id}`, VoidResponseSchema, options)
+    await apiClient.delete<void>(`/teachers/${id}`, VoidResponseSchema, options)
   },
 
   async saveTeachers(teachers: LegacyTeacher[], options?: ApiOptions): Promise<void> {
@@ -89,11 +81,11 @@ export const teacherApi = {
           grades: teacher.grades,
           assignmentRestrictions: teacher.assignmentRestrictions,
         })
-        return apiClient.put<CreateTeacherRequest, Teacher>(
-          `/school/teachers/${teacher.id}`,
+        return apiClient.put<CreateTeacherRequest, LegacyTeacher>(
+          `/teachers/${teacher.id}`,
           updateData,
           CreateTeacherRequestSchema,
-          TeacherSchema,
+          LegacyTeacherSchema,
           options
         )
       }
@@ -108,7 +100,7 @@ export const teacherApi = {
   ): Promise<{ updatedCount: number; totalRequested: number }> {
     const requestData = { teachers }
     return apiClient.patch<typeof requestData, { updatedCount: number; totalRequested: number }>(
-      '/school/teachers/reorder',
+      '/teachers/reorder',
       requestData,
       TeacherReorderRequestSchema,
       TeacherReorderResponseSchema,

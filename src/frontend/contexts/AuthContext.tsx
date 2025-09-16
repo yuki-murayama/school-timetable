@@ -27,6 +27,7 @@ interface AuthContextType {
 
   // ユーティリティ
   getAuthHeaders: () => Record<string, string>
+  getApiOptions: () => { token: string | null; getFreshToken: () => Promise<string | null>; onSessionExpired: () => void }
 }
 
 // 認証コンテキスト作成

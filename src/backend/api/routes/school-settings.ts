@@ -18,7 +18,7 @@ const schoolSettingsApp = new OpenAPIHono<{ Bindings: Env }>()
 // 学校設定取得ルート定義
 const getSchoolSettingsRoute = createRoute({
   method: 'get',
-  path: '/settings',
+  path: '/',
   summary: '学校設定取得',
   description: `
 学校の基本設定（学年・クラス・時限数）を取得します。
@@ -93,7 +93,7 @@ const getSchoolSettingsRoute = createRoute({
 // 学校設定更新ルート定義
 const updateSchoolSettingsRoute = createRoute({
   method: 'put',
-  path: '/settings',
+  path: '/',
   summary: '学校設定更新',
   description: `
 学校の基本設定を更新します。
@@ -313,21 +313,47 @@ schoolSettingsApp.openapi(getSchoolSettingsRoute, async c => {
 // 学校設定更新ハンドラー
 schoolSettingsApp.openapi(updateSchoolSettingsRoute, async c => {
   try {
+    console.log('🚀 学校設定更新開始')
+    
     const db = c.env.DB
-    const body = await c.req.json()
-
-    // リクエストデータをZodスキーマで検証
-    const updateData = SchoolSettingsSchema.omit({
-      id: true,
-      created_at: true,
-      updated_at: true,
-    }).parse(body)
+    console.log('✅ データベース接続確認')
+    
+    // リクエストデータを取得
+    let updateData;
+    try {
+      // @hono/zod-openapi のフレームワークレベルバリデーション済みデータを取得
+      updateData = c.req.valid('json')
+      console.log('✅ OpenAPIバリデーション済みデータ取得:', JSON.stringify(updateData, null, 2))
+    } catch (validationError) {
+      console.log('⚠️ OpenAPIバリデーション失敗、生データを取得中...')
+      const rawData = await c.req.json()
+      console.log('📋 生リクエストデータ:', JSON.stringify(rawData, null, 2))
+      
+      // 手動でデータを検証
+      updateData = {
+        grade1Classes: Number(rawData.grade1Classes) || 4,
+        grade2Classes: Number(rawData.grade2Classes) || 4,
+        grade3Classes: Number(rawData.grade3Classes) || 3,
+        dailyPeriods: Number(rawData.dailyPeriods) || 6,
+        saturdayPeriods: Number(rawData.saturdayPeriods) || 4,
+      }
+      console.log('🔧 手動検証後データ:', JSON.stringify(updateData, null, 2))
+    }
+    
+    if (!updateData) {
+      throw new Error('リクエストデータの取得に失敗しました')
+    }
+    
+    console.log('✅ リクエストデータ取得完了')
 
     const now = new Date().toISOString()
 
+    console.log('🔍 更新データ:', JSON.stringify(updateData, null, 2))
+    console.log('🕒 更新時刻:', now)
+
     // データベース更新
-    const result = await db
-      .prepare(`
+    console.log('📝 SQL準備開始')
+    const sql = `
         UPDATE school_settings 
         SET 
           grade1Classes = ?,
@@ -337,16 +363,23 @@ schoolSettingsApp.openapi(updateSchoolSettingsRoute, async c => {
           saturdayPeriods = ?,
           updated_at = ?
         WHERE id = 'default'
-      `)
-      .bind(
-        updateData.grade1Classes,
-        updateData.grade2Classes,
-        updateData.grade3Classes,
-        updateData.dailyPeriods,
-        updateData.saturdayPeriods,
-        now
-      )
-      .run()
+      `
+    const params = [
+      updateData.grade1Classes,
+      updateData.grade2Classes,
+      updateData.grade3Classes,
+      updateData.dailyPeriods,
+      updateData.saturdayPeriods,
+      now
+    ]
+    
+    console.log('📝 SQL:', sql)
+    console.log('📊 パラメータ:', params)
+
+    console.log('🔄 データベース更新実行中...')
+    const result = await db.prepare(sql).bind(...params).run()
+    
+    console.log('✅ DB更新結果:', JSON.stringify(result, null, 2))
 
     if (result.changes === 0) {
       return c.json(
@@ -414,6 +447,7 @@ schoolSettingsApp.openapi(updateSchoolSettingsRoute, async c => {
     })
   } catch (error) {
     console.error('学校設定更新エラー:', error)
+    console.error('エラー詳細:', JSON.stringify(error, null, 2))
 
     if (error instanceof z.ZodError) {
       return c.json(
@@ -432,49 +466,16 @@ schoolSettingsApp.openapi(updateSchoolSettingsRoute, async c => {
         success: false,
         error: 'INTERNAL_SERVER_ERROR',
         message: '学校設定の更新中にエラーが発生しました',
+        details: {
+          errorMessage: error?.message || 'Unknown error',
+          errorType: error?.constructor?.name || 'Unknown',
+        },
       },
       500
     )
   }
 })
 
-// デバッグ用：生データ確認エンドポイント
-schoolSettingsApp.get('/debug/raw', async c => {
-  try {
-    const db = c.env.DB
 
-    const result = await db
-      .prepare('SELECT * FROM school_settings WHERE id = ?')
-      .bind('default')
-      .first()
-
-    return c.json({
-      success: true,
-      rawData: result,
-      types: {
-        created_at: typeof result?.created_at,
-        updated_at: typeof result?.updated_at,
-      },
-      values: {
-        created_at: result?.created_at,
-        updated_at: result?.updated_at,
-      },
-      convertedValues: {
-        created_at: result?.created_at ? new Date(result.created_at as string).toISOString() : null,
-        updated_at: result?.updated_at ? new Date(result.updated_at as string).toISOString() : null,
-      },
-    })
-  } catch (error) {
-    console.error('Debug raw data error:', error)
-    return c.json(
-      {
-        success: false,
-        error: error.message,
-        stack: error.stack,
-      },
-      500
-    )
-  }
-})
 
 export default schoolSettingsApp

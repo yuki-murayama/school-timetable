@@ -83,7 +83,7 @@ const _TeacherQuerySchema = z
 // 教師一覧取得ルート
 const getTeachersRoute = createRoute({
   method: 'get',
-  path: '/teachers',
+  path: '/',
   summary: '教師一覧取得',
   description: `
 教師一覧を取得します。検索・フィルタリング・ページネーション機能付き。
@@ -153,7 +153,7 @@ const getTeachersRoute = createRoute({
 // 教師詳細取得ルート
 const getTeacherRoute = createRoute({
   method: 'get',
-  path: '/teachers/{id}',
+  path: '/{id}',
   summary: '教師詳細取得',
   description: `
 指定されたIDの教師詳細情報を取得します。
@@ -217,7 +217,7 @@ const getTeacherRoute = createRoute({
 // 教師作成ルート
 const createTeacherRoute = createRoute({
   method: 'post',
-  path: '/teachers',
+  path: '/',
   summary: '教師作成',
   description: `
 新しい教師を作成します。
@@ -328,7 +328,7 @@ const createTeacherRoute = createRoute({
 // 教師更新ルート
 const updateTeacherRoute = createRoute({
   method: 'put',
-  path: '/teachers/{id}',
+  path: '/{id}',
   summary: '教師更新',
   description: `
 既存の教師情報を更新します。
@@ -398,7 +398,7 @@ const updateTeacherRoute = createRoute({
 // 教師削除ルート
 const deleteTeacherRoute = createRoute({
   method: 'delete',
-  path: '/teachers/{id}',
+  path: '/{id}',
   summary: '教師削除',
   description: `
 指定されたIDの教師を削除します。
@@ -447,6 +447,7 @@ const deleteTeacherRoute = createRoute({
     ...createErrorResponseSchemas(), // エラーレスポンス
   },
 })
+
 
 // ハンドラー実装
 
@@ -673,10 +674,8 @@ teachersApp.openapi(getTeacherRoute, async c => {
 teachersApp.openapi(createTeacherRoute, async c => {
   try {
     const db = c.env.DB
-    const body = await c.req.json()
-
-    // リクエストデータ検証
-    const validatedData = CreateTeacherRequestSchema.parse(body)
+    // @hono/zod-openapi のフレームワークレベルバリデーション済みデータを取得
+    const validatedData = c.req.valid('json')
 
     // 一意ID生成
     const teacherId = crypto.randomUUID()
@@ -772,12 +771,9 @@ teachersApp.openapi(createTeacherRoute, async c => {
 teachersApp.openapi(updateTeacherRoute, async c => {
   try {
     const db = c.env.DB
-    const { id } = c.req.param()
-    const body = await c.req.json()
-
-    // パラメータとデータの検証
-    IdSchema.parse(id)
-    const updateData = UpdateTeacherRequestSchema.parse(body)
+    const { id } = c.req.valid('param')
+    // @hono/zod-openapi のフレームワークレベルバリデーション済みデータを取得
+    const updateData = c.req.valid('json')
 
     // 既存教師の確認
     const existingTeacher = await db.prepare('SELECT * FROM teachers WHERE id = ?').bind(id).first()

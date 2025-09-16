@@ -127,14 +127,6 @@ authApp.use(
   })
 )
 
-// デバッグ用テストエンドポイント
-authApp.get('/debug', async c => {
-  return c.json({
-    status: 'ok',
-    message: 'Auth app is working',
-    timestamp: new Date().toISOString(),
-  })
-})
 
 // ログインエンドポイント - デバッグ版
 authApp.post('/login', zValidator('json', loginSchema), async c => {

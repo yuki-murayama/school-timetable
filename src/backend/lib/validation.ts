@@ -34,15 +34,7 @@ export const UpdateTeacherSchema = z.object({
   name: z.string().min(1, '教師名は必須です').optional(),
 })
 
-// 教科関連のスキーマ
-export const CreateSubjectSchema = z.object({
-  name: z.string().min(1, '教科名は必須です'),
-  schoolId: z.string().min(1, '学校IDは必須です'),
-})
-
-export const UpdateSubjectSchema = z.object({
-  name: z.string().min(1, '教科名は必須です').optional(),
-})
+// 教科関連のスキーマ - 削除済み（新しいスキーマは subjects.ts で定義）
 
 // 教室関連のスキーマ
 export const CreateClassroomSchema = z.object({
@@ -157,8 +149,7 @@ export type CreateClassInput = z.infer<typeof CreateClassSchema>
 export type UpdateClassInput = z.infer<typeof UpdateClassSchema>
 export type CreateTeacherInput = z.infer<typeof CreateTeacherSchema>
 export type UpdateTeacherInput = z.infer<typeof UpdateTeacherSchema>
-export type CreateSubjectInput = z.infer<typeof CreateSubjectSchema>
-export type UpdateSubjectInput = z.infer<typeof UpdateSubjectSchema>
+// 削除済み - CreateSubjectInput, UpdateSubjectInput
 export type CreateClassroomInput = z.infer<typeof CreateClassroomSchema>
 export type UpdateClassroomInput = z.infer<typeof UpdateClassroomSchema>
 export type CreateTimetableInput = z.infer<typeof CreateTimetableSchema>

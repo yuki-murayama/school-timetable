@@ -1,13 +1,19 @@
 import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
+import { PORTS, URLS } from './config/ports'
 
 export default defineConfig(({ mode }) => {
   // 環境変数を読み込み
   const env = loadEnv(mode, process.cwd(), '')
 
   return {
-    plugins: [react()],
+    plugins: [
+      react({
+        // JSX自動変換を有効化（React 17+）
+        jsxRuntime: 'automatic',
+      }),
+    ],
     root: '.',
     define: {
       // カスタム認証システム用の環境変数定義
@@ -16,30 +22,21 @@ export default defineConfig(({ mode }) => {
       outDir: 'dist/frontend',
       emptyOutDir: true,
       chunkSizeWarningLimit: 1000, // 警告しきい値を1000KBに上げる
-      minify: 'esbuild', // esbuildを使用（高速）
+      minify: false, // Minifyを無効化（初期化問題回避）
+      target: 'es2015', // より広いブラウザ互換性
+      sourcemap: false, // 本番では無効化
+      // ESBuild設定
+      esbuild: {
+        // 本番環境では console を削除
+        drop: mode === 'production' ? ['console', 'debugger'] : [],
+      },
       rollupOptions: {
         input: {
           main: './index.html',
         },
         output: {
-          manualChunks: {
-            // ベンダーライブラリを分離
-            vendor: ['react', 'react-dom'],
-            // UI ライブラリを分離
-            ui: [
-              '@radix-ui/react-dialog',
-              '@radix-ui/react-select',
-              '@radix-ui/react-checkbox',
-              '@radix-ui/react-label',
-              '@radix-ui/react-tabs',
-              '@radix-ui/react-toast',
-            ],
-            // 認証ライブラリを分離（Clerk削除）
-            // ドラッグ&ドロップライブラリを分離
-            dnd: ['@dnd-kit/core', '@dnd-kit/sortable', '@dnd-kit/utilities'],
-            // ルーティングライブラリを分離
-            router: ['react-router-dom'],
-          },
+          // バンドル分割を無効化（初期化問題回避）
+          manualChunks: undefined,
           // ファイル名にハッシュを追加してキャッシュ最適化
           chunkFileNames: 'assets/[name]-[hash].js',
           entryFileNames: 'assets/[name]-[hash].js',
@@ -55,10 +52,10 @@ export default defineConfig(({ mode }) => {
       },
     },
     server: {
-      port: parseInt(env.VITE_FRONTEND_PORT) || 5174,
+      port: parseInt(env.VITE_FRONTEND_PORT) || PORTS.FRONTEND_DEV,
       proxy: {
         '/api': {
-          target: env.VITE_API_URL || 'http://localhost:8787',
+          target: env.VITE_API_URL || URLS.BACKEND_LOCAL,
           changeOrigin: true,
           configure: (proxy, _options) => {
             proxy.on('proxyReq', (proxyReq, req, _res) => {

@@ -165,10 +165,18 @@ export const TeachersSection = memo(function TeachersSection({
     try {
       console.log('💾 統一型安全APIで教師一括保存開始:', teachers.length, '件')
 
-      // 各教師を個別に更新（一括更新APIがない場合）
+      // 各教師を個別に作成/更新（一括更新APIがない場合）
       const updatePromises = teachers.map(async teacher => {
         if (teacher.id) {
+          // 既存教師の更新
+          console.log('🔄 既存教師更新:', teacher.id, teacher.name)
           return await teacherApi.updateTeacher(teacher.id, teacher, { token, getFreshToken })
+        } else {
+          // 新規教師の作成
+          console.log('➕ 新規教師作成:', teacher.name)
+          const result = await teacherApi.createTeacher(teacher, { token, getFreshToken })
+          console.log('✅ 新規教師作成成功:', result)
+          return result
         }
       })
 

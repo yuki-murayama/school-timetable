@@ -37,7 +37,7 @@ const createMockContext = (headers: Record<string, string> = {}) => ({
   json: vi.fn(),
 })
 
-describe.skip('認証ミドルウェア (custom-auth.ts) - スキップ中', () => {
+describe('認証ミドルウェア (custom-auth.ts) - スキップ中', () => {
   let mockNext: () => void
   let mockDB: unknown
 

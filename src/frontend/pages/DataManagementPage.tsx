@@ -19,7 +19,7 @@ import { useToast } from '../hooks/use-toast'
 import { classroomApi, schoolApi, subjectApi, teacherApi } from '../lib/api'
 
 export function DataManagementPage() {
-  const { token, getFreshToken } = useAuth()
+  const { token, getFreshToken, getApiOptions } = useAuth()
   const { toast } = useToast()
 
   // School settings state
@@ -41,6 +41,35 @@ export function DataManagementPage() {
   // Subjects state
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [isSubjectsLoading, setIsSubjectsLoading] = useState(true)
+  
+  // Enhanced setSubjects with logging for debugging
+  const setSubjectsWithLogging = (newSubjects: Subject[] | ((prev: Subject[]) => Subject[])) => {
+    console.log('📋 [DataManagementPage] setSubjects called:', {
+      type: typeof newSubjects === 'function' ? 'function' : 'array',
+      currentCount: subjects.length,
+      timestamp: new Date().toISOString()
+    })
+    
+    if (typeof newSubjects === 'function') {
+      setSubjects(prev => {
+        const result = newSubjects(prev)
+        console.log('📋 [DataManagementPage] setState function result:', {
+          prevCount: prev.length,
+          newCount: result.length,
+          prevIds: prev.map(s => s.id),
+          newIds: result.map(s => s.id)
+        })
+        return result
+      })
+    } else {
+      console.log('📋 [DataManagementPage] setState direct array:', {
+        newCount: newSubjects.length,
+        newIds: newSubjects.map(s => s.id),
+        newNames: newSubjects.map(s => s.name)
+      })
+      setSubjects(newSubjects)
+    }
+  }
 
   // Classrooms state
   const [classrooms, setClassrooms] = useState<Classroom[]>([])
@@ -132,7 +161,7 @@ export function DataManagementPage() {
       console.log('Calling schoolApi.getSettings...')
 
       const settings = (await Promise.race([
-        schoolApi.getSettings({ token, getFreshToken }),
+        schoolApi.getSettings(getApiOptions()),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 8000)),
       ])) as Promise<SchoolSettings>
 
@@ -195,7 +224,7 @@ export function DataManagementPage() {
     setIsTeachersLoading(true)
 
     try {
-      const teachersResponse = await teacherApi.getTeachers({ token, getFreshToken })
+      const teachersResponse = await teacherApi.getTeachers(getApiOptions())
       const teachers = Array.isArray(teachersResponse.teachers) ? teachersResponse.teachers : []
       const normalizedTeachers = normalizeTeachers(teachers)
 
@@ -235,7 +264,7 @@ export function DataManagementPage() {
     setIsSubjectsLoading(true)
 
     try {
-      const subjectsResponse = await subjectApi.getSubjects({ token })
+      const subjectsResponse = await subjectApi.getSubjects(getApiOptions())
       const subjects = Array.isArray(subjectsResponse.subjects) ? subjectsResponse.subjects : []
 
       // Normalize subject data
@@ -291,7 +320,7 @@ export function DataManagementPage() {
     setIsClassroomsLoading(true)
 
     try {
-      const classroomsResponse = await classroomApi.getClassrooms({ token })
+      const classroomsResponse = await classroomApi.getClassrooms(getApiOptions())
       const classrooms = Array.isArray(classroomsResponse.classrooms)
         ? classroomsResponse.classrooms
         : []
@@ -386,8 +415,7 @@ export function DataManagementPage() {
           <SchoolSettingsSection
             settings={classSettings}
             onSettingsUpdate={setClassSettings}
-            token={token}
-            getFreshToken={getFreshToken}
+            apiOptions={getApiOptions()}
             isLoading={isLoading}
             showOfflineButton={showOfflineButton}
             onOfflineMode={handleOfflineMode}
@@ -407,7 +435,7 @@ export function DataManagementPage() {
         <TabsContent value='subjects' className='space-y-6'>
           <SubjectsSection
             subjects={subjects}
-            onSubjectsUpdate={setSubjects}
+            onSubjectsUpdate={setSubjectsWithLogging}
             token={token}
             getFreshToken={getFreshToken}
             isLoading={isSubjectsLoading}

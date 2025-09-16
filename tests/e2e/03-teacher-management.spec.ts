@@ -223,12 +223,13 @@ test.describe('👨‍🏫 教師管理E2Eテスト', () => {
     console.log('📍 Step 5: 教師情報の保存')
 
     const saveButtons = [
+      '[role="dialog"] button:has-text("保存")',
+      '[role="dialog"] button:has-text("追加")',
+      '[role="dialog"] button[type="submit"]',
+      'button[type="submit"]:visible',
       'button:has-text("保存"):visible',
       'button:has-text("追加"):visible',
       'button:has-text("作成"):visible',
-      '[role="dialog"] button:has-text("保存")',
-      '[role="dialog"] button:has-text("追加")',
-      'button[type="submit"]:visible',
     ]
 
     let saveSuccess = false
@@ -237,9 +238,13 @@ test.describe('👨‍🏫 教師管理E2Eテスト', () => {
         const button = page.locator(selector).first()
         if ((await button.count()) > 0) {
           console.log(`✅ 保存ボタン発見: ${selector}`)
-          // モーダル干渉回避のためEscape押下とforce click
-          await page.keyboard.press('Escape')
-          await page.waitForTimeout(500)
+          // ダイアログ内のボタンの場合はEscapeしない
+          const isDialogButton = selector.includes('[role="dialog"]')
+          if (!isDialogButton) {
+            // ダイアログ外のボタンの場合のみEscape
+            await page.keyboard.press('Escape')
+            await page.waitForTimeout(500)
+          }
           await button.click({ force: true })
           await page.waitForTimeout(2000)
           saveSuccess = true
@@ -281,6 +286,24 @@ test.describe('👨‍🏫 教師管理E2Eテスト', () => {
       console.log(`✅ 追加した教師が一覧に表示されています: ${testData.name}`)
     } else {
       console.log(`⚠️ 追加した教師が一覧に見つかりません: ${testData.name}`)
+      
+      // エラー確認とテスト失敗
+      const errorReport = errorMonitor.generateReport()
+      console.error('📊 エラー詳細レポート:', {
+        networkErrors: errorReport.networkErrors,
+        consoleErrors: errorReport.consoleErrors,
+        pageErrors: errorReport.pageErrors,
+        hasFatalErrors: errorReport.hasFatalErrors
+      })
+      
+      // ネットワークエラーまたは教師追加失敗を検知した場合はテスト失敗
+      if (errorReport.networkErrors.length > 0) {
+        throw new Error(`教師追加に失敗しました。ネットワークエラー: ${errorReport.networkErrors.join(', ')}`)
+      } else if (errorReport.consoleErrors.length > 0) {
+        throw new Error(`教師追加に失敗しました。コンソールエラー: ${errorReport.consoleErrors.join(', ')}`)
+      } else {
+        throw new Error(`教師追加に失敗しました。一覧に追加した教師 "${testData.name}" が表示されていません。`)
+      }
     }
 
     // Step 7: 教師情報の編集（オプション）

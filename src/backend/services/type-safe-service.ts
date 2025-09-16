@@ -644,7 +644,7 @@ export class TypeSafeSubjectService {
           id: z.string(),
           name: z.string(),
           target_grades: z.string().nullable(),
-          weekly_lessons: z.number().nullable(),
+          weekly_hours: z.number().nullable(),
           special_classroom: z.string().nullable(),
           created_at: z.string(),
           updated_at: z.string(),
@@ -653,7 +653,6 @@ export class TypeSafeSubjectService {
           short_name: z.string().optional(),
           subject_code: z.string().optional(),
           category: z.string().optional(),
-          weekly_hours: z.number().optional(),
           requires_special_room: z.boolean().optional(),
           settings: z.string().optional(),
           is_active: z.boolean().optional(),
@@ -678,19 +677,19 @@ export class TypeSafeSubjectService {
 
       // 週間時間数の処理（データベースの値を適切に変換）
       let weeklyHours: Record<string, number> = {}
-      if (raw.weekly_lessons) {
-        if (typeof raw.weekly_lessons === 'object' && !Array.isArray(raw.weekly_lessons)) {
+      if (raw.weekly_hours) {
+        if (typeof raw.weekly_hours === 'object' && !Array.isArray(raw.weekly_hours)) {
           // オブジェクト形式の場合はそのまま使用
-          weeklyHours = raw.weekly_lessons
-        } else if (typeof raw.weekly_lessons === 'number') {
+          weeklyHours = raw.weekly_hours
+        } else if (typeof raw.weekly_hours === 'number') {
           // 数値の場合は全学年に適用
           const targetGrades = grades.length > 0 ? grades : [1, 2, 3, 4, 5, 6]
           targetGrades.forEach(grade => {
-            weeklyHours[grade.toString()] = raw.weekly_lessons
+            weeklyHours[grade.toString()] = raw.weekly_hours
           })
-        } else if (typeof raw.weekly_lessons === 'string') {
+        } else if (typeof raw.weekly_hours === 'string') {
           // JSON文字列の場合はパース
-          weeklyHours = safeJsonParse(raw.weekly_lessons, {})
+          weeklyHours = safeJsonParse(raw.weekly_hours, {})
         }
       }
 
@@ -736,7 +735,7 @@ export class TypeSafeSubjectService {
         id: z.string(),
         name: z.string(),
         target_grades: z.string().nullable(),
-        weekly_lessons: z.number().nullable(),
+        weekly_hours: z.number().nullable(),
         special_classroom: z.string().nullable(),
         created_at: z.string(),
         updated_at: z.string(),
@@ -762,19 +761,19 @@ export class TypeSafeSubjectService {
 
     // 週間時間数の処理
     let weeklyHours: Record<string, number> = {}
-    if (subjectRaw.weekly_lessons) {
+    if (subjectRaw.weekly_hours) {
       if (
-        typeof subjectRaw.weekly_lessons === 'object' &&
-        !Array.isArray(subjectRaw.weekly_lessons)
+        typeof subjectRaw.weekly_hours === 'object' &&
+        !Array.isArray(subjectRaw.weekly_hours)
       ) {
-        weeklyHours = subjectRaw.weekly_lessons
-      } else if (typeof subjectRaw.weekly_lessons === 'number') {
+        weeklyHours = subjectRaw.weekly_hours
+      } else if (typeof subjectRaw.weekly_hours === 'number') {
         const targetGrades = grades.length > 0 ? grades : [1, 2, 3, 4, 5, 6]
         targetGrades.forEach(grade => {
-          weeklyHours[grade.toString()] = subjectRaw.weekly_lessons
+          weeklyHours[grade.toString()] = subjectRaw.weekly_hours
         })
-      } else if (typeof subjectRaw.weekly_lessons === 'string') {
-        weeklyHours = safeJsonParse(subjectRaw.weekly_lessons, {})
+      } else if (typeof subjectRaw.weekly_hours === 'string') {
+        weeklyHours = safeJsonParse(subjectRaw.weekly_hours, {})
       }
     }
 
@@ -813,7 +812,7 @@ export class TypeSafeSubjectService {
     const result = await this.dbHelper.execute(
       `
       INSERT INTO subjects (
-        id, name, target_grades, weekly_lessons, special_classroom, 
+        id, name, target_grades, weekly_hours, special_classroom, 
         created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?)
     `,
@@ -869,7 +868,7 @@ export class TypeSafeSubjectService {
     }
 
     if (updateData.weeklyHours !== undefined) {
-      updateFields.push('weekly_lessons = ?')
+      updateFields.push('weekly_hours = ?')
       updateParams.push(Object.values(updateData.weeklyHours)[0] || 1)
     }
 

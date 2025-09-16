@@ -113,7 +113,7 @@ const createMockContext = (
       all: vi.fn().mockResolvedValue({ results: [], success: true }),
       first: vi.fn().mockResolvedValue(null),
       run: vi.fn().mockResolvedValue({ success: true, changes: 0 }),
-    } as any as D1Database,
+    } as unknown as D1Database,
     NODE_ENV: 'test',
     ...options.env,
   }
@@ -201,38 +201,38 @@ class TestController extends TypeSafeController {
 
   // getTypeSafeSchoolServiceをモック化
   protected getTypeSafeSchoolService(_c: Context) {
-    return mockSchoolService as any
+    return mockSchoolService as unknown
   }
 }
 
 // 各コントローラーのgetTypeSafeSchoolServiceもオーバーライド
 class TestTypeTeacherController extends TypeSafeTeacherController {
   protected getTypeSafeSchoolService(_c: Context) {
-    return mockSchoolService as any
+    return mockSchoolService as unknown
   }
 }
 
 class TestTypeSubjectController extends TypeSafeSubjectController {
   protected getTypeSafeSchoolService(_c: Context) {
-    return mockSchoolService as any
+    return mockSchoolService as unknown
   }
 }
 
 class TestTypeClassroomController extends TypeSafeClassroomController {
   protected getTypeSafeSchoolService(_c: Context) {
-    return mockSchoolService as any
+    return mockSchoolService as unknown
   }
 }
 
 class TestTypeSchoolSettingsController extends TypeSafeSchoolSettingsController {
   protected getTypeSafeSchoolService(_c: Context) {
-    return mockSchoolService as any
+    return mockSchoolService as unknown
   }
 }
 
 class TestTypeSystemController extends TypeSafeSystemController {
   protected getTypeSafeSchoolService(_c: Context) {
-    return mockSchoolService as any
+    return mockSchoolService as unknown
   }
 }
 

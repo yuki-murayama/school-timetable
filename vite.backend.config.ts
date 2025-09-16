@@ -9,11 +9,14 @@ export default defineConfig({
     lib: {
       entry: 'src/worker.ts',
       name: 'worker',
-      fileName: () => 'worker.js',
+      fileName: () => `worker.js`,
       formats: ['es'],
     },
     rollupOptions: {
       external: ['cloudflare:workers'],
+      output: {
+        inlineDynamicImports: true,
+      },
     },
     minify: false,
   },

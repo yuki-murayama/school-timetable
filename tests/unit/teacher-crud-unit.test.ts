@@ -54,7 +54,7 @@ const _mockTeacher: Teacher = {
   updated_at: '2024-01-01T00:00:00.000Z',
 }
 
-describe.skip('教師CRUD 単体テスト - スキップ中', () => {
+describe.skip('教師CRUD 単体テスト - 複雑なスキーマ変換問題によりスキップ', () => {
   let teacherService: TypeSafeTeacherService
 
   beforeEach(() => {

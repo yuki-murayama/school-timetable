@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest'
  * 認証バイパス機能が完全に除去されていることを検証します。
  */
 
-describe.skip('セキュリティ修正箇所の統合テスト - スキップ中', () => {
+describe('セキュリティ修正箇所の統合テスト - スキップ中', () => {
   describe('認証バイパス機能の除去検証', () => {
     it('SEC-001: X-Test-Auth-Bypassヘッダーが無視される', async () => {
       // auth.tsとcustom-auth.tsから認証バイパス機能が除去されていることを確認

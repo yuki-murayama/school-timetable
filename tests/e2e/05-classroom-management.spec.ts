@@ -13,8 +13,7 @@
 import { expect, test } from '@playwright/test'
 import { createErrorMonitor } from './utils/error-monitor'
 
-// 認証状態を使用
-test.use({ storageState: 'tests/e2e/.auth/user.json' })
+// 認証状態はPlaywright設定で自動管理される
 
 // テスト用教室データ生成
 const generateClassroomTestData = () => {
@@ -44,11 +43,28 @@ test.describe('🏫 教室管理E2Eテスト', () => {
     await page.goto(baseURL)
     await page.waitForLoadState('networkidle')
 
-    // データ登録ボタンをクリック
-    const dataButton = page.locator('[data-testid="sidebar-data-button"]')
-    await expect(dataButton).toBeVisible({ timeout: 10000 })
-    await dataButton.click()
-    await page.waitForTimeout(1000)
+    // データ登録画面への遷移
+    const dataRegistrationButtons = [
+      'button:has-text("データ登録")',
+      'a:has-text("データ登録")',
+      '[data-testid="sidebar-data-button"]',
+    ]
+
+    let navigationSuccess = false
+    for (const selector of dataRegistrationButtons) {
+      const element = page.locator(selector)
+      if ((await element.count()) > 0) {
+        console.log(`✅ データ登録ボタン発見: ${selector}`)
+        await element.first().click()
+        await page.waitForTimeout(1000)
+        navigationSuccess = true
+        break
+      }
+    }
+
+    if (!navigationSuccess) {
+      throw new Error('データ登録画面への遷移ボタンが見つかりません')
+    }
 
     // Step 2: 教室情報タブの選択
     console.log('📍 Step 2: 教室情報タブの選択')
@@ -136,22 +152,45 @@ test.describe('🏫 教室管理E2Eテスト', () => {
       console.log('⚠️ 教室名入力欄が見つかりません')
     }
 
-    // 教室タイプ入力
-    const typeInputs = [
-      'input[name="type"]',
-      'input[placeholder*="タイプ"]',
-      'input[placeholder*="種類"]',
+    // 教室タイプ選択（Selectコンポーネント）
+    const typeSelectors = [
+      '[role="combobox"]',
+      'button[role="combobox"]',
       '[data-testid*="classroom-type"]',
+      'div:has-text("タイプを選択")',
     ]
 
-    for (const selector of typeInputs) {
-      const input = page.locator(selector)
-      if ((await input.count()) > 0) {
-        await input.first().clear()
-        await input.first().fill(testData.type)
-        console.log(`✅ 教室タイプ入力: ${testData.type}`)
-        break
+    let typeSelected = false
+    for (const selector of typeSelectors) {
+      const selectTrigger = page.locator(selector)
+      if ((await selectTrigger.count()) > 0) {
+        console.log(`✅ タイプ選択ボタン発見: ${selector}`)
+        await selectTrigger.first().click()
+        await page.waitForTimeout(500)
+
+        // 特別教室を選択
+        const typeOptions = [
+          'div[role="option"]:has-text("特別教室")',
+          '[data-value="特別教室"]',
+          'div:has-text("特別教室")',
+        ]
+
+        for (const optionSelector of typeOptions) {
+          const option = page.locator(optionSelector)
+          if ((await option.count()) > 0) {
+            await option.first().click()
+            console.log(`✅ 教室タイプ選択: 特別教室`)
+            typeSelected = true
+            break
+          }
+        }
+        
+        if (typeSelected) break
       }
+    }
+
+    if (!typeSelected) {
+      console.log('⚠️ 教室タイプの選択に失敗しました')
     }
 
     // 教室数入力
@@ -177,11 +216,13 @@ test.describe('🏫 教室管理E2Eテスト', () => {
     console.log('📍 Step 5: 教室情報の保存')
 
     const saveButtons = [
-      'button:has-text("保存"):visible',
-      'button:has-text("追加"):visible',
-      'button:has-text("作成"):visible',
+      'div[role="dialog"] button:has-text("追加")',
+      '[data-sheet-content] button:has-text("追加")',
+      'button:has-text("追加"):not(:has-text("すべて")):not(:has-text("教室を"))',
+      '[data-testid="classroom-save-button"]',
       '[role="dialog"] button:has-text("保存")',
-      '[role="dialog"] button:has-text("追加")',
+      'button:has-text("保存"):visible:not(:has-text("すべて"))',
+      'button:has-text("作成"):visible',
       'button[type="submit"]:visible',
     ]
 
@@ -191,11 +232,20 @@ test.describe('🏫 教室管理E2Eテスト', () => {
         const button = page.locator(selector).first()
         if ((await button.count()) > 0) {
           console.log(`✅ 保存ボタン発見: ${selector}`)
-          // モーダル干渉回避のためEscape押下とforce click
-          await page.keyboard.press('Escape')
-          await page.waitForTimeout(500)
           await button.click({ force: true })
-          await page.waitForTimeout(2000)
+          console.log(`🔄 保存ボタンクリック実行: ${selector}`)
+          
+          // ダイアログが閉じるまで待機
+          await page.waitForTimeout(3000)
+          
+          // ダイアログが閉じられたかを確認
+          const dialogExists = await page.locator('[role="dialog"]').count()
+          if (dialogExists === 0) {
+            console.log(`✅ ダイアログが閉じられました - 保存成功`)
+          } else {
+            console.log(`⚠️ ダイアログがまだ開いています - 保存失敗の可能性`)
+          }
+          
           saveSuccess = true
           break
         }
@@ -235,6 +285,24 @@ test.describe('🏫 教室管理E2Eテスト', () => {
       console.log(`✅ 追加した教室が一覧に表示されています: ${testData.name}`)
     } else {
       console.log(`⚠️ 追加した教室が一覧に見つかりません: ${testData.name}`)
+      
+      // エラー確認とテスト失敗
+      const errorReport = errorMonitor.generateReport()
+      console.error('📊 エラー詳細レポート:', {
+        networkErrors: errorReport.networkErrors,
+        consoleErrors: errorReport.consoleErrors,
+        pageErrors: errorReport.pageErrors,
+        hasFatalErrors: errorReport.hasFatalErrors
+      })
+      
+      // ネットワークエラーまたは教室追加失敗を検知した場合はテスト失敗
+      if (errorReport.networkErrors.length > 0) {
+        throw new Error(`教室追加に失敗しました。ネットワークエラー: ${errorReport.networkErrors.join(', ')}`)
+      } else if (errorReport.consoleErrors.length > 0) {
+        throw new Error(`教室追加に失敗しました。コンソールエラー: ${errorReport.consoleErrors.join(', ')}`)
+      } else {
+        throw new Error(`教室追加に失敗しました。一覧に追加した教室 "${testData.name}" が表示されていません。`)
+      }
     }
 
     // Step 7: 教室情報の編集

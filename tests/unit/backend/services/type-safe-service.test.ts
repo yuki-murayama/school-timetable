@@ -171,12 +171,14 @@ describe.skip('TypeSafeServiceLayer', () => {
     // prepareが返すmockPreparedStatementを再設定
     mockD1Database.prepare.mockReturnValue(mockPreparedStatement)
 
-    dbHelper = new TypeSafeDbHelper(mockD1Database as any)
-    schoolSettingsService = new TypeSafeSchoolSettingsService(mockD1Database as any)
-    teacherService = new TypeSafeTeacherService(mockD1Database as any)
-    subjectService = new TypeSafeSubjectService(mockD1Database as any)
-    classroomService = new TypeSafeClassroomService(mockD1Database as any)
-    schoolService = new TypeSafeSchoolService(mockD1Database as any)
+    dbHelper = new TypeSafeDbHelper(mockD1Database as unknown as D1Database)
+    schoolSettingsService = new TypeSafeSchoolSettingsService(
+      mockD1Database as unknown as D1Database
+    )
+    teacherService = new TypeSafeTeacherService(mockD1Database as unknown as D1Database)
+    subjectService = new TypeSafeSubjectService(mockD1Database as unknown as D1Database)
+    classroomService = new TypeSafeClassroomService(mockD1Database as unknown as D1Database)
+    schoolService = new TypeSafeSchoolService(mockD1Database as unknown as D1Database)
   })
 
   afterEach(() => {
@@ -451,9 +453,7 @@ describe.skip('TypeSafeServiceLayer', () => {
       mockStatementMethods.first.mockResolvedValue({ total: 2 })
       mockStatementMethods.all.mockResolvedValue({
         results: [
-          {
-            ...mockTeacher,
-          },
+          mockTeacher,
           {
             ...mockTeacher,
             id: VALID_UUID_2,
@@ -478,9 +478,7 @@ describe.skip('TypeSafeServiceLayer', () => {
       mockStatementMethods.first.mockResolvedValue({ total: 1 })
       mockStatementMethods.all.mockResolvedValue({
         results: [
-          {
-            ...mockTeacher,
-          },
+          mockTeacher,
         ],
       })
 
@@ -496,9 +494,7 @@ describe.skip('TypeSafeServiceLayer', () => {
      * 分岐カバレッジ: 詳細取得成功分岐
      */
     it('TSS-TEACHER-003: 教師詳細取得正常', async () => {
-      mockStatementMethods.first.mockResolvedValue({
-        ...mockTeacher, // mockTeacherは既にschool_idを含んでいる
-      })
+      mockStatementMethods.first.mockResolvedValue(mockTeacher)
 
       const result = await teacherService.getTeacher(VALID_UUID)
 
@@ -527,7 +523,7 @@ describe.skip('TypeSafeServiceLayer', () => {
       mockStatementMethods.first.mockResolvedValue({
         ...mockTeacher,
         id: VALID_UUID_4,
-        name: '新しい先生', // テストデータと一致させる
+        name: '新しい先生'
       })
 
       const teacherData: CreateTeacherRequest = {
@@ -570,9 +566,7 @@ describe.skip('TypeSafeServiceLayer', () => {
     it('TSS-TEACHER-007: 教師更新正常', async () => {
       // 既存教師取得のモック
       mockStatementMethods.first
-        .mockResolvedValueOnce({
-          ...mockTeacher,
-        })
+        .mockResolvedValueOnce(mockTeacher)
         .mockResolvedValueOnce({
           ...mockTeacher,
           name: '更新された先生',
@@ -610,9 +604,7 @@ describe.skip('TypeSafeServiceLayer', () => {
      * 分岐カバレッジ: 削除成功分岐
      */
     it('TSS-TEACHER-009: 教師削除正常', async () => {
-      mockStatementMethods.first.mockResolvedValue({
-        ...mockTeacher,
-      })
+      mockStatementMethods.first.mockResolvedValue(mockTeacher)
       mockStatementMethods.run.mockResolvedValue({ success: true, changes: 1 })
 
       const result = await teacherService.deleteTeacher(VALID_UUID)
@@ -628,9 +620,7 @@ describe.skip('TypeSafeServiceLayer', () => {
      * 分岐カバレッジ: 削除失敗分岐
      */
     it('TSS-TEACHER-010: 教師削除失敗', async () => {
-      mockStatementMethods.first.mockResolvedValue({
-        ...mockTeacher,
-      })
+      mockStatementMethods.first.mockResolvedValue(mockTeacher)
       mockStatementMethods.run.mockResolvedValue({ success: true, changes: 0 })
 
       await expect(teacherService.deleteTeacher(VALID_UUID)).rejects.toThrow(
@@ -656,11 +646,20 @@ describe.skip('TypeSafeServiceLayer', () => {
           {
             id: VALID_UUID_2,
             name: '数学',
+            school_id: 'default',
             target_grades: '[1,2,3]',
-            weekly_lessons: 4,
+            weekly_hours: 4,
+            requires_special_room: 0,
+            color: null,
+            settings: '{}',
+            is_active: 1,
+            order: 1,
             special_classroom: '普通教室',
             created_at: '2024-01-01T00:00:00.000Z',
             updated_at: '2024-01-01T00:00:00.000Z',
+            short_name: null,
+            subject_code: null,
+            category: null,
           },
         ],
       })
@@ -694,11 +693,20 @@ describe.skip('TypeSafeServiceLayer', () => {
       mockStatementMethods.first.mockResolvedValue({
         id: VALID_UUID_2,
         name: '数学',
+        school_id: 'default',
         target_grades: '[1,2,3]',
-        weekly_lessons: 4,
+        weekly_hours: 4,
+        requires_special_room: 0,
+        color: null,
+        settings: '{}',
+        is_active: 1,
+        order: 1,
         special_classroom: '普通教室',
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
+        short_name: null,
+        subject_code: null,
+        category: null,
       })
 
       const result = await subjectService.getSubject(VALID_UUID_2)
@@ -731,11 +739,20 @@ describe.skip('TypeSafeServiceLayer', () => {
       mockStatementMethods.first.mockResolvedValue({
         id: VALID_UUID_4,
         name: '新しい教科',
+        school_id: 'default',
         target_grades: '[1,2]',
-        weekly_lessons: 3,
+        weekly_hours: 3,
+        requires_special_room: 0,
+        color: null,
+        settings: '{}',
+        is_active: 1,
+        order: 1,
         special_classroom: '普通教室',
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
+        short_name: null,
+        subject_code: null,
+        category: null,
       })
 
       const subjectData = {
@@ -779,20 +796,38 @@ describe.skip('TypeSafeServiceLayer', () => {
         .mockResolvedValueOnce({
           id: VALID_UUID_2,
           name: '数学',
+          school_id: 'default',
           target_grades: '[1,2]',
-          weekly_lessons: 4,
+          weekly_hours: 4,
+          requires_special_room: 0,
+          color: null,
+          settings: '{}',
+          is_active: 1,
+          order: 1,
           special_classroom: '普通教室',
           created_at: '2024-01-01T00:00:00.000Z',
           updated_at: '2024-01-01T00:00:00.000Z',
+          short_name: null,
+          subject_code: null,
+          category: null,
         })
         .mockResolvedValueOnce({
           id: VALID_UUID_2,
           name: '更新された教科',
+          school_id: 'default',
           target_grades: '[1,2,3]',
-          weekly_lessons: 5,
+          weekly_hours: 5,
+          requires_special_room: 0,
+          color: null,
+          settings: '{}',
+          is_active: 1,
+          order: 1,
           special_classroom: '普通教室',
           created_at: '2024-01-01T00:00:00.000Z',
           updated_at: '2024-01-01T01:00:00.000Z',
+          short_name: null,
+          subject_code: null,
+          category: null,
         })
 
       mockStatementMethods.run.mockResolvedValue({ success: true, changes: 1 })
@@ -816,11 +851,20 @@ describe.skip('TypeSafeServiceLayer', () => {
       mockStatementMethods.first.mockResolvedValue({
         id: VALID_UUID_2,
         name: '数学',
+        school_id: 'default',
         target_grades: '[1,2,3]',
-        weekly_lessons: 4,
+        weekly_hours: 4,
+        requires_special_room: 0,
+        color: null,
+        settings: '{}',
+        is_active: 1,
+        order: 1,
         special_classroom: '普通教室',
         created_at: '2024-01-01T00:00:00.000Z',
         updated_at: '2024-01-01T00:00:00.000Z',
+        short_name: null,
+        subject_code: null,
+        category: null,
       })
       mockStatementMethods.run.mockResolvedValue({ success: true, changes: 1 })
 

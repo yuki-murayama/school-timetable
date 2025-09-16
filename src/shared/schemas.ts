@@ -262,15 +262,18 @@ export const CreateTeacherInternalRequestSchema = TeacherInternalSchema.omit({
 })
 
 // ======================
-// 教科 - 厳密型定義（本番データベース構造準拠）
+// 教科 - 厳密型定義（本番データベース構造準拠 + フロントエンド統一フィールド対応）
 // ======================
 export const SubjectSchema = z
   .object({
+    // データベースフィールド（必須）
     id: z.string().min(1, '教科IDは必須です').describe('教科ID（UUID形式推奨）'),
     name: NameSchema.describe('教科名'),
     school_id: z.string().min(1, '学校IDは必須です').describe('学校ID'),
     created_at: z.string().optional().describe('作成日時'),
     updated_at: z.string().optional().describe('更新日時'),
+    
+    // データベースフィールド（オプション）
     short_name: z.string().nullable().optional().describe('教科略称'),
     subject_code: z.string().nullable().optional().describe('教科コード'),
     category: z.string().nullable().optional().describe('教科カテゴリ'),
@@ -288,39 +291,58 @@ export const SubjectSchema = z
     target_grades: z.string().nullable().optional().describe('対象学年JSON文字列'),
     order: z.number().int().nullable().optional().describe('表示順序'),
     special_classroom: z.string().nullable().optional().describe('特別教室タイプ'),
-  })
-  .strict()
-
-// 下位互換性のためのレガシースキーマ（必要に応じて使用）
-export const LegacySubjectSchema = z
-  .object({
-    id: z.string().min(1, '教科IDは必須です').describe('教科ID（UUID形式推奨）'),
-    name: NameSchema.describe('教科名'),
-    grades: z.array(GradeSchema).default([1, 2, 3]).describe('対象学年配列'),
+    
+    // フロントエンド統一フィールド（APIレスポンス用）
+    grades: z.array(GradeSchema).optional().describe('対象学年配列（フロントエンド用）'),
+    targetGrades: z.array(GradeSchema).optional().describe('対象学年配列（別名）'),
     weeklyHours: z
       .record(
         z.string().regex(/^[1-6]$/, '学年キーは1-6です'),
         PositiveIntegerSchema.max(20, '週間時間数は20以下です')
       )
-      .default({})
-      .describe('学年別週間時間数'),
-    requiresSpecialClassroom: z.boolean().default(false).describe('特別教室必要フラグ'),
-    classroomType: z
-      .string()
-      .max(50, '教室タイプは50文字以内です')
-      .default('普通教室')
-      .describe('必要教室タイプ'),
-    color: z
-      .string()
-      .regex(/^#[0-9A-Fa-f]{6}$/, '色は16進数カラーコードです')
-      .default('#3B82F6')
-      .describe('表示色'),
-    order: PositiveIntegerSchema.max(100).default(1).describe('表示順序'),
+      .optional()
+      .describe('学年別週間時間数オブジェクト'),
+    requiresSpecialClassroom: z.boolean().optional().describe('特別教室必要フラグ（boolean）'),
+    specialClassroom: z.string().optional().describe('特別教室名'),
+    classroomType: z.string().optional().describe('教室タイプ'),
     description: z.string().max(1000, '説明は1000文字以内です').optional().describe('教科説明'),
-    created_at: ISODateTimeSchema.describe('作成日時'),
-    updated_at: ISODateTimeSchema.describe('更新日時'),
   })
   .strict()
+
+// 下位互換性のためのレガシースキーマ（必要に応じて使用）
+export const LegacySubjectSchema = z.object({
+  id: z.string().min(1, '教科IDは必須です').describe('教科ID（UUID形式推奨）'),
+  name: NameSchema.describe('教科名'),
+  grades: z.array(GradeSchema).default([1, 2, 3]).describe('対象学年配列'),
+  weeklyHours: z
+    .record(
+      z.string().regex(/^[1-6]$/, '学年キーは1-6です'),
+      PositiveIntegerSchema.max(20, '週間時間数は20以下です')
+    )
+    .default({})
+    .describe('学年別週間時間数'),
+  requiresSpecialClassroom: z.boolean().default(false).describe('特別教室必要フラグ'),
+  classroomType: z
+    .string()
+    .max(50, '教室タイプは50文字以内です')
+    .default('普通教室')
+    .describe('必要教室タイプ'),
+  color: z
+    .string()
+    .regex(/^#[0-9A-Fa-f]{6}$/, '色は16進数カラーコードです')
+    .default('#3B82F6')
+    .describe('表示色'),
+  order: PositiveIntegerSchema.max(100).default(1).describe('表示順序'),
+  description: z.string().max(1000, '説明は1000文字以内です').optional().describe('教科説明'),
+  created_at: ISODateTimeSchema.describe('作成日時'),
+  updated_at: ISODateTimeSchema.describe('更新日時'),
+  // フロントエンドから送信される追加フィールドを許可
+  school_id: z.string().optional().describe('学校ID'),
+  specialClassroom: z.string().optional().describe('特別教室'),
+  weekly_hours: z.number().optional().describe('週間時間数'),
+  targetGrades: z.array(z.number()).optional().describe('対象学年'),
+  target_grades: z.array(z.number()).optional().describe('対象学年別名'),
+})
 
 // ======================
 // 教室 - 厳密型定義
@@ -675,6 +697,15 @@ export type SubjectDbRow = {
   order: number | null
   created_at: string
   updated_at: string
+  weekly_hours: number | null
+  target_grades: string | null
+  special_classroom: string | null
+  short_name: string | null
+  subject_code: string | null
+  category: string | null
+  requires_special_room: number | null
+  settings: string | null
+  is_active: number | null
 }
 
 /** 教室データベース行型 */

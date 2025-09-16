@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { getBaseURL } from './config/ports'
 
 /**
  * 本番環境用Playwright設定

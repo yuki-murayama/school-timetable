@@ -47,10 +47,16 @@ timetablesApp.get('/timetables', zValidator('query', TimetableQuerySchema), asyn
       data: {
         timetables: result.timetables.map(timetable => ({
           id: timetable.id,
+          name: `時間割 ${timetable.grade}年${timetable.classSection}組`,
           grade: timetable.grade,
           classSection: timetable.classSection,
-          statistics: timetable.statistics,
-          generatedAt: timetable.generatedAt,
+          assignmentRate: timetable.statistics.assignmentRate || 100,
+          totalSlots: timetable.statistics.totalSlots || 30,
+          assignedSlots: timetable.statistics.assignedSlots || 30,
+          status: 'completed',
+          isGenerated: true,
+          createdAt: timetable.generatedAt,
+          updatedAt: timetable.generatedAt,
         })),
         pagination: {
           page: query.page,

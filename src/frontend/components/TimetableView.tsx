@@ -213,7 +213,7 @@ export function TimetableView({ onViewDetail }: TimetableViewProps) {
         setIsLoading(false)
       }
     },
-    [token, getFreshToken, pagination.itemsPerPage, toast, pagination.currentPage]
+    [token, getFreshToken, pagination.itemsPerPage, toast]
   )
 
   // 型安全なページ変更ハンドラ
@@ -254,7 +254,7 @@ export function TimetableView({ onViewDetail }: TimetableViewProps) {
   // 初期データ読み込み（マウント時のみ）
   useEffect(() => {
     loadTimetables(1)
-  }, [loadTimetables]) // 空の依存配列でマウント時のみ実行
+  }, []) // 空の依存配列でマウント時のみ実行
 
   return (
     <div className='space-y-6'>

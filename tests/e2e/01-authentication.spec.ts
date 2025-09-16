@@ -21,7 +21,7 @@ test.describe('🔐 認証機能E2Eテスト', () => {
 
     // Step 1: アプリケーションにアクセス
     console.log('📍 Step 1: アプリケーションへのアクセス')
-    await page.goto(process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5174')
+    await page.goto(process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5176')
     await page.waitForLoadState('networkidle')
 
     // Step 2: ログイン画面の確認
@@ -190,7 +190,7 @@ test.describe('🔐 認証機能E2Eテスト', () => {
     // エラー監視の設定（テストケース毎にクリーンな状態で開始）
     const errorMonitor = createErrorMonitor(page, '無効な認証情報でのログイン失敗確認')
 
-    await page.goto(process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5174')
+    await page.goto(process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:5176')
     await page.waitForLoadState('networkidle')
 
     // ログインボタンが存在する場合はクリック

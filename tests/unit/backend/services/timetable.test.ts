@@ -19,7 +19,7 @@ const mockDB = {
 }
 
 const mockEnv: Env = {
-  DB: mockDB as any,
+  DB: mockDB as unknown as D1Database,
   GROQ_API_KEY: 'test-groq-key',
   NODE_ENV: 'test',
   JWT_SECRET: 'test-jwt-secret',

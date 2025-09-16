@@ -1,6 +1,6 @@
 import type { Classroom } from '@shared/schemas'
 import { Save } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { Button } from '../ui/button'
 import { Input } from '../ui/input'
 import { Label } from '../ui/label'
@@ -42,6 +42,7 @@ export function ClassroomEditDialog({
   })
   const [isSaving, setIsSaving] = useState(false)
 
+
   useEffect(() => {
     if (classroom) {
       setFormData({
@@ -56,6 +57,7 @@ export function ClassroomEditDialog({
 
   const handleSave = async () => {
     if (!token || !formData.name.trim() || !formData.type) return
+
 
     setIsSaving(true)
     try {
@@ -132,6 +134,7 @@ export function ClassroomEditDialog({
           <Button
             onClick={handleSave}
             disabled={!formData.name.trim() || !formData.type || isSaving}
+            data-testid="classroom-save-button"
           >
             <Save className='w-4 h-4 mr-2' />
             {classroom ? '更新' : '追加'}

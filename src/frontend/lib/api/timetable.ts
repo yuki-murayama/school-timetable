@@ -41,7 +41,7 @@ export const timetableApi = {
       z.infer<typeof TimetableGenerationRequestSchema>,
       TimetableGenerationResponse
     >(
-      '/frontend/timetable/generate',
+      '/timetables/generate',
       request,
       TimetableGenerationRequestSchema,
       TimetableGenerationResponseSchema,
@@ -51,7 +51,7 @@ export const timetableApi = {
 
   async getTimetables(options?: ApiOptions): Promise<TimetableListItem[]> {
     return apiClient.get<TimetableListItem[]>(
-      '/frontend/school/timetables',
+      '/timetables',
       TimetableListResponseSchema,
       options
     )
@@ -136,7 +136,7 @@ export const timetableApi = {
   },
 
   async getTimetableDetail(id: string, options?: ApiOptions): Promise<TimetableDetail> {
-    return apiClient.get<TimetableDetail>(`/frontend/school/timetables/${id}`, options)
+    return apiClient.get<TimetableDetail>(`/timetables/${id}`, options)
   },
 
   // 生成された時間割の詳細取得
@@ -145,7 +145,7 @@ export const timetableApi = {
   },
 
   async updateTimetable(id: string, data: unknown, options?: ApiOptions): Promise<TimetableDetail> {
-    return apiClient.put<TimetableDetail>(`/frontend/school/timetables/${id}`, data, options)
+    return apiClient.put<TimetableDetail>(`/timetables/${id}`, data, options)
   },
 
   // プログラム型時間割生成

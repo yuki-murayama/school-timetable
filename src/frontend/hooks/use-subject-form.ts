@@ -42,20 +42,29 @@ export const useSubjectForm = (initialSubject: Subject | null) => {
       // 複数のフィールドから学年データを取得（フォールバック処理）
       const targetGrades =
         initialSubject.grades || initialSubject.targetGrades || initialSubject.target_grades || []
-      // デバッグ用ログ（本番環境では削除可能）
-      // console.log('🔍 useSubjectForm初期化:', {
-      //   subjectId: initialSubject.id,
-      //   subjectName: initialSubject.name,
-      //   grades: initialSubject.grades,
-      //   targetGrades: initialSubject.targetGrades,
-      //   target_grades: initialSubject.target_grades,
-      //   finalTargetGrades: targetGrades
-      // })
+      
+      // 週間授業数の取得（複数のフィールドから統一）
+      let weeklyHoursValue = 1
+      
+      // weeklyHoursオブジェクト形式の場合
+      if (initialSubject.weeklyHours && typeof initialSubject.weeklyHours === 'object') {
+        // オブジェクトから最初の値を取得（編集用に単純化）
+        const hours = Object.values(initialSubject.weeklyHours)
+        weeklyHoursValue = hours.length > 0 ? hours[0] : 1
+      }
+      // weekly_hours数値の場合
+      else if (typeof initialSubject.weekly_hours === 'number') {
+        weeklyHoursValue = initialSubject.weekly_hours
+      }
+      // weeklyHours数値の場合（統一型）
+      else if (typeof initialSubject.weeklyHours === 'number') {
+        weeklyHoursValue = initialSubject.weeklyHours
+      }
 
       setFormData({
         name: initialSubject.name,
         specialClassroom: initialSubject.specialClassroom || '',
-        weekly_hours: initialSubject.weekly_hours || initialSubject.weeklyHours || 1,
+        weekly_hours: weeklyHoursValue,
         target_grades: Array.isArray(targetGrades) ? targetGrades : [],
       })
     } else {
@@ -107,41 +116,61 @@ export const useSubjectForm = (initialSubject: Subject | null) => {
     setErrors({})
   }, [])
 
-  // フォームデータ取得
+  // フォームデータ取得（API送信用の形式に変換）- バックエンドスキーマ準拠
   const getFormData = useCallback(() => {
-    // E2Eテストでの問題を解決するため、学年が選択されている場合はそのまま使用
-    const finalGrades = formData.target_grades
-
-    const baseData = {
+    const baseData: Record<string, any> = {
       name: formData.name.trim(),
-      specialClassroom: formData.specialClassroom,
-      weekly_hours: formData.weekly_hours,
-      // バックエンドが期待するtargetGradesフィールドで送信
-      targetGrades: finalGrades,
-      // 互換性のために旧フィールド名も保持
-      target_grades: finalGrades,
-      grades: finalGrades,
+      school_id: 'default', // 明示的に設定（必須フィールド）
+    }
+    
+    // 必須フィールド：週間授業数（常に送信）
+    baseData.weekly_hours = formData.weekly_hours || 1
+
+    // 重要フィールド：対象学年（常に送信、空の場合も含む）
+    const targetGrades = formData.target_grades || []
+    baseData.target_grades = JSON.stringify(targetGrades) // JSON文字列として送信
+    
+    // デバッグログ追加
+    console.log('📦 useSubjectForm getFormData - 対象学年情報:', {
+      'formData.target_grades': formData.target_grades,
+      'targetGrades': targetGrades,
+      'target_grades送信値': baseData.target_grades
+    })
+    
+    // オプショナルフィールド：特別教室（指定された場合のみ）
+    if (formData.specialClassroom && formData.specialClassroom.trim()) {
+      baseData.special_classroom = formData.specialClassroom.trim()
     }
 
     // 既存の教科を編集する場合はIDを含める
     if (initialSubject?.id) {
-      return {
-        ...baseData,
-        id: initialSubject.id,
-      }
+      baseData.id = initialSubject.id
     }
 
+    console.log('📤 フォームからAPI送信用データ生成:', baseData)
     return baseData
   }, [formData, initialSubject])
 
   // 学年選択処理
   const handleGradeChange = useCallback((grade: number, checked: boolean) => {
-    setFormData(prev => ({
-      ...prev,
-      target_grades: checked
+    setFormData(prev => {
+      const newTargetGrades = checked
         ? [...prev.target_grades, grade].sort()
-        : prev.target_grades.filter(g => g !== grade),
-    }))
+        : prev.target_grades.filter(g => g !== grade)
+      
+      // デバッグログ追加
+      console.log('📚 handleGradeChange - 学年選択変更:', {
+        grade,
+        checked,
+        '変更前target_grades': prev.target_grades,
+        '変更後target_grades': newTargetGrades
+      })
+      
+      return {
+        ...prev,
+        target_grades: newTargetGrades,
+      }
+    })
   }, [])
 
   // フィールド更新処理

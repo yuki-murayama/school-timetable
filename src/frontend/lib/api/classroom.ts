@@ -48,20 +48,14 @@ export const classroomApi = {
     return apiClient.get<{
       classrooms: Classroom[]
       pagination?: { page: number; limit: number; total: number; totalPages: number }
-    }>('/school/classrooms', ClassroomsListResponseSchema, options)
+    }>('/classrooms', ClassroomsListResponseSchema, options)
   },
 
   async createClassroom(
     classroom: z.infer<typeof CreateClassroomRequestSchema>,
     options?: ApiOptions
   ): Promise<Classroom> {
-    return apiClient.post<z.infer<typeof CreateClassroomRequestSchema>, Classroom>(
-      '/school/classrooms',
-      classroom,
-      CreateClassroomRequestSchema,
-      ClassroomSchema,
-      options
-    )
+    return apiClient.post<Classroom>('/classrooms', classroom, ClassroomSchema, options)
   },
 
   async updateClassroom(
@@ -70,7 +64,7 @@ export const classroomApi = {
     options?: ApiOptions
   ): Promise<Classroom> {
     return apiClient.put<z.infer<typeof UpdateClassroomRequestSchema>, Classroom>(
-      `/school/classrooms/${id}`,
+      `/classrooms/${id}`,
       classroom,
       UpdateClassroomRequestSchema,
       ClassroomSchema,
@@ -79,7 +73,7 @@ export const classroomApi = {
   },
 
   async deleteClassroom(id: string, options?: ApiOptions): Promise<void> {
-    await apiClient.delete<void>(`/school/classrooms/${id}`, VoidResponseSchema, options)
+    await apiClient.delete<void>(`/classrooms/${id}`, VoidResponseSchema, options)
   },
 
   async saveClassrooms(classrooms: Classroom[], options?: ApiOptions): Promise<void> {
@@ -95,7 +89,7 @@ export const classroomApi = {
           order: classroom.order,
         })
         return apiClient.put<z.infer<typeof UpdateClassroomRequestSchema>, Classroom>(
-          `/school/classrooms/${classroom.id}`,
+          `/classrooms/${classroom.id}`,
           updateData,
           UpdateClassroomRequestSchema,
           ClassroomSchema,
@@ -113,7 +107,7 @@ export const classroomApi = {
   ): Promise<{ updatedCount: number; totalRequested: number }> {
     const requestData = { classrooms }
     return apiClient.patch<typeof requestData, { updatedCount: number; totalRequested: number }>(
-      '/school/classrooms/reorder',
+      '/classrooms/reorder',
       requestData,
       ClassroomReorderRequestSchema,
       ClassroomReorderResponseSchema,

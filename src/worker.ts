@@ -379,7 +379,7 @@ app.post('/api/migrate-data', async c => {
         await db
           .prepare(`
           INSERT OR REPLACE INTO subjects 
-          (id, name, special_classroom, description, weekly_lessons, target_grades, created_at, updated_at)
+          (id, name, special_classroom, description, weekly_hours, target_grades, created_at, updated_at)
           VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `)
           .bind(
@@ -572,7 +572,20 @@ app.route('/api/test-db', testDbApp)
 
 // 統一型安全APIシステム（OpenAPI 3.0.3対応）
 const apiApp = createTypeeSafeApiApp()
+
+// デバッグ：統合APIアプリが作成されているか確認
+console.log('apiApp created:', !!apiApp)
+
 app.route('/api', apiApp)
+
+// デバッグ：直接テストエンドポイントを追加
+app.get('/api/test-direct', c => {
+  return c.json({
+    success: true,
+    message: 'Direct test endpoint in worker.ts',
+    timestamp: new Date().toISOString(),
+  })
+})
 
 // Serve static assets for frontend (only for non-API routes)
 app.use('*', async (c, next) => {

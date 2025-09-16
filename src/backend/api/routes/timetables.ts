@@ -3,11 +3,23 @@
  */
 
 import type { Env } from '@shared/schemas'
-import { Hono } from 'hono'
+import { 
+  IdSchema, 
+  GradeSchema, 
+  ClassNumberSchema, 
+  PeriodSchema, 
+  WeekdaySchema,
+  PositiveIntegerSchema,
+  TimetableSlotSchema,
+  TimetableSchema
+} from '@shared/schemas'
+import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import { z } from 'zod'
+import { createResponseSchemas, createErrorResponseSchemas, paginationSchema } from '../openapi'
+import type { TimetableGenerationResult } from '../../services/timetable-generation-service'
 
 // 時間割管理用アプリ
-const timetablesApp = new Hono<{ Bindings: Env }>()
+const timetablesApp = new OpenAPIHono<{ Bindings: Env }>()
 
 // 時間割生成リクエストスキーマ
 const GenerateTimetableRequestSchema = z.object({
@@ -150,7 +162,7 @@ const _TimetableGenerationStatusSchema = z.object({
 // 時間割一覧取得ルート
 const getTimetablesRoute = createRoute({
   method: 'get',
-  path: '/timetables',
+  path: '/',
   summary: '時間割一覧取得',
   description: `
 時間割一覧を取得します。検索・フィルタリング・ページネーション機能付き。
@@ -241,7 +253,7 @@ const getTimetablesRoute = createRoute({
 // 時間割詳細取得ルート
 const getTimetableRoute = createRoute({
   method: 'get',
-  path: '/timetables/{id}',
+  path: '/{id}',
   summary: '時間割詳細取得',
   description: `
 指定されたIDの時間割詳細情報を取得します。
@@ -292,7 +304,7 @@ const getTimetableRoute = createRoute({
 // 時間割生成ルート
 const generateTimetableRoute = createRoute({
   method: 'post',
-  path: '/timetables/generate',
+  path: '/generate',
   summary: '時間割生成',
   description: `
 AI時間割生成エンジンを使用して新しい時間割を生成します。
@@ -435,7 +447,7 @@ AI時間割生成エンジンを使用して新しい時間割を生成します
 // 時間割生成状況確認ルート
 const getTimetableGenerationStatusRoute = createRoute({
   method: 'get',
-  path: '/timetables/generate/{jobId}',
+  path: '/generate/{jobId}',
   summary: '時間割生成状況確認',
   description: `
 時間割生成の進行状況と結果を確認します。
@@ -512,7 +524,7 @@ const getTimetableGenerationStatusRoute = createRoute({
 // 時間割更新ルート
 const updateTimetableRoute = createRoute({
   method: 'put',
-  path: '/timetables/{id}',
+  path: '/{id}',
   summary: '時間割更新',
   description: `
 既存の時間割を更新します。
@@ -590,7 +602,7 @@ const updateTimetableRoute = createRoute({
 // 時間割削除ルート
 const deleteTimetableRoute = createRoute({
   method: 'delete',
-  path: '/timetables/{id}',
+  path: '/{id}',
   summary: '時間割削除',
   description: `
 指定されたIDの時間割を削除します。

@@ -20,7 +20,7 @@ const ConditionsSchema = z.object({
 // 条件設定取得ルート定義
 const getConditionsRoute = createRoute({
   method: 'get',
-  path: '/conditions',
+  path: '/',
   summary: '条件設定取得',
   description: `
 時間割生成時の特別な条件設定を取得します。
@@ -61,7 +61,7 @@ const getConditionsRoute = createRoute({
 // 条件設定更新ルート定義
 const updateConditionsRoute = createRoute({
   method: 'put',
-  path: '/conditions',
+  path: '/',
   summary: '条件設定更新',
   description: `
 時間割生成時の特別な条件設定を更新します。

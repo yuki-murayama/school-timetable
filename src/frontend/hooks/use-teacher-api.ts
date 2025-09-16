@@ -52,8 +52,8 @@ export const useTeacherApi = (
         setSchoolSettings(settingsResult)
       }
     } catch (error) {
-      console.error('❌ 初期データの読み込みに失敗:', error)
-      console.error('初期データの読み込みに失敗しました')
+      console.log('❌ 初期データの読み込みに失敗:', error)
+      console.log('初期データの読み込みに失敗しました')
       // エラー時はデフォルト値を設定
       setSubjects([])
     } finally {
@@ -91,7 +91,18 @@ export const useTeacherApi = (
             description: '新しい教師を追加しました',
           })
         } else {
+          console.log('🔍 既存教師更新のデバッグ:', {
+            teacherDataId: teacherData.id,
+            teacherDataType: typeof teacherData.id,
+            hasId: !!teacherData.id,
+            teacherData: teacherData
+          })
+          
           if (!teacherData.id) {
+            console.error('❌ 教師IDが見つかりません:', {
+              teacherData,
+              keys: Object.keys(teacherData)
+            })
             throw new Error('教師IDが見つかりません')
           }
           console.log('🔄 統一型安全APIで教師更新:', teacherData)
@@ -116,7 +127,7 @@ export const useTeacherApi = (
 
         return result
       } catch (error) {
-        console.error('❌ 教師の保存に失敗:', error)
+        console.log('❌ 教師の保存に失敗:', error)
 
         if (error instanceof Error && 'validationErrors' in error) {
           toast({

@@ -21,7 +21,7 @@ import { type ApiOptions, apiClient } from './client'
 export const schoolApi = {
   async getSettings(options?: ApiOptions): Promise<EnhancedSchoolSettings> {
     return apiClient.get<EnhancedSchoolSettings>(
-      '/school/settings',
+      '/settings',
       EnhancedSchoolSettingsSchema,
       options
     )
@@ -32,7 +32,7 @@ export const schoolApi = {
     options?: ApiOptions
   ): Promise<EnhancedSchoolSettings> {
     return apiClient.put<Partial<SchoolSettings>, EnhancedSchoolSettings>(
-      '/school/settings',
+      '/settings',
       settings,
       UpdateSchoolSettingsSchema,
       EnhancedSchoolSettingsSchema,

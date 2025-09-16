@@ -11,8 +11,7 @@ import { Label } from '../ui/label'
 interface SchoolSettingsSectionProps {
   settings: SchoolSettings
   onSettingsUpdate: (settings: SchoolSettings) => void
-  token: string | null
-  getFreshToken?: () => Promise<string | null>
+  apiOptions: { token: string | null; getFreshToken: () => Promise<string | null>; onSessionExpired: () => void }
   isLoading: boolean
   showOfflineButton: boolean
   onOfflineMode: () => void
@@ -21,8 +20,7 @@ interface SchoolSettingsSectionProps {
 export function SchoolSettingsSection({
   settings,
   onSettingsUpdate,
-  token,
-  getFreshToken,
+  apiOptions,
   isLoading,
   showOfflineButton,
   onOfflineMode,
@@ -31,7 +29,7 @@ export function SchoolSettingsSection({
   const [isSaving, setIsSaving] = useState(false)
 
   const handleSaveSettings = async () => {
-    if (!token) {
+    if (!apiOptions.token) {
       toast({
         title: '認証エラー',
         description: 'ログインが必要です',
@@ -47,16 +45,10 @@ export function SchoolSettingsSection({
         grade1Classes: settings.grade1Classes,
         grade2Classes: settings.grade2Classes,
         grade3Classes: settings.grade3Classes,
-        grade4Classes: settings.grade4Classes || 3,
-        grade5Classes: settings.grade5Classes || 3,
-        grade6Classes: settings.grade6Classes || 3,
         dailyPeriods: settings.dailyPeriods,
         saturdayPeriods: settings.saturdayPeriods,
       }
-      const updatedSettings = await schoolApi.updateSettings(basicSettings, {
-        token,
-        getFreshToken,
-      })
+      const updatedSettings = await schoolApi.updateSettings(basicSettings, apiOptions)
       onSettingsUpdate(updatedSettings)
       toast({
         title: '保存完了',
