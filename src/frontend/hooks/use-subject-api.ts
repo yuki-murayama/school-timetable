@@ -1,7 +1,31 @@
 import type { Classroom, Subject } from '@shared/schemas'
-import { useCallback, useEffect, useState, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { classroomApi, subjectApi } from '../lib/api'
 import { useToast } from './use-toast'
+
+/**
+ * 拡張Subject型（レガシーフィールド対応）
+ */
+type ExtendedSubject = Subject & {
+  weekly_hours?: number
+  weeklyHours?: number
+  target_grades?: string | number[]
+  targetGrades?: number[]
+  special_classroom?: string
+  specialClassroom?: string
+}
+
+/**
+ * API送信用正規化データ型
+ */
+interface NormalizedSubjectData {
+  name: string
+  school_id: string
+  weekly_hours?: number
+  target_grades?: string
+  special_classroom?: string
+  [key: string]: unknown
+}
 
 export const useSubjectApi = (
   token: string | null,
@@ -45,18 +69,18 @@ export const useSubjectApi = (
 
   // 教科保存
   const saveSubject = useCallback(
-    async (subjectData: Partial<Subject>, isNewSubject: boolean) => {
+    async (subjectData: Partial<ExtendedSubject>, isNewSubject: boolean) => {
       // 重複送信防止チェック
       const currentTime = Date.now()
       const timeSinceLastSave = currentTime - lastSaveTimeRef.current
-      
+
       // 前回の保存から1秒以内の場合は重複送信として扱う
       if (timeSinceLastSave < 1000) {
         console.warn('🚫 重複送信を検出しました。前回の保存処理をそのまま使用します。', {
           timeSinceLastSave,
-          subjectName: subjectData.name
+          subjectName: subjectData.name,
         })
-        
+
         // 進行中のリクエストがある場合はそれを返す
         if (savingRequestRef.current) {
           return await savingRequestRef.current
@@ -66,35 +90,36 @@ export const useSubjectApi = (
       // 進行中のリクエストがある場合は待機
       if (savingRequestRef.current) {
         console.warn('⏳ 既に進行中の保存処理があります。完了まで待機します。', {
-          subjectName: subjectData.name
+          subjectName: subjectData.name,
         })
         return await savingRequestRef.current
       }
 
       // 最終保存時刻を更新
       lastSaveTimeRef.current = currentTime
-      
+
       setIsSaving(true)
-      
+
       // 保存処理をPromiseとして作成
       const savePromise = (async (): Promise<Subject> => {
-          let result: Subject
+        let result: Subject
 
         if (isNewSubject) {
           // APIクライアント用にデータを正規化（レガシーフィールド対応）
-          const normalizedData: any = {
+          const normalizedData: NormalizedSubjectData = {
             name: subjectData.name || '',
             school_id: subjectData.school_id || 'default', // 必須フィールド
           }
 
           // 週間授業数：複数フィールド対応
-          const weeklyHours = (subjectData as any).weekly_hours || (subjectData as any).weeklyHours
+          const weeklyHours = subjectData.weekly_hours || subjectData.weeklyHours
           if (weeklyHours && weeklyHours !== 1) {
-            normalizedData.weekly_hours = typeof weeklyHours === 'number' ? weeklyHours : Object.values(weeklyHours)[0] || 1
+            normalizedData.weekly_hours =
+              typeof weeklyHours === 'number' ? weeklyHours : Object.values(weeklyHours)[0] || 1
           }
 
           // 対象学年：複数フィールド対応（フロントエンドのフォームから送信される形式）
-          const targetGrades = (subjectData as any).target_grades
+          const targetGrades = subjectData.target_grades
           if (targetGrades) {
             if (typeof targetGrades === 'string') {
               // 既にJSON文字列の場合はそのまま使用
@@ -104,9 +129,9 @@ export const useSubjectApi = (
               normalizedData.target_grades = JSON.stringify(targetGrades)
             }
           }
-          
+
           // レガシー形式もサポート
-          const targetGradesLegacy = (subjectData as any).targetGrades
+          const targetGradesLegacy = subjectData.targetGrades
           if (!normalizedData.target_grades && targetGradesLegacy) {
             if (typeof targetGradesLegacy === 'string') {
               normalizedData.target_grades = targetGradesLegacy
@@ -116,19 +141,19 @@ export const useSubjectApi = (
           }
 
           // 特別教室：複数フィールド対応
-          const specialClassroom = (subjectData as any).special_classroom || (subjectData as any).specialClassroom
-          if (specialClassroom && specialClassroom.trim && specialClassroom.trim()) {
+          const specialClassroom = subjectData.special_classroom || subjectData.specialClassroom
+          if (specialClassroom?.trim?.()) {
             normalizedData.special_classroom = specialClassroom
           }
 
-          console.log('🔍 [DEBUG] フォームから受信したデータ:', JSON.stringify(subjectData, null, 2))
+          console.log(
+            '🔍 [DEBUG] フォームから受信したデータ:',
+            JSON.stringify(subjectData, null, 2)
+          )
           console.log('🔍 [DEBUG] 正規化後データ:', JSON.stringify(normalizedData, null, 2))
           console.log('➕ 統一型安全APIで教科新規作成:', JSON.stringify(normalizedData, null, 2))
-          
-          const createResult = await subjectApi.createSubject(
-            normalizedData as any,
-            { token }
-          )
+
+          const createResult = await subjectApi.createSubject(normalizedData, { token })
           result = createResult
           console.log('✅ 教科新規作成成功:', result)
           toast({
@@ -140,19 +165,20 @@ export const useSubjectApi = (
             throw new Error('教科IDが見つかりません')
           }
           // APIクライアント用にデータを正規化（レガシーフィールド対応）
-          const normalizedData: any = {
+          const normalizedData: NormalizedSubjectData = {
             name: subjectData.name || '',
             school_id: subjectData.school_id || 'default', // 必須フィールド
           }
 
           // 週間授業数：複数フィールド対応
-          const weeklyHours = (subjectData as any).weekly_hours || (subjectData as any).weeklyHours
+          const weeklyHours = subjectData.weekly_hours || subjectData.weeklyHours
           if (weeklyHours && weeklyHours !== 1) {
-            normalizedData.weekly_hours = typeof weeklyHours === 'number' ? weeklyHours : Object.values(weeklyHours)[0] || 1
+            normalizedData.weekly_hours =
+              typeof weeklyHours === 'number' ? weeklyHours : Object.values(weeklyHours)[0] || 1
           }
 
           // 対象学年：複数フィールド対応（フロントエンドのフォームから送信される形式）
-          const targetGrades = (subjectData as any).target_grades
+          const targetGrades = subjectData.target_grades
           if (targetGrades) {
             if (typeof targetGrades === 'string') {
               // 既にJSON文字列の場合はそのまま使用
@@ -162,9 +188,9 @@ export const useSubjectApi = (
               normalizedData.target_grades = JSON.stringify(targetGrades)
             }
           }
-          
+
           // レガシー形式もサポート
-          const targetGradesLegacy = (subjectData as any).targetGrades
+          const targetGradesLegacy = subjectData.targetGrades
           if (!normalizedData.target_grades && targetGradesLegacy) {
             if (typeof targetGradesLegacy === 'string') {
               normalizedData.target_grades = targetGradesLegacy
@@ -174,16 +200,19 @@ export const useSubjectApi = (
           }
 
           // 特別教室：複数フィールド対応
-          const specialClassroom = (subjectData as any).special_classroom || (subjectData as any).specialClassroom
-          if (specialClassroom && specialClassroom.trim && specialClassroom.trim()) {
+          const specialClassroom = subjectData.special_classroom || subjectData.specialClassroom
+          if (specialClassroom?.trim?.()) {
             normalizedData.special_classroom = specialClassroom
           }
 
-          console.log('🔍 [DEBUG] 更新フォームから受信したデータ:', JSON.stringify(subjectData, null, 2))
+          console.log(
+            '🔍 [DEBUG] 更新フォームから受信したデータ:',
+            JSON.stringify(subjectData, null, 2)
+          )
           console.log('🔍 [DEBUG] 更新正規化後データ:', JSON.stringify(normalizedData, null, 2))
           console.log('🔄 統一型安全APIで教科更新:', JSON.stringify(normalizedData, null, 2))
-          
-          const updateResult = await subjectApi.updateSubject(subjectData.id, normalizedData as any, {
+
+          const updateResult = await subjectApi.updateSubject(subjectData.id, normalizedData, {
             token,
           })
           result = updateResult
@@ -205,7 +234,7 @@ export const useSubjectApi = (
         const result = await savePromise
         console.log('✅ 重複送信防止付き教科保存成功:', {
           subjectName: result.name,
-          timeTaken: Date.now() - currentTime
+          timeTaken: Date.now() - currentTime,
         })
         return result
       } catch (error) {
@@ -213,7 +242,7 @@ export const useSubjectApi = (
 
         // エラーメッセージの安全な処理
         let errorMessage = '教科の保存に失敗しました'
-        
+
         if (error instanceof Error) {
           // validationErrorsプロパティが存在する場合のみアクセス
           if ('validationErrors' in error && Array.isArray(error.validationErrors)) {
@@ -223,7 +252,7 @@ export const useSubjectApi = (
             errorMessage = error.message || '教科の保存に失敗しました'
           }
         }
-        
+
         toast({
           title: '保存エラー',
           description: errorMessage,

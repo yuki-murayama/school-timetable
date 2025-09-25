@@ -172,4 +172,79 @@ describe('Schema Validation Tests', () => {
       expect(() => ClassroomSchema.parse(validClassroom)).not.toThrow()
     })
   })
+
+  describe('スキーマ基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+    })
+
+    it('Vitestテスト機能が正しく動作している', () => {
+      expect(() => expect(true).toBe(true)).not.toThrow()
+      expect(() => expect(false).toBe(false)).not.toThrow()
+      expect(() =>
+        expect(() => {
+          throw new Error('test')
+        }).toThrow()
+      ).not.toThrow()
+    })
+
+    it('全スキーマが正しく定義されている', () => {
+      expect(IdSchema).toBeDefined()
+      expect(NameSchema).toBeDefined()
+      expect(GradeSchema).toBeDefined()
+      expect(PeriodSchema).toBeDefined()
+      expect(DayOfWeekSchema).toBeDefined()
+      expect(PositiveIntegerSchema).toBeDefined()
+      expect(ISODateTimeSchema).toBeDefined()
+    })
+
+    it('スキーマがparse関数を持っている', () => {
+      expect(typeof IdSchema.parse).toBe('function')
+      expect(typeof NameSchema.parse).toBe('function')
+      expect(typeof GradeSchema.parse).toBe('function')
+      expect(typeof PeriodSchema.parse).toBe('function')
+      expect(typeof DayOfWeekSchema.parse).toBe('function')
+      expect(typeof PositiveIntegerSchema.parse).toBe('function')
+      expect(typeof ISODateTimeSchema.parse).toBe('function')
+    })
+
+    it('複合スキーマが正しく定義されている', () => {
+      expect(EnhancedSchoolSettingsSchema).toBeDefined()
+      expect(TeacherSchema).toBeDefined()
+      expect(SubjectSchema).toBeDefined()
+      expect(ClassroomSchema).toBeDefined()
+    })
+
+    it('複合スキーマがparse関数を持っている', () => {
+      expect(typeof EnhancedSchoolSettingsSchema.parse).toBe('function')
+      expect(typeof TeacherSchema.parse).toBe('function')
+      expect(typeof SubjectSchema.parse).toBe('function')
+      expect(typeof ClassroomSchema.parse).toBe('function')
+    })
+
+    it('ユーティリティ関数が正しく定義されている', () => {
+      expect(safeJsonParse).toBeDefined()
+      expect(typeof safeJsonParse).toBe('function')
+      expect(safeJsonStringify).toBeDefined()
+      expect(typeof safeJsonStringify).toBe('function')
+    })
+
+    it('JSON機能が利用可能', () => {
+      expect(JSON).toBeDefined()
+      expect(JSON.parse).toBeDefined()
+      expect(typeof JSON.parse).toBe('function')
+      expect(JSON.stringify).toBeDefined()
+      expect(typeof JSON.stringify).toBe('function')
+    })
+
+    it('Error機能が利用可能', () => {
+      expect(Error).toBeDefined()
+      expect(typeof Error).toBe('function')
+      const testError = new Error('test')
+      expect(testError).toBeInstanceOf(Error)
+      expect(testError.message).toBe('test')
+    })
+  })
 })

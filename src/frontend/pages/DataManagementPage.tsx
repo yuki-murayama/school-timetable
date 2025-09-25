@@ -41,35 +41,6 @@ export function DataManagementPage() {
   // Subjects state
   const [subjects, setSubjects] = useState<Subject[]>([])
   const [isSubjectsLoading, setIsSubjectsLoading] = useState(true)
-  
-  // Enhanced setSubjects with logging for debugging
-  const setSubjectsWithLogging = (newSubjects: Subject[] | ((prev: Subject[]) => Subject[])) => {
-    console.log('📋 [DataManagementPage] setSubjects called:', {
-      type: typeof newSubjects === 'function' ? 'function' : 'array',
-      currentCount: subjects.length,
-      timestamp: new Date().toISOString()
-    })
-    
-    if (typeof newSubjects === 'function') {
-      setSubjects(prev => {
-        const result = newSubjects(prev)
-        console.log('📋 [DataManagementPage] setState function result:', {
-          prevCount: prev.length,
-          newCount: result.length,
-          prevIds: prev.map(s => s.id),
-          newIds: result.map(s => s.id)
-        })
-        return result
-      })
-    } else {
-      console.log('📋 [DataManagementPage] setState direct array:', {
-        newCount: newSubjects.length,
-        newIds: newSubjects.map(s => s.id),
-        newNames: newSubjects.map(s => s.name)
-      })
-      setSubjects(newSubjects)
-    }
-  }
 
   // Classrooms state
   const [classrooms, setClassrooms] = useState<Classroom[]>([])
@@ -129,10 +100,7 @@ export function DataManagementPage() {
 
   // 学校設定読み込み関数をメモ化
   const loadSettings = useCallback(async () => {
-    console.log('loadSettings called, token:', !!token)
-
     if (!token) {
-      console.log('No token available, skipping API call')
       setIsLoading(false)
       return
     }
@@ -158,17 +126,14 @@ export function DataManagementPage() {
     }, 10000)
 
     try {
-      console.log('Calling schoolApi.getSettings...')
-
       const settings = (await Promise.race([
-        schoolApi.getSettings(getApiOptions()),
+        schoolApi.getSettings({ token, getFreshToken }),
         new Promise((_, reject) => setTimeout(() => reject(new Error('Request timeout')), 8000)),
       ])) as Promise<SchoolSettings>
 
       clearTimeout(timeoutId)
       clearTimeout(offlineButtonTimer)
       setClassSettings(settings)
-      console.log('Settings loaded successfully:', settings)
     } catch (error: unknown) {
       clearTimeout(timeoutId)
       clearTimeout(offlineButtonTimer)
@@ -212,7 +177,7 @@ export function DataManagementPage() {
     if (token) {
       loadSettings()
     }
-  }, [token, loadSettings]) // loadSettingsを依存関係に含める
+  }, [token]) // loadSettingsは依存関係から除外（useCallbackで定義されているため）
 
   // 教師読み込み関数をメモ化
   const loadTeachers = useCallback(async () => {
@@ -224,7 +189,7 @@ export function DataManagementPage() {
     setIsTeachersLoading(true)
 
     try {
-      const teachersResponse = await teacherApi.getTeachers(getApiOptions())
+      const teachersResponse = await teacherApi.getTeachers({ token, getFreshToken })
       const teachers = Array.isArray(teachersResponse.teachers) ? teachersResponse.teachers : []
       const normalizedTeachers = normalizeTeachers(teachers)
 
@@ -245,14 +210,14 @@ export function DataManagementPage() {
     } finally {
       setIsTeachersLoading(false)
     }
-  }, [token, getFreshToken, normalizeTeachers])
+  }, [token, normalizeTeachers, getFreshToken])
 
   // Load teachers useEffect
   useEffect(() => {
     if (token) {
       loadTeachers()
     }
-  }, [token, loadTeachers]) // loadTeachersを依存関係に含める
+  }, [token]) // loadTeachersは依存関係から除外（useCallbackで定義されているため）
 
   // 教科読み込み関数をメモ化
   const loadSubjects = useCallback(async () => {
@@ -264,7 +229,7 @@ export function DataManagementPage() {
     setIsSubjectsLoading(true)
 
     try {
-      const subjectsResponse = await subjectApi.getSubjects(getApiOptions())
+      const subjectsResponse = await subjectApi.getSubjects({ token, getFreshToken })
       const subjects = Array.isArray(subjectsResponse.subjects) ? subjectsResponse.subjects : []
 
       // Normalize subject data
@@ -301,14 +266,14 @@ export function DataManagementPage() {
     } finally {
       setIsSubjectsLoading(false)
     }
-  }, [token])
+  }, [token, getFreshToken])
 
   // Load subjects useEffect
   useEffect(() => {
     if (token) {
       loadSubjects()
     }
-  }, [token, loadSubjects])
+  }, [token]) // loadSubjectsは依存関係から除外（useCallbackで定義されているため）
 
   // 教室読み込み関数をメモ化
   const loadClassrooms = useCallback(async () => {
@@ -320,7 +285,7 @@ export function DataManagementPage() {
     setIsClassroomsLoading(true)
 
     try {
-      const classroomsResponse = await classroomApi.getClassrooms(getApiOptions())
+      const classroomsResponse = await classroomApi.getClassrooms({ token, getFreshToken })
       const classrooms = Array.isArray(classroomsResponse.classrooms)
         ? classroomsResponse.classrooms
         : []
@@ -343,14 +308,14 @@ export function DataManagementPage() {
     } finally {
       setIsClassroomsLoading(false)
     }
-  }, [token])
+  }, [token, getFreshToken])
 
   // Load classrooms useEffect
   useEffect(() => {
     if (token) {
       loadClassrooms()
     }
-  }, [token, loadClassrooms])
+  }, [token]) // loadClassroomsは依存関係から除外（useCallbackで定義されているため）
 
   // 条件設定読み込み関数をメモ化
   const loadConditions = useCallback(async () => {
@@ -378,7 +343,7 @@ export function DataManagementPage() {
     if (token) {
       loadConditions()
     }
-  }, [token, loadConditions])
+  }, [token]) // loadConditionsは依存関係から除外（useCallbackで定義されているため）
 
   const handleOfflineMode = () => {
     setIsLoading(false)
@@ -435,7 +400,7 @@ export function DataManagementPage() {
         <TabsContent value='subjects' className='space-y-6'>
           <SubjectsSection
             subjects={subjects}
-            onSubjectsUpdate={setSubjectsWithLogging}
+            onSubjectsUpdate={setSubjects}
             token={token}
             getFreshToken={getFreshToken}
             isLoading={isSubjectsLoading}

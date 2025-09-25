@@ -20,16 +20,18 @@ export type {
 export { classroomApi } from './classroom'
 export type { ApiOptions } from './client'
 export { apiClient } from './client'
-export { conditionsApi } from './conditions'
-export { dashboardApi } from './dashboard'
+// 統合APIクライアント
+export {
+  classroomsApi,
+  schoolSettingsApi,
+  subjectsApi,
+  teachersApi,
+} from './integrated-api'
 export { schoolApi } from './school'
 export { subjectApi } from './subject'
 export { teacherApi } from './teacher'
 export { timetableApi } from './timetable'
 export { timetableAdvancedValidator } from './timetable-advanced-validator'
-export { timetableConverter } from './timetable-converter'
-export { timetableGenerator } from './timetable-generator'
-export { timetableValidator } from './timetable-validator'
 
 // API呼び出し結果検証スキーマ - 基本的な型チェック
 const ApiCallResultSchema = z.union([
@@ -57,152 +59,8 @@ const validateApiCall = async <T>(apiCall: Promise<T>): Promise<T> => {
   }
 }
 
-// 型安全なレガシー互換性レイヤー - 既存コードとの互換性を維持
+// 型安全なレガシー互換性レイヤー - 実際に使用されている検証機能のみ
 export const timetableUtils = {
-  // timetable-converter からの型安全なデリゲート
-  convertToDisplayFormat: async (
-    ...args: Parameters<
-      typeof import('./timetable-converter').timetableConverter.convertToDisplayFormat
-    >
-  ) => {
-    try {
-      const result = (
-        await import('./timetable-converter')
-      ).timetableConverter.convertToDisplayFormat(...args)
-      return await validateApiCall(Promise.resolve(result))
-    } catch (error) {
-      console.error('convertToDisplayFormat validation failed:', error)
-      throw error
-    }
-  },
-
-  convertFromGeneratedFormat: async (
-    ...args: Parameters<
-      typeof import('./timetable-converter').timetableConverter.convertFromGeneratedFormat
-    >
-  ) => {
-    try {
-      const result = (
-        await import('./timetable-converter')
-      ).timetableConverter.convertFromGeneratedFormat(...args)
-      return await validateApiCall(Promise.resolve(result))
-    } catch (error) {
-      console.error('convertFromGeneratedFormat validation failed:', error)
-      throw error
-    }
-  },
-
-  // timetable-generator からの型安全なデリゲート
-  generateEmptyTimetable: async (
-    ...args: Parameters<
-      typeof import('./timetable-generator').timetableGenerator.generateEmptyTimetable
-    >
-  ) => {
-    try {
-      const result = (
-        await import('./timetable-generator')
-      ).timetableGenerator.generateEmptyTimetable(...args)
-      return await validateApiCall(Promise.resolve(result))
-    } catch (error) {
-      console.error('generateEmptyTimetable validation failed:', error)
-      throw error
-    }
-  },
-
-  generateDiversifiedEmptyTimetable: async (
-    ...args: Parameters<
-      typeof import('./timetable-generator').timetableGenerator.generateDiversifiedEmptyTimetable
-    >
-  ) => {
-    try {
-      const result = (
-        await import('./timetable-generator')
-      ).timetableGenerator.generateDiversifiedEmptyTimetable(...args)
-      return await validateApiCall(Promise.resolve(result))
-    } catch (error) {
-      console.error('generateDiversifiedEmptyTimetable validation failed:', error)
-      throw error
-    }
-  },
-
-  generateUniqueSlotForClass: async (
-    ...args: Parameters<
-      typeof import('./timetable-generator').timetableGenerator.generateUniqueSlotForClass
-    >
-  ) => {
-    try {
-      const result = (
-        await import('./timetable-generator')
-      ).timetableGenerator.generateUniqueSlotForClass(...args)
-      return await validateApiCall(Promise.resolve(result))
-    } catch (error) {
-      console.error('generateUniqueSlotForClass validation failed:', error)
-      throw error
-    }
-  },
-
-  diversifyClassData: async (
-    ...args: Parameters<
-      typeof import('./timetable-generator').timetableGenerator.diversifyClassData
-    >
-  ) => {
-    try {
-      const result = (await import('./timetable-generator')).timetableGenerator.diversifyClassData(
-        ...args
-      )
-      return await validateApiCall(Promise.resolve(result))
-    } catch (error) {
-      console.error('diversifyClassData validation failed:', error)
-      throw error
-    }
-  },
-
-  fillEmptySlots: async (
-    ...args: Parameters<typeof import('./timetable-generator').timetableGenerator.fillEmptySlots>
-  ) => {
-    try {
-      const result = (await import('./timetable-generator')).timetableGenerator.fillEmptySlots(
-        ...args
-      )
-      return await validateApiCall(Promise.resolve(result))
-    } catch (error) {
-      console.error('fillEmptySlots validation failed:', error)
-      throw error
-    }
-  },
-
-  fillEmptySlotsWithConflictAvoidance: async (
-    ...args: Parameters<
-      typeof import('./timetable-generator').timetableGenerator.fillEmptySlotsWithConflictAvoidance
-    >
-  ) => {
-    try {
-      const result = (
-        await import('./timetable-generator')
-      ).timetableGenerator.fillEmptySlotsWithConflictAvoidance(...args)
-      return await validateApiCall(Promise.resolve(result))
-    } catch (error) {
-      console.error('fillEmptySlotsWithConflictAvoidance validation failed:', error)
-      throw error
-    }
-  },
-
-  generateClassTimetableData: async (
-    ...args: Parameters<
-      typeof import('./timetable-generator').timetableGenerator.generateClassTimetableData
-    >
-  ) => {
-    try {
-      const result = (
-        await import('./timetable-generator')
-      ).timetableGenerator.generateClassTimetableData(...args)
-      return await validateApiCall(Promise.resolve(result))
-    } catch (error) {
-      console.error('generateClassTimetableData validation failed:', error)
-      throw error
-    }
-  },
-
   // timetable-advanced-validator からの型安全なデリゲート
   calculateComplianceRate: async (
     ...args: Parameters<

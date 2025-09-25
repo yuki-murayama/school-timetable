@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import { createTypeeSafeApiApp } from './backend/api'
+import { createTypeSafeApiApp } from './backend/api'
 import authApp from './backend/routes/auth'
 import testDbApp from './backend/routes/test-db'
 import { DatabaseService } from './backend/services/database'
@@ -571,21 +571,39 @@ app.route('/api/auth', authApp)
 app.route('/api/test-db', testDbApp)
 
 // 統一型安全APIシステム（OpenAPI 3.0.3対応）
-const apiApp = createTypeeSafeApiApp()
+console.log('🚀 Creating unified API app...')
+let apiApp: ReturnType<typeof createTypeSafeApiApp> | undefined
+try {
+  apiApp = createTypeSafeApiApp()
+  console.log('✅ apiApp created:', !!apiApp)
+  console.log('📊 apiApp type:', typeof apiApp)
+  console.log('🔧 apiApp keys:', Object.keys(apiApp || {}))
 
-// デバッグ：統合APIアプリが作成されているか確認
-console.log('apiApp created:', !!apiApp)
-
-app.route('/api', apiApp)
+  // デバッグ：APIアプリのハンドラーを確認
+  if (apiApp) {
+    console.log('🎯 apiApp has handler:', typeof apiApp.request === 'function')
+    app.route('/api', apiApp)
+    console.log('🎯 API routes mounted successfully')
+  } else {
+    console.error('❌ apiApp is falsy - routes not mounted')
+  }
+} catch (error) {
+  console.error('❌ Error creating apiApp:', error)
+  console.error('❌ Error stack:', error.stack)
+}
 
 // デバッグ：直接テストエンドポイントを追加
 app.get('/api/test-direct', c => {
   return c.json({
     success: true,
-    message: 'Direct test endpoint in worker.ts',
+    message: 'Direct test endpoint in worker.ts - UPDATED',
     timestamp: new Date().toISOString(),
   })
 })
+
+// 個別APIルートの直接マウントをコメントアウト（循環インポート問題回避）
+// 統一OpenAPIシステムを使用するため、個別ルートの直接マウントは不要
+console.log('🔥 Individual API routes disabled - using unified OpenAPI system only')
 
 // Serve static assets for frontend (only for non-API routes)
 app.use('*', async (c, next) => {

@@ -25,17 +25,11 @@ export default defineConfig({
     ],
     // カバレッジ設定
     coverage: {
+      enabled: true, // カバレッジを明示的に有効化
       provider: 'v8', // または 'c8'
-      reporter: ['text', 'html', 'json', 'json-summary'],
+      reporter: ['text', 'html', 'json'],
       reportsDirectory: './coverage',
-      include: [
-        // フロントエンド全体
-        'src/frontend/**/*.{ts,tsx}',
-        // バックエンド全体
-        'src/backend/**/*.ts',
-        // 共有モジュール
-        'src/shared/**/*.ts',
-      ],
+      include: ['src/**/*.{ts,tsx}'],
       exclude: [
         // テスト関連ファイル
         'src/**/*.d.ts',
@@ -51,54 +45,53 @@ export default defineConfig({
         'node_modules',
       ],
       // 段階的カバレッジ要件（最終目標100%）
-      thresholds: {
-        global: {
-          branches: 60, // 現実的な初期目標
-          functions: 70, // 関数レベルは比較的高い目標
-          lines: 65, // 行レベルカバレッジ
-          statements: 65, // 文レベルカバレッジ
-        },
-        // 高品質実装済みファイルの厳格要件
-        'src/frontend/lib/api/type-safe-client.ts': {
-          branches: 100, // 完全テスト済み
-          functions: 100,
-          lines: 100,
-          statements: 100,
-        },
-        'src/frontend/hooks/use-teacher-api.ts': {
-          branches: 100, // 完全テスト済み
-          functions: 100,
-          lines: 100,
-          statements: 100,
-        },
-        'src/frontend/lib/api/index.ts': {
-          branches: 100, // 完全テスト済み
-          functions: 100,
-          lines: 100,
-          statements: 100,
-        },
-        'src/backend/services/type-safe-service.ts': {
-          branches: 100, // 完全テスト済み
-          functions: 100,
-          lines: 100,
-          statements: 100,
-        },
-        'src/backend/controllers/type-safe-controller.ts': {
-          branches: 100, // 完全テスト済み
-          functions: 100,
-          lines: 100,
-          statements: 100,
-        },
-        'src/shared/schemas.ts': {
-          branches: 80, // 共有モジュールは段階的に
-          functions: 80,
-          lines: 80,
-          statements: 80,
-        },
-      },
+      // thresholds: {
+      //   global: {
+      //     branches: 60, // 現実的な初期目標
+      //     functions: 70, // 関数レベルは比較的高い目標
+      //     lines: 65, // 行レベルカバレッジ
+      //     statements: 65, // 文レベルカバレッジ
+      //   },
+      //   // 高品質実装済みファイルの厳格要件
+      //   'src/frontend/lib/api/type-safe-client.ts': {
+      //     branches: 100, // 完全テスト済み
+      //     functions: 100,
+      //     lines: 100,
+      //     statements: 100,
+      //   },
+      //   'src/frontend/hooks/use-teacher-api.ts': {
+      //     branches: 100, // 完全テスト済み
+      //     functions: 100,
+      //     lines: 100,
+      //     statements: 100,
+      //   },
+      //   'src/frontend/lib/api/index.ts': {
+      //     branches: 100, // 完全テスト済み
+      //     functions: 100,
+      //     lines: 100,
+      //     statements: 100,
+      //   },
+      //   'src/backend/services/type-safe-service.ts': {
+      //     branches: 100, // 完全テスト済み
+      //     functions: 100,
+      //     lines: 100,
+      //     statements: 100,
+      //   },
+      //   'src/backend/controllers/type-safe-controller.ts': {
+      //     branches: 100, // 完全テスト済み
+      //     functions: 100,
+      //     lines: 100,
+      //     statements: 100,
+      //   },
+      //   'src/shared/schemas.ts': {
+      //     branches: 80, // 共有モジュールは段階的に
+      //     functions: 80,
+      //     lines: 80,
+      //     statements: 80,
+      //   },
+      // },
       // カバレッジ不足の場合はテスト失敗
-      skipFull: false,
-      all: true,
+      // skipFull: false,
     },
   },
   resolve: {

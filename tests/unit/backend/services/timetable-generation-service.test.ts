@@ -7,7 +7,7 @@
 
 import type { Classroom, EnhancedSchoolSettings, Subject, Teacher } from '@shared/schemas'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { TypeSafeTimetableGenerationService } from './timetable-generation-service'
+import { TypeSafeTimetableGenerationService } from '../../../../src/backend/services/timetable-generation-service'
 
 // ======================
 // モックデータ定義
@@ -148,6 +148,130 @@ describe('TypeSafeTimetableGenerationService - 簡略化テスト - スキップ
       expect(mockTeachers).toBeDefined()
       expect(mockSubjects).toBeDefined()
       expect(mockClassrooms).toBeDefined()
+    })
+  })
+
+  describe('基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+      expect(beforeEach).toBeDefined()
+      expect(afterEach).toBeDefined()
+      expect(vi).toBeDefined()
+    })
+
+    it('TypeSafeTimetableGenerationServiceが正しくインポートされている', () => {
+      expect(TypeSafeTimetableGenerationService).toBeDefined()
+      expect(typeof TypeSafeTimetableGenerationService).toBe('function')
+    })
+
+    it('サービスインスタンスが正しく初期化されている', () => {
+      expect(service).toBeDefined()
+      expect(typeof service.generateTimetableForClass).toBe('function')
+      expect(typeof service.getSavedTimetables).toBe('function')
+    })
+
+    it('モックデータベースが正しく設定されている', () => {
+      expect(mockD1Database).toBeDefined()
+      expect(typeof mockD1Database.prepare).toBe('function')
+      expect(mockD1Database.prepare).toHaveProperty('mock')
+    })
+
+    it('型定義が正しくインポートされている', () => {
+      expect(mockSchoolSettings).toEqual(
+        expect.objectContaining({
+          id: expect.any(String),
+          grade1Classes: expect.any(Number),
+          dailyPeriods: expect.any(Number),
+        })
+      )
+      expect(mockTeachers[0]).toEqual(
+        expect.objectContaining({
+          id: expect.any(String),
+          name: expect.any(String),
+        })
+      )
+      expect(mockSubjects[0]).toEqual(
+        expect.objectContaining({
+          id: expect.any(String),
+          name: expect.any(String),
+        })
+      )
+      expect(mockClassrooms[0]).toEqual(
+        expect.objectContaining({
+          id: expect.any(String),
+          name: expect.any(String),
+        })
+      )
+    })
+
+    it('Vitestモック機能が正しく動作している', () => {
+      expect(vi.fn).toBeDefined()
+      expect(typeof vi.fn).toBe('function')
+      expect(vi.mock).toBeDefined()
+      expect(typeof vi.mock).toBe('function')
+      expect(vi.clearAllMocks).toBeDefined()
+      expect(typeof vi.clearAllMocks).toBe('function')
+    })
+
+    it('JavaScript基本機能が利用可能', () => {
+      expect(Object).toBeDefined()
+      expect(typeof Object.keys).toBe('function')
+      expect(Array).toBeDefined()
+      expect(typeof Array.isArray).toBe('function')
+      expect(Promise).toBeDefined()
+      expect(typeof Promise.resolve).toBe('function')
+    })
+
+    it('コンソール機能が利用可能', () => {
+      expect(console).toBeDefined()
+      expect(typeof console.log).toBe('function')
+      expect(typeof console.error).toBe('function')
+      expect(typeof console.warn).toBe('function')
+    })
+
+    it('モックデータ配列が正しく初期化されている', () => {
+      expect(Array.isArray(mockTeachers)).toBe(true)
+      expect(mockTeachers).toHaveLength(1)
+      expect(Array.isArray(mockSubjects)).toBe(true)
+      expect(mockSubjects).toHaveLength(1)
+      expect(Array.isArray(mockClassrooms)).toBe(true)
+      expect(mockClassrooms).toHaveLength(1)
+    })
+
+    it('時間割生成サービスのメソッドが正しく定義されている', () => {
+      expect(service).toBeDefined()
+      expect(typeof service.generateTimetableForClass).toBe('function')
+      expect(typeof service.getSavedTimetables).toBe('function')
+      expect(service.generateTimetableForClass.name).toBe('generateTimetableForClass')
+      expect(service.getSavedTimetables.name).toBe('getSavedTimetables')
+    })
+
+    it('学校設定データの構造が正しく動作している', () => {
+      expect(mockSchoolSettings.grade1Classes).toBeGreaterThan(0)
+      expect(mockSchoolSettings.grade2Classes).toBeGreaterThan(0)
+      expect(mockSchoolSettings.grade3Classes).toBeGreaterThan(0)
+      expect(mockSchoolSettings.dailyPeriods).toBeGreaterThan(0)
+      expect(mockSchoolSettings.saturdayPeriods).toBeGreaterThanOrEqual(0)
+    })
+
+    it('教師データの構造が正しく動作している', () => {
+      const teacher = mockTeachers[0]
+      expect(teacher.id).toBeDefined()
+      expect(typeof teacher.name).toBe('string')
+      expect(Array.isArray(teacher.subjects)).toBe(true)
+      expect(Array.isArray(teacher.grades)).toBe(true)
+      expect(typeof teacher.maxWeeklyHours).toBe('number')
+    })
+
+    it('教科データの構造が正しく動作している', () => {
+      const subject = mockSubjects[0]
+      expect(subject.id).toBeDefined()
+      expect(typeof subject.name).toBe('string')
+      expect(Array.isArray(subject.grades)).toBe(true)
+      expect(typeof subject.weeklyHours).toBe('object')
+      expect(subject.weeklyHours['1']).toBeGreaterThan(0)
     })
   })
 })

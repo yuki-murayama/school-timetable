@@ -26,9 +26,11 @@ export const useTeacherForm = (initialTeacher: Teacher | null) => {
       setName(initialTeacher.name)
       setSelectedSubjects(initialTeacher.subjects || [])
       // grades は数値配列かもしれないので文字列に変換
-      setSelectedGrades((initialTeacher.grades || []).map(grade => 
-        typeof grade === 'number' ? grade.toString() : grade
-      ))
+      setSelectedGrades(
+        (initialTeacher.grades || []).map(grade =>
+          typeof grade === 'number' ? grade.toString() : grade
+        )
+      )
       setAssignmentRestrictions(initialTeacher.assignmentRestrictions || [])
     } else {
       // 新規作成の場合はクリア
@@ -104,7 +106,7 @@ export const useTeacherForm = (initialTeacher: Teacher | null) => {
     setErrors({})
   }, [])
 
-  // フォームデータ取得
+  // フォームデータ取得 - CreateTeacherRequestSchemaに完全対応
   const getFormData = useCallback((): Partial<Teacher> => {
     const formData: Partial<Teacher> = {
       name: name.trim(),
@@ -113,15 +115,24 @@ export const useTeacherForm = (initialTeacher: Teacher | null) => {
         typeof grade === 'string' ? parseInt(grade, 10) : grade
       ), // 数値に変換
       assignmentRestrictions,
+      order: initialTeacher?.order || 1, // デフォルト値1を設定
     }
-    
+
     // 編集時はIDを含める
     if (initialTeacher?.id) {
       formData.id = initialTeacher.id
     }
-    
+
+    console.log('📋 CreateTeacherRequestSchema対応データ:', formData)
     return formData
-  }, [name, selectedSubjects, selectedGrades, assignmentRestrictions, initialTeacher?.id])
+  }, [
+    name,
+    selectedSubjects,
+    selectedGrades,
+    assignmentRestrictions,
+    initialTeacher?.id,
+    initialTeacher?.order,
+  ])
 
   // 教科選択処理
   const handleSubjectChange = useCallback((subjectName: string, checked: boolean) => {

@@ -172,7 +172,7 @@ test.describe('🔄 完全統合ワークフローE2Eテスト', () => {
     // 教師情報タブに切り替え（モーダル干渉回避）
     await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
-    
+
     const teacherTab = page.locator('button:has-text("教師情報"), button:has-text("教師")').first()
     if ((await teacherTab.count()) > 0) {
       await teacherTab.click({ force: true })
@@ -276,7 +276,7 @@ test.describe('🔄 完全統合ワークフローE2Eテスト', () => {
     // 教科情報タブに切り替え（モーダル干渉回避）
     await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
-    
+
     const subjectTab = page.locator('button:has-text("教科情報"), button:has-text("教科")').first()
     if ((await subjectTab.count()) > 0) {
       await subjectTab.click({ force: true })
@@ -290,7 +290,7 @@ test.describe('🔄 完全統合ワークフローE2Eテスト', () => {
       // モーダル状態クリア
       await page.keyboard.press('Escape')
       await page.waitForTimeout(500)
-      
+
       const addSubjectButton = page
         .locator('button:has-text("教科を追加"), button:has-text("追加")')
         .first()
@@ -350,7 +350,7 @@ test.describe('🔄 完全統合ワークフローE2Eテスト', () => {
     // 教室情報タブに切り替え（モーダル干渉回避）
     await page.keyboard.press('Escape')
     await page.waitForTimeout(500)
-    
+
     const classroomTab = page
       .locator('button:has-text("教室情報"), button:has-text("教室")')
       .first()

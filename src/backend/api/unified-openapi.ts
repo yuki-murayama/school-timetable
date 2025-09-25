@@ -2,30 +2,36 @@
  * 統合OpenAPIアプリケーション
  * 既存APIモジュールを統合してOpenAPI仕様書を生成
  */
-import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
+
 import { swaggerUI } from '@hono/swagger-ui'
+import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
 import type { Env } from '@shared/schemas'
 import { timing } from 'hono/timing'
-import { customAuthMiddleware } from '../middleware/auth'
 import { createResponseSchemas } from './openapi'
-// API モジュールインポート
-import schoolSettingsApp from './routes/school-settings'
-import teachersApp from './routes/teachers'
-import subjectsApp from './routes/subjects'
-import classroomsApp from './routes/classrooms'
-import conditionsApp from './routes/conditions'
-import { testDataApp } from './routes/test-data'
-import timetablesApp from './routes/timetables'
+// 循環インポート問題回避のため、APIモジュールのインポートを一時的に無効化
+// import classroomsApp from './routes/classrooms'
+// import conditionsApp from './routes/conditions'
+// import schoolSettingsApp from './routes/school-settings'
+// import subjectsApp from './routes/subjects'
+// import teachersApp from './routes/teachers'
+// import { testDataApp } from './routes/test-data'
+// import timetablesApp from './routes/timetables'
 
 /**
  * 統合OpenAPIアプリケーション作成
  * 既存の個別APIモジュールを統合
  */
 export const createUnifiedOpenApiApp = () => {
+  console.log('🎯 Creating unified OpenAPI app...')
+  // console.log('🔍 subjectsApp import check:', !!subjectsApp)
+  // console.log('🔍 subjectsApp type:', typeof subjectsApp)
+
   const app = new OpenAPIHono<{ Bindings: Env }>({
     strict: false,
     // defaultHook を削除して、個別モジュールのZodバリデーションを使用
   })
+
+  console.log('🎯 OpenAPI Hono app created')
 
   // ======================
   // ミドルウェア設定
@@ -183,7 +189,11 @@ API基本情報を取得します。
       properties: {
         name: { type: 'string', example: '学校時間割管理システム API' },
         version: { type: 'string', example: '1.0.0' },
-        description: { type: 'string', example: 'Complete type-safe school timetable management system with unified OpenAPI architecture' },
+        description: {
+          type: 'string',
+          example:
+            'Complete type-safe school timetable management system with unified OpenAPI architecture',
+        },
         timestamp: { type: 'string', format: 'date-time' },
         environment: { type: 'string', example: 'development' },
         features: {
@@ -194,11 +204,11 @@ API基本情報を取得します。
             'Zodスキーマによるリアルタイム検証',
             '自動OpenAPIドキュメント生成',
             '統一エラーハンドリング',
-            'JWT認証システム'
-          ]
-        }
-      }
-    })
+            'JWT認証システム',
+          ],
+        },
+      },
+    }),
   })
 
   // API情報取得ハンドラー
@@ -208,7 +218,8 @@ API基本情報を取得します。
       data: {
         name: '学校時間割管理システム API',
         version: '1.0.0',
-        description: 'Complete type-safe school timetable management system with unified OpenAPI architecture',
+        description:
+          'Complete type-safe school timetable management system with unified OpenAPI architecture',
         timestamp: new Date().toISOString(),
         environment: c.env.NODE_ENV || 'development',
         features: [
@@ -222,7 +233,7 @@ API基本情報を取得します。
     })
   })
 
-  // ヘルスチェックルート定義  
+  // ヘルスチェックルート定義
   const getHealthRoute = createRoute({
     method: 'get',
     path: '/health',
@@ -289,13 +300,13 @@ API基本情報を取得します。
                     database: { type: 'string', example: 'connected' },
                     uptime: { type: 'number', example: 1640995200 },
                     version: { type: 'string', example: '1.0.0' },
-                    environment: { type: 'string', example: 'development' }
-                  }
-                }
-              }
-            }
-          }
-        }
+                    environment: { type: 'string', example: 'development' },
+                  },
+                },
+              },
+            },
+          },
+        },
       },
       503: {
         description: 'サービス利用不可',
@@ -310,15 +321,15 @@ API基本情報を取得します。
                 details: {
                   type: 'object',
                   properties: {
-                    error: { type: 'string', example: 'connection timeout' }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }
-    }
+                    error: { type: 'string', example: 'connection timeout' },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
   })
 
   // ヘルスチェックハンドラー
@@ -355,20 +366,28 @@ API基本情報を取得します。
   })
 
   // ======================
-  // 学校管理API統合
+  // 学校管理API統合 - 一時的に無効化（無限ループ問題調査）
   // ======================
 
-  // 既存の個別APIモジュールを統合
-  // 各モジュールのすべてのエンドポイントを適切なパスでマウント
+  console.log('🚨 API modules mounting temporarily disabled to investigate infinite loop')
+  console.log('🔍 All API module imports disabled to prevent circular import issues')
 
+  // TODO: 無限ループ問題解決後に個別にマウントを有効化
+  /*
   // 学校設定API統合（パス変更：/api/school/settings → /api/settings）
   app.route('/settings', schoolSettingsApp)
 
   // 教師管理API統合（パス変更：/api/school/teachers → /api/teachers）
-  app.route('/teachers', teachersApp)
+  if (teachersApp) {
+    app.route('/teachers', teachersApp)
+    console.log('✅ Teachers app mounted successfully')
+  }
 
   // 教科管理API統合（パス変更：/api/school/subjects → /api/subjects）
-  app.route('/subjects', subjectsApp)
+  if (subjectsApp) {
+    app.route('/subjects', subjectsApp)
+    console.log('✅ Subjects app mounted successfully')
+  }
 
   // 教室管理API統合（パス変更：/api/school/classrooms → /api/classrooms）
   app.route('/classrooms', classroomsApp)
@@ -381,6 +400,7 @@ API基本情報を取得します。
 
   // テストデータ管理API統合（パス変更：/api/school/test-data → /api/test-data）
   app.route('/test-data', testDataApp)
+  */
 
   return app
 }

@@ -1,6 +1,6 @@
 import { test as setup } from '@playwright/test'
-import { E2E_TEST_USER } from './utils/test-user'
 import { getBaseURL } from '../../config/ports'
+import { E2E_TEST_USER } from './utils/test-user'
 
 const authFile = 'tests/e2e/.auth/user.json'
 
@@ -171,27 +171,34 @@ setup('authenticate', async ({ page }) => {
               })
               return await response.json()
             })
-            
+
             if (response.success && response.user && response.token) {
               console.log('✅ API authentication successful')
               console.log(`👤 User: ${response.user.name} (${response.user.role})`)
               console.log(`🎫 Token received: ${response.token.substring(0, 20)}...`)
-              
+
               // ローカルストレージに認証情報を保存
-              await page.evaluate(({ user, token, sessionId }) => {
-                localStorage.setItem('auth_token', token)
-                localStorage.setItem('auth_session_id', sessionId || 'test-session')
-                localStorage.setItem('auth_user', JSON.stringify(user))
-              }, { user: response.user, token: response.token, sessionId: response.sessionId })
-              
+              await page.evaluate(
+                ({ user, token, sessionId }) => {
+                  localStorage.setItem('auth_token', token)
+                  localStorage.setItem('auth_session_id', sessionId || 'test-session')
+                  localStorage.setItem('auth_user', JSON.stringify(user))
+                },
+                { user: response.user, token: response.token, sessionId: response.sessionId }
+              )
+
               console.log('💾 Authentication data saved to localStorage')
             } else {
-              console.log('⚠️ API authentication verification failed, continuing with browser state only')
+              console.log(
+                '⚠️ API authentication verification failed, continuing with browser state only'
+              )
             }
           } catch (apiError) {
-            console.log(`⚠️ API verification failed: ${apiError}, continuing with browser state only`)
+            console.log(
+              `⚠️ API verification failed: ${apiError}, continuing with browser state only`
+            )
           }
-          
+
           // 認証状態を保存
           await page.context().storageState({ path: authFile })
           console.log(`💾 Authentication state saved to: ${authFile}`)
@@ -222,7 +229,7 @@ setup('authenticate', async ({ page }) => {
                 content.includes('時間割生成'))
             ) {
               console.log('✅ Authentication appears successful - content match found')
-              
+
               // API経由で認証情報を取得してローカルストレージに保存
               try {
                 const response = await page.evaluate(async () => {
@@ -235,18 +242,23 @@ setup('authenticate', async ({ page }) => {
                   })
                   return await response.json()
                 })
-                
+
                 if (response.success && response.user && response.token) {
-                  await page.evaluate(({ user, token, sessionId }) => {
-                    localStorage.setItem('auth_token', token)
-                    localStorage.setItem('auth_session_id', sessionId || 'test-session')
-                    localStorage.setItem('auth_user', JSON.stringify(user))
-                  }, { user: response.user, token: response.token, sessionId: response.sessionId })
+                  await page.evaluate(
+                    ({ user, token, sessionId }) => {
+                      localStorage.setItem('auth_token', token)
+                      localStorage.setItem('auth_session_id', sessionId || 'test-session')
+                      localStorage.setItem('auth_user', JSON.stringify(user))
+                    },
+                    { user: response.user, token: response.token, sessionId: response.sessionId }
+                  )
                 }
               } catch (_) {
-                console.log('⚠️ API verification failed in fallback, continuing with browser state only')
+                console.log(
+                  '⚠️ API verification failed in fallback, continuing with browser state only'
+                )
               }
-              
+
               await page.context().storageState({ path: authFile })
             } else {
               console.log(

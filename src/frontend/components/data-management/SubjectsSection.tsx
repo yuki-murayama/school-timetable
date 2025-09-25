@@ -34,11 +34,23 @@ interface SubjectsSectionProps {
 }
 
 /**
+ * API送信用データ型定義
+ */
+interface ApiSubjectData {
+  name: string
+  school_id: string
+  target_grades?: string
+  weekly_hours?: number
+  special_classroom?: string
+  [key: string]: unknown
+}
+
+/**
  * フォームデータをAPI送信形式に変換
  * フロントエンドフォーム形式 → バックエンドAPI期待形式
  */
-function convertSubjectFormDataToApi(subjectData: Partial<Subject>): any {
-  const apiData: any = {
+function _convertSubjectFormDataToApi(subjectData: Partial<Subject>): ApiSubjectData {
+  const apiData: ApiSubjectData = {
     name: subjectData.name || '',
     school_id: 'default', // 必須フィールド
   }
@@ -65,7 +77,7 @@ function convertSubjectFormDataToApi(subjectData: Partial<Subject>): any {
 
   // 特別教室の変換
   const specialClassroom = subjectData.specialClassroom || subjectData.special_classroom
-  if (specialClassroom && specialClassroom.trim()) {
+  if (specialClassroom?.trim()) {
     apiData.special_classroom = specialClassroom.trim()
   }
 
@@ -128,12 +140,12 @@ export function SubjectsSection({
         return hours[0]
       }
     }
-    
+
     // フォールバック: weekly_hours数値
     if (typeof subject.weekly_hours === 'number') {
       return subject.weekly_hours
     }
-    
+
     // デフォルト
     return 1
   }
@@ -184,108 +196,111 @@ export function SubjectsSection({
     }
   }
 
-  const handleSaveSubject = useCallback(async (subjectData: Partial<Subject>) => {
-    // 🔧 修正: SubjectEditDialog内で既にAPI呼び出しが完了しているため、
-    // ここではUI状態の更新のみを行う（重複API呼び出しを防止）
-    
-    console.log('🔄 [SubjectsSection] 教科保存完了コールバック:', {
-      subjectData,
-      editingSubject: editingSubject?.id,
-      timestamp: new Date().toISOString()
-    })
+  const handleSaveSubject = useCallback(
+    async (subjectData: Partial<Subject>) => {
+      // 🔧 修正: SubjectEditDialog内で既にAPI呼び出しが完了しているため、
+      // ここではUI状態の更新のみを行う（重複API呼び出しを防止）
 
-    try {
-      if (editingSubject?.id && subjectData.id) {
-        // Update: 既存の教科をリストで更新
-        console.log('🔄 更新モード: 既存教科を更新します')
-        
-        onSubjectsUpdate(prevSubjects => {
-          console.log('📋 [handleSaveSubject] 既存教科更新実行:', {
-            prevCount: prevSubjects.length,
-            targetId: editingSubject.id,
-            prevIds: prevSubjects.map(s => s.id)
-          })
-          
-          const updatedSubjects = prevSubjects.map(s => {
-            if (s.id === editingSubject.id) {
-              console.log('🔄 UI更新: 既存教科を置換:', s.id, '→', subjectData.name)
-              return { ...s, ...subjectData } as Subject
-            }
-            return s
-          })
-          
-          console.log('✅ 既存教科更新完了:', {
-            after: updatedSubjects.length,
-            updatedId: subjectData.id
-          })
-          
-          return updatedSubjects
-        })
-      } else {
-        // Create: 新しい教科をリストに追加
-        console.log('➕ 追加モード: 新規教科をリストに追加します:', {
-          subjectData,
-          hasId: !!subjectData.id
-        })
-        
-        if (subjectData.id) {
-          // 即座にUI状態を更新
-          onSubjectsUpdate(prevSubjects => {
-            console.log('📋 [handleSaveSubject] 新規教科追加実行:', {
-              prevCount: prevSubjects.length,
-              prevIds: prevSubjects.map(s => s.id),
-              newId: subjectData.id,
-              newName: subjectData.name
-            })
-            
-            const newSubjects = [...prevSubjects, subjectData as Subject]
-            
-            console.log('✅ 新規教科追加完了:', {
-              after: newSubjects.length,
-              newIds: newSubjects.map(s => s.id)
-            })
-            
-            return newSubjects
-          })
-          
-          // さらに確実性を高めるため、APIから最新データを再取得
-          console.log('🔄 [追加確認] APIから最新教科一覧を再取得します')
-          setTimeout(async () => {
-            if (token) {
-              try {
-                const latestSubjects = await subjectApi.getSubjects({ token, getFreshToken })
-                console.log('✅ [追加確認] 最新教科データ取得成功:', {
-                  count: latestSubjects.subjects?.length || 0,
-                  hasNewSubject: latestSubjects.subjects?.some(s => s.id === subjectData.id)
-                })
-                
-                if (latestSubjects.subjects) {
-                  onSubjectsUpdate(latestSubjects.subjects)
-                }
-              } catch (error) {
-                console.error('⚠️ [追加確認] 最新データ取得失敗:', error)
-              }
-            }
-          }, 500) // 500ms後に再取得
-        } else {
-          console.error('❌ 新規教科にIDが含まれていません:', subjectData)
-          throw new Error('新規教科データにIDが含まれていません')
-        }
-      }
-      
-      // ダイアログを閉じる
-      setIsSubjectDialogOpen(false)
-      setEditingSubject(null)
-    } catch (error) {
-      console.error('❌ UI更新エラー:', error)
-      
-      toast({
-        title: 'UI更新エラー',
-        description: 'リストの更新に失敗しました',
-        variant: 'destructive',
+      console.log('🔄 [SubjectsSection] 教科保存完了コールバック:', {
+        subjectData,
+        editingSubject: editingSubject?.id,
+        timestamp: new Date().toISOString(),
       })
-    }
-  }, [editingSubject?.id, onSubjectsUpdate, toast])
+
+      try {
+        if (editingSubject?.id && subjectData.id) {
+          // Update: 既存の教科をリストで更新
+          console.log('🔄 更新モード: 既存教科を更新します')
+
+          onSubjectsUpdate(prevSubjects => {
+            console.log('📋 [handleSaveSubject] 既存教科更新実行:', {
+              prevCount: prevSubjects.length,
+              targetId: editingSubject.id,
+              prevIds: prevSubjects.map(s => s.id),
+            })
+
+            const updatedSubjects = prevSubjects.map(s => {
+              if (s.id === editingSubject.id) {
+                console.log('🔄 UI更新: 既存教科を置換:', s.id, '→', subjectData.name)
+                return { ...s, ...subjectData } as Subject
+              }
+              return s
+            })
+
+            console.log('✅ 既存教科更新完了:', {
+              after: updatedSubjects.length,
+              updatedId: subjectData.id,
+            })
+
+            return updatedSubjects
+          })
+        } else {
+          // Create: 新しい教科をリストに追加
+          console.log('➕ 追加モード: 新規教科をリストに追加します:', {
+            subjectData,
+            hasId: !!subjectData.id,
+          })
+
+          if (subjectData.id) {
+            // 即座にUI状態を更新
+            onSubjectsUpdate(prevSubjects => {
+              console.log('📋 [handleSaveSubject] 新規教科追加実行:', {
+                prevCount: prevSubjects.length,
+                prevIds: prevSubjects.map(s => s.id),
+                newId: subjectData.id,
+                newName: subjectData.name,
+              })
+
+              const newSubjects = [...prevSubjects, subjectData as Subject]
+
+              console.log('✅ 新規教科追加完了:', {
+                after: newSubjects.length,
+                newIds: newSubjects.map(s => s.id),
+              })
+
+              return newSubjects
+            })
+
+            // さらに確実性を高めるため、APIから最新データを再取得
+            console.log('🔄 [追加確認] APIから最新教科一覧を再取得します')
+            setTimeout(async () => {
+              if (token) {
+                try {
+                  const latestSubjects = await subjectApi.getSubjects({ token, getFreshToken })
+                  console.log('✅ [追加確認] 最新教科データ取得成功:', {
+                    count: latestSubjects.subjects?.length || 0,
+                    hasNewSubject: latestSubjects.subjects?.some(s => s.id === subjectData.id),
+                  })
+
+                  if (latestSubjects.subjects) {
+                    onSubjectsUpdate(latestSubjects.subjects)
+                  }
+                } catch (error) {
+                  console.error('⚠️ [追加確認] 最新データ取得失敗:', error)
+                }
+              }
+            }, 500) // 500ms後に再取得
+          } else {
+            console.error('❌ 新規教科にIDが含まれていません:', subjectData)
+            throw new Error('新規教科データにIDが含まれていません')
+          }
+        }
+
+        // ダイアログを閉じる
+        setIsSubjectDialogOpen(false)
+        setEditingSubject(null)
+      } catch (error) {
+        console.error('❌ UI更新エラー:', error)
+
+        toast({
+          title: 'UI更新エラー',
+          description: 'リストの更新に失敗しました',
+          variant: 'destructive',
+        })
+      }
+    },
+    [editingSubject?.id, onSubjectsUpdate, toast, token, getFreshToken]
+  )
 
   const handleSaveAllSubjects = async () => {
     if (!token) return
@@ -297,31 +312,37 @@ export function SubjectsSection({
       // 各教科を個別に作成/更新（一括更新APIがない場合）
       const updatePromises = subjects.map(async subject => {
         // APIクライアント用にデータを正規化（不要なフィールドを除去）
-        const normalizedData: any = {
+        const normalizedData: ApiSubjectData = {
           name: subject.name,
           school_id: 'default', // 必須フィールド
         }
 
         // オプショナルフィールドはnullでない場合のみ追加
-        const weeklyHours = subject.weekly_hours || (subject as any).weeklyHours
+        const weeklyHours =
+          subject.weekly_hours || (subject as Subject & { weeklyHours?: number }).weeklyHours
         if (weeklyHours && weeklyHours !== 1) {
           normalizedData.weekly_hours = weeklyHours
         }
 
-        const targetGrades = subject.target_grades || (subject.targetGrades ? JSON.stringify(subject.targetGrades) : null)
+        const targetGrades =
+          subject.target_grades ||
+          (subject.targetGrades ? JSON.stringify(subject.targetGrades) : null)
         if (targetGrades && targetGrades !== 'null') {
           normalizedData.target_grades = targetGrades
         }
 
         const specialClassroom = subject.special_classroom || subject.specialClassroom
-        if (specialClassroom && specialClassroom.trim && specialClassroom.trim()) {
+        if (specialClassroom?.trim?.()) {
           normalizedData.special_classroom = specialClassroom
         }
 
         if (subject.id) {
           // 既存教科の更新
           console.log('🔄 既存教科更新:', subject.id, subject.name, '正規化データ:', normalizedData)
-          return await subjectApi.updateSubject(subject.id, normalizedData, { token, getFreshToken })
+          return await subjectApi.updateSubject(subject.id, normalizedData, {
+            token,
+            getFreshToken,
+          })
         } else {
           // 新規教科の作成
           console.log('➕ 新規教科作成:', subject.name, '正規化データ:', normalizedData)
@@ -397,27 +418,30 @@ export function SubjectsSection({
             // Update each subject with new order via API
             const updatePromises = itemsWithOrder.map(async (subject, index) => {
               if (!subject.id) throw new Error('Subject ID is required')
-              
+
               // APIクライアント用にデータを正規化（不要なフィールドを除去）
-              const normalizedData: any = {
+              const normalizedData: ApiSubjectData = {
                 name: subject.name,
                 school_id: 'default', // 必須フィールド
                 order: index,
               }
 
               // オプショナルフィールドはnullでない場合のみ追加
-              const weeklyHours = subject.weekly_hours || (subject as any).weeklyHours
+              const weeklyHours =
+                subject.weekly_hours || (subject as Subject & { weeklyHours?: number }).weeklyHours
               if (weeklyHours && weeklyHours !== 1) {
                 normalizedData.weekly_hours = weeklyHours
               }
 
-              const targetGrades = subject.target_grades || (subject.targetGrades ? JSON.stringify(subject.targetGrades) : null)
+              const targetGrades =
+                subject.target_grades ||
+                (subject.targetGrades ? JSON.stringify(subject.targetGrades) : null)
               if (targetGrades && targetGrades !== 'null') {
                 normalizedData.target_grades = targetGrades
               }
 
               const specialClassroom = subject.special_classroom || subject.specialClassroom
-              if (specialClassroom && specialClassroom.trim && specialClassroom.trim()) {
+              if (specialClassroom?.trim?.()) {
                 normalizedData.special_classroom = specialClassroom
               }
 

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 test.describe('📚 究極のタイミング改良版教科管理テスト', () => {
   test.use({ storageState: 'tests/e2e/.auth/user.json' })
@@ -36,12 +36,14 @@ test.describe('📚 究極のタイミング改良版教科管理テスト', () 
       try {
         const row = testSubjectRows.first()
         const deleteButton = row.locator('button[aria-label*="delete"], button:has-text("削除")')
-        if (await deleteButton.count() > 0) {
+        if ((await deleteButton.count()) > 0) {
           await deleteButton.click()
           await page.waitForTimeout(1000)
-          
-          const confirmButton = page.locator('button:has-text("削除"), button:has-text("確認"), button:has-text("はい")')
-          if (await confirmButton.count() > 0) {
+
+          const confirmButton = page.locator(
+            'button:has-text("削除"), button:has-text("確認"), button:has-text("はい")'
+          )
+          if ((await confirmButton.count()) > 0) {
             await confirmButton.click()
             await page.waitForTimeout(2000) // 削除処理完了待機
           }
@@ -65,7 +67,7 @@ test.describe('📚 究極のタイミング改良版教科管理テスト', () 
 
     // Step 2: フォーム入力（各入力間に十分な間隔）
     console.log('📍 Step 2: フォーム入力（各入力間十分な間隔）')
-    
+
     // 教科名入力
     await page.waitForSelector('#subject-name', { timeout: 15000 })
     await page.fill('#subject-name', uniqueTestName)
@@ -91,7 +93,7 @@ test.describe('📚 究極のタイミング改良版教科管理テスト', () 
     await expect(saveButton).toBeVisible({ timeout: 15000 })
     await saveButton.click()
     console.log('✅ 保存ボタンクリック完了')
-    
+
     // API処理完了を確実に待機（大幅な待機時間）
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(8000) // API処理とReact状態更新完了待機
@@ -105,7 +107,7 @@ test.describe('📚 究極のタイミング改良版教科管理テスト', () 
 
     // Step 5: 一覧表示確認（十分な待機後に確認）
     console.log('📍 Step 5: 一覧表示確認（十分な待機後）')
-    
+
     // テーブル存在確認
     await expect(page.locator('table')).toBeVisible({ timeout: 15000 })
     await page.waitForTimeout(2000) // テーブル描画完全安定化
@@ -113,7 +115,7 @@ test.describe('📚 究極のタイミング改良版教科管理テスト', () 
     // 作成した教科の検索（長時間の待機を許可）
     console.log(`🔍 教科「${uniqueTestName}」を検索中...`)
     const createdSubjectRow = page.locator(`tr:has-text("${uniqueTestName}")`)
-    
+
     // 最大20秒待機で確認
     await expect(createdSubjectRow).toBeVisible({ timeout: 20000 })
     console.log(`✅ 教科「${uniqueTestName}」が一覧に表示確認完了`)
@@ -121,11 +123,11 @@ test.describe('📚 究極のタイミング改良版教科管理テスト', () 
     // Step 6: 詳細情報確認（最終検証）
     console.log('📍 Step 6: 詳細情報確認（最終検証）')
     await page.waitForTimeout(2000) // セル内容完全安定化
-    
+
     const gradeCell = createdSubjectRow.locator('td').nth(1)
     const gradeText = await gradeCell.textContent()
     console.log(`📊 対象学年: ${gradeText}`)
-    
+
     const hoursCell = createdSubjectRow.locator('td').nth(3)
     const hoursText = await hoursCell.textContent()
     console.log(`📚 週授業数: ${hoursText}`)
@@ -134,7 +136,7 @@ test.describe('📚 究極のタイミング改良版教科管理テスト', () 
     console.log('📍 Step 7: 重複チェック（改良版）')
     const duplicateSubjects = page.locator(`tr:has-text("${uniqueTestName}")`)
     const duplicateCount = await duplicateSubjects.count()
-    
+
     if (duplicateCount === 1) {
       console.log(`✅ 教科「${uniqueTestName}」は重複していません (${duplicateCount}個)`)
     } else {
@@ -147,7 +149,7 @@ test.describe('📚 究極のタイミング改良版教科管理テスト', () 
 
     // 最終スクリーンショット
     await page.screenshot({ path: `test-results/ultimate-timing-success-${Date.now()}.png` })
-    
+
     console.log('✅ 究極のタイミング改良版教科管理テスト完了')
     console.log('⏰ このテストでは各ステップ間に十分なインターバルを設けました')
   })

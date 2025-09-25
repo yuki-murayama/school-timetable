@@ -34,21 +34,39 @@
 
 ### 🚀 開発・ビルド・デプロイ
 
+#### ⚠️ 重要：プロセス管理のベストプラクティス
+
+**Claudeへの重要な指示**:
+- **直接コマンド実行を避ける**: `npx wrangler dev`、`vite`などの直接実行は禁止
+- **必ずnpmスクリプト使用**: プロセス競合を防ぐため、すべてnpmスクリプト経由で実行
+- **開発前のクリーンアップ**: 新しい開発サーバー起動前に古いプロセスを自動停止
+
 ```bash
-# 全体の開発サーバー起動
-npm run dev
+# 🎯 推奨：統合開発環境（自動プロセス管理付き）
+npm run dev          # 自動クリーンアップ → フロントエンド+バックエンド起動
 
-# フロントエンドのみ
-npm run dev:frontend
+# 🛡️ 安全：ポート確認付き開発環境
+npm run dev:safe     # ポート確認 → クリーンアップ → 起動
 
-# バックエンドのみ (Wrangler dev)
-npm run dev:backend
+# 🔄 完全再起動（問題解決用）
+npm run dev:restart  # 全プロセス停止 → 待機 → 新規起動
 
-# ビルド
-npm run build
+# 🧹 プロセス管理
+npm run dev:cleanup:all      # 全開発プロセス停止
+npm run dev:cleanup:frontend # フロントエンドプロセス停止
+npm run dev:cleanup:backend  # バックエンドプロセス停止
 
-# デプロイ
-npm run deploy
+# 🔍 診断ツール
+npm run dev:check-ports      # ポート利用状況確認
+npm run dev:help            # Claude向け開発ガイド表示
+
+# 個別起動（自動クリーンアップ付き）
+npm run dev:frontend         # フロントエンドのみ（クリーンアップ付き）
+npm run dev:backend          # バックエンドのみ（クリーンアップ付き）
+
+# ビルド・デプロイ
+npm run build                # 全体ビルド
+npm run deploy               # 本番デプロイ
 ```
 
 ### 🧪 テスト関連
@@ -243,14 +261,14 @@ npm install
 #### フロントエンド実装例
 
 ```typescript
-import api from '@/lib/api/v2'
+import { integratedApi } from '@/lib/api/integrated-api'
 
 // 型安全な学校設定取得
-const settings = await apiV2.schoolSettings.getSettings()
+const settings = await integratedApi.schoolSettings.getSettings()
 // settings は EnhancedSchoolSettings 型で完全型安全
 
 // 型安全な教師検索
-const teachers = await apiV2.teachers.getTeachers({
+const teachers = await integratedApi.teachers.getTeachers({
   search: '田中',
   grade: 1,
   page: 1,
@@ -258,7 +276,7 @@ const teachers = await apiV2.teachers.getTeachers({
 })
 
 // エラーハンドリング
-if (apiV2.isValidationError(error)) {
+if (integratedApi.isValidationError(error)) {
   console.log('バリデーションエラー:', error.validationErrors)
 }
 ```

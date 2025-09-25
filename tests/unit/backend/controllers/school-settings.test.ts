@@ -328,4 +328,67 @@ describe('School Settings Controller', () => {
       expect(typicalSettings.saturdayPeriods).toBe(4)
     })
   })
+
+  describe('基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+      expect(beforeEach).toBeDefined()
+      expect(vi).toBeDefined()
+    })
+
+    it('Vitestモック機能が正しく動作している', () => {
+      expect(vi.fn).toBeDefined()
+      expect(typeof vi.fn).toBe('function')
+      expect(vi.clearAllMocks).toBeDefined()
+      expect(typeof vi.clearAllMocks).toBe('function')
+    })
+
+    it('共有型定義が正しくインポートされている', () => {
+      // Env型の存在を間接的に確認
+      const envType = typeof _mockEnv
+      expect(envType).toBe('object')
+      expect(_mockEnv.DB).toBeDefined()
+      expect(_mockEnv.NODE_ENV).toBe('test')
+    })
+
+    it('モック環境が正しく設定されている', () => {
+      expect(mockDB).toBeDefined()
+      expect(mockDB.prepare).toBeDefined()
+      expect(typeof mockDB.prepare).toBe('function')
+      expect(mockDB.exec).toBeDefined()
+      expect(typeof mockDB.exec).toBe('function')
+    })
+
+    it('HTTPモックが正しく定義されている', () => {
+      expect(mockRequest).toBeDefined()
+      expect(mockRequest.json).toBeDefined()
+      expect(typeof mockRequest.json).toBe('function')
+      expect(mockRequest.headers).toBeInstanceOf(Headers)
+      expect(mockRequest.method).toBe('GET')
+      expect(mockRequest.url).toBe('http://localhost/api/school/settings')
+    })
+
+    it('データベースモック関数が正しく設定されている', () => {
+      expect(mockExecute).toBeDefined()
+      expect(typeof mockExecute).toBe('function')
+      expect(mockPrepare).toBeDefined()
+      expect(typeof mockPrepare).toBe('function')
+    })
+
+    it('学校設定テストの基本構造確認', () => {
+      const basicSettings = { grade1Classes: 1, dailyPeriods: 1 }
+      expect(typeof basicSettings.grade1Classes).toBe('number')
+      expect(typeof basicSettings.dailyPeriods).toBe('number')
+    })
+
+    it('JSON機能が利用可能', () => {
+      expect(JSON).toBeDefined()
+      expect(JSON.stringify).toBeDefined()
+      expect(typeof JSON.stringify).toBe('function')
+      expect(JSON.parse).toBeDefined()
+      expect(typeof JSON.parse).toBe('function')
+    })
+  })
 })

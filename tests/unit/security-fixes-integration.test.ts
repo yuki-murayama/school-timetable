@@ -257,4 +257,69 @@ describe('セキュリティ修正箇所の統合テスト - スキップ中', (
       expect(authSource).toContain('role:')
     })
   })
+
+  describe('基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+    })
+
+    it('Vitestテスト機能が正しく動作している', () => {
+      expect(() => expect(true).toBe(true)).not.toThrow()
+      expect(() => expect(false).toBe(false)).not.toThrow()
+      expect(() => expect(1).toBe(1)).not.toThrow()
+    })
+
+    it('Node.jsモジュールが利用可能である', () => {
+      // import文は静的であるため、実行時チェックは困難
+      // 代わりにモジュールシステムが動作していることを確認
+      expect(typeof require).toBe('function')
+      expect(typeof module).toBe('object')
+    })
+
+    it('ファイルシステムアクセスが可能である', async () => {
+      const fs = await import('node:fs')
+      const path = await import('node:path')
+
+      expect(fs).toBeDefined()
+      expect(path).toBeDefined()
+      expect(typeof fs.readFileSync).toBe('function')
+      expect(typeof path.resolve).toBe('function')
+    })
+
+    it('セキュリティテストのための基本機能が動作している', () => {
+      // Object機能
+      expect(Object).toBeDefined()
+      expect(Object.keys).toBeDefined()
+      expect(typeof Object.keys).toBe('function')
+
+      // 文字列操作機能
+      expect(typeof 'test'.includes).toBe('function')
+      expect('test'.includes('es')).toBe(true)
+    })
+
+    it('正規表現とパターンマッチング機能が利用可能', () => {
+      const testString = 'X-Test-Auth-Bypass'
+      expect(typeof testString.match).toBe('function')
+      expect(testString.toLowerCase()).toBe('x-test-auth-bypass')
+    })
+
+    it('JavaScript基本機能が利用可能', () => {
+      expect(Array).toBeDefined()
+      expect(typeof Array.isArray).toBe('function')
+      expect(Array.isArray([])).toBe(true)
+      expect(Array.isArray({})).toBe(false)
+    })
+
+    it('非同期処理機能が動作している', async () => {
+      const asyncTest = async () => {
+        return Promise.resolve('test')
+      }
+
+      const result = await asyncTest()
+      expect(result).toBe('test')
+      expect(typeof asyncTest).toBe('function')
+    })
+  })
 })

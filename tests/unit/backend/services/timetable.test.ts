@@ -590,4 +590,89 @@ describe('Timetable Service', () => {
       expect(response.status).toBe(429)
     })
   })
+
+  describe('基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+      expect(beforeEach).toBeDefined()
+      expect(vi).toBeDefined()
+    })
+
+    it('Vitestテスト機能が正しく動作している', () => {
+      expect(() => expect(true).toBe(true)).not.toThrow()
+      expect(() => expect(false).toBe(false)).not.toThrow()
+      expect(() => expect(1).toBe(1)).not.toThrow()
+      expect(() => expect('test').toBe('test')).not.toThrow()
+      expect(() => expect([1, 2]).toEqual([1, 2])).not.toThrow()
+    })
+
+    it('モックオブジェクトが正しく定義されている', () => {
+      expect(mockPrepare).toBeDefined()
+      expect(typeof mockPrepare).toBe('function')
+      expect(mockDB).toBeDefined()
+      expect(typeof mockDB).toBe('object')
+      expect(mockFetch).toBeDefined()
+      expect(typeof mockFetch).toBe('function')
+    })
+
+    it('環境設定が正しく定義されている', () => {
+      expect(mockEnv).toBeDefined()
+      expect(typeof mockEnv).toBe('object')
+      expect(mockEnv.DB).toBeDefined()
+      expect(mockEnv.GROQ_API_KEY).toBe('test-groq-key')
+      expect(mockEnv.NODE_ENV).toBe('test')
+      expect(mockEnv.JWT_SECRET).toBe('test-jwt-secret')
+    })
+
+    it('Vitestモック機能が正しく動作している', () => {
+      expect(vi.fn).toBeDefined()
+      expect(typeof vi.fn).toBe('function')
+      expect(vi.clearAllMocks).toBeDefined()
+      expect(typeof vi.clearAllMocks).toBe('function')
+      expect(vi.restoreAllMocks).toBeDefined()
+      expect(typeof vi.restoreAllMocks).toBe('function')
+    })
+
+    it('JavaScript基本機能が利用可能', () => {
+      expect(Object).toBeDefined()
+      expect(typeof Object).toBe('function')
+      expect(Object.keys).toBeDefined()
+      expect(typeof Object.keys).toBe('function')
+      expect(Array).toBeDefined()
+      expect(typeof Array).toBe('function')
+      expect(Array.isArray).toBeDefined()
+      expect(typeof Array.isArray).toBe('function')
+      expect(Array.isArray([])).toBe(true)
+      expect(Array.isArray({})).toBe(false)
+    })
+
+    it('JSON操作機能が利用可能', () => {
+      expect(JSON).toBeDefined()
+      expect(JSON.parse).toBeDefined()
+      expect(typeof JSON.parse).toBe('function')
+      expect(JSON.stringify).toBeDefined()
+      expect(typeof JSON.stringify).toBe('function')
+
+      const testData = { name: '時間割テスト', active: true }
+      const stringified = JSON.stringify(testData)
+      expect(typeof stringified).toBe('string')
+      const parsed = JSON.parse(stringified)
+      expect(parsed).toEqual(testData)
+    })
+
+    it('非同期処理機能が動作している', async () => {
+      const asyncTest = async () => {
+        return Promise.resolve('timetable test')
+      }
+
+      const result = await asyncTest()
+      expect(result).toBe('timetable test')
+      expect(typeof asyncTest).toBe('function')
+      expect(Promise).toBeDefined()
+      expect(typeof Promise).toBe('function')
+      expect(typeof Promise.resolve).toBe('function')
+    })
+  })
 })

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import { getBaseURL } from '../../config/ports'
 
 test.describe('👨‍🏫 教師編集バリデーションテスト', () => {
@@ -6,18 +6,18 @@ test.describe('👨‍🏫 教師編集バリデーションテスト', () => {
 
   test('担当学年編集時のバリデーションエラー検証', async ({ page }) => {
     console.log('🚀 教師編集バリデーションテスト開始')
-    
+
     const testData = {
       name: `編集テスト教師_${Date.now()}`,
       originalGrades: [1, 2],
-      newGrades: [2, 3]
+      newGrades: [2, 3],
     }
 
     // Step 1: データ登録画面へ移動
     console.log('📍 Step 1: データ登録画面への移動')
     await page.goto(getBaseURL('local'))
     await page.waitForLoadState('networkidle')
-    
+
     const dataManagementButton = page.locator('button:has-text("データ登録")')
     await expect(dataManagementButton).toBeVisible({ timeout: 15000 })
     await dataManagementButton.click()
@@ -50,7 +50,7 @@ test.describe('👨‍🏫 教師編集バリデーションテスト', () => {
       await page.screenshot({ path: 'test-results/teacher-tab-not-found.png' })
       throw new Error('教師情報タブが見つかりません')
     }
-    
+
     await page.waitForTimeout(2000)
 
     // Step 3: 新規教師作成（編集テスト用）
@@ -80,7 +80,7 @@ test.describe('👨‍🏫 教師編集バリデーションテスト', () => {
       console.error('❌ 教師追加ボタンが見つかりません')
       throw new Error('教師追加ボタンが見つかりません')
     }
-    
+
     await page.waitForTimeout(2000)
 
     // 教師名入力
@@ -111,13 +111,15 @@ test.describe('👨‍🏫 教師編集バリデーションテスト', () => {
 
     // Step 5: 担当学年の変更テスト
     console.log('📍 Step 5: 担当学年の変更テスト')
-    
+
     // 現在の担当学年状態をコンソールに出力
     console.log('🔍 現在の担当学年チェックボックス状態確認...')
     for (let grade = 1; grade <= 3; grade++) {
       const checkbox = page.locator(`#grade-${grade}`)
       const isChecked = await checkbox.isChecked()
-      console.log(`📊 ${grade}年生チェックボックス: ${isChecked ? '☑️ チェック済み' : '☐ 未チェック'}`)
+      console.log(
+        `📊 ${grade}年生チェックボックス: ${isChecked ? '☑️ チェック済み' : '☐ 未チェック'}`
+      )
     }
 
     // 既存の学年を解除（1年生のチェックを外す）
@@ -141,12 +143,14 @@ test.describe('👨‍🏫 教師編集バリデーションテスト', () => {
     for (let grade = 1; grade <= 3; grade++) {
       const checkbox = page.locator(`#grade-${grade}`)
       const isChecked = await checkbox.isChecked()
-      console.log(`📊 ${grade}年生チェックボックス: ${isChecked ? '☑️ チェック済み' : '☐ 未チェック'}`)
+      console.log(
+        `📊 ${grade}年生チェックボックス: ${isChecked ? '☑️ チェック済み' : '☐ 未チェック'}`
+      )
     }
 
     // Step 6: 保存実行とエラー検証
     console.log('📍 Step 6: 保存実行とバリデーションエラー検証')
-    
+
     // コンソールエラー監視開始
     const consoleErrors: string[] = []
     page.on('console', msg => {
@@ -154,7 +158,10 @@ test.describe('👨‍🏫 教師編集バリデーションテスト', () => {
         consoleErrors.push(msg.text())
         console.log('🔍 [CONSOLE ERROR]:', msg.text())
       }
-      if (msg.text().includes('Validation errors') || msg.text().includes('Expected string, received number')) {
+      if (
+        msg.text().includes('Validation errors') ||
+        msg.text().includes('Expected string, received number')
+      ) {
         console.log('🚨 [VALIDATION ERROR DETECTED]:', msg.text())
       }
     })
@@ -163,17 +170,20 @@ test.describe('👨‍🏫 教師編集バリデーションテスト', () => {
     const updateSaveButton = page.locator('[role="dialog"] button:has-text("保存")')
     await expect(updateSaveButton).toBeVisible({ timeout: 15000 })
     await updateSaveButton.click()
-    
+
     // 保存処理の完了を待機
     await page.waitForTimeout(5000)
     console.log('⏰ 保存処理完了待機')
 
     // Step 7: エラー検出結果の確認
     console.log('📍 Step 7: バリデーションエラー検出結果の確認')
-    
+
     if (consoleErrors.some(error => error.includes('Expected string, received number'))) {
       console.log('✅ バリデーションエラーを正常に検出しました！')
-      console.log('🔍 検出されたエラー:', consoleErrors.filter(error => error.includes('Expected string, received number')))
+      console.log(
+        '🔍 検出されたエラー:',
+        consoleErrors.filter(error => error.includes('Expected string, received number'))
+      )
     } else {
       console.log('⚠️ バリデーションエラーが検出されませんでした')
       console.log('🔍 全コンソールエラー:', consoleErrors)
@@ -191,8 +201,10 @@ test.describe('👨‍🏫 教師編集バリデーションテスト', () => {
     console.log('📍 Step 8: テストデータクリーンアップ')
     if (!isDialogStillOpen) {
       // ダイアログが閉じている場合のみ削除実行
-      const deleteButton = page.locator(`tr:has-text("${testData.name}") [data-testid*="delete-teacher"]`)
-      if (await deleteButton.count() > 0) {
+      const deleteButton = page.locator(
+        `tr:has-text("${testData.name}") [data-testid*="delete-teacher"]`
+      )
+      if ((await deleteButton.count()) > 0) {
         await deleteButton.click()
         await page.waitForTimeout(1000)
         console.log('✅ テストデータを削除しました')
@@ -200,12 +212,14 @@ test.describe('👨‍🏫 教師編集バリデーションテスト', () => {
     } else {
       // ダイアログが開いている場合はキャンセルしてから削除
       const cancelButton = page.locator('[role="dialog"] button:has-text("キャンセル")')
-      if (await cancelButton.count() > 0) {
+      if ((await cancelButton.count()) > 0) {
         await cancelButton.click()
         await page.waitForTimeout(1000)
-        
-        const deleteButton = page.locator(`tr:has-text("${testData.name}") [data-testid*="delete-teacher"]`)
-        if (await deleteButton.count() > 0) {
+
+        const deleteButton = page.locator(
+          `tr:has-text("${testData.name}") [data-testid*="delete-teacher"]`
+        )
+        if ((await deleteButton.count()) > 0) {
           await deleteButton.click()
           await page.waitForTimeout(1000)
           console.log('✅ テストデータを削除しました')

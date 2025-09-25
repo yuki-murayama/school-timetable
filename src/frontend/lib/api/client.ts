@@ -57,7 +57,7 @@ const sanitizeTeacherObject = (obj: Record<string, unknown>): Record<string, unk
 export interface ApiOptions {
   token?: string
   getFreshToken?: () => Promise<string | null>
-  onSessionExpired?: () => void  // セッション切れ時のコールバック
+  onSessionExpired?: () => void // セッション切れ時のコールバック
   timeout?: number
   retryCount?: number
 }

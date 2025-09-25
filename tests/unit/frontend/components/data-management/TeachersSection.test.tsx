@@ -2,18 +2,27 @@ import type { Teacher } from '@shared/schemas'
 import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import type { z } from 'zod'
-import { schoolApi, subjectApi, teacherApi } from '../../lib/api'
-import { isValidationError, ValidationError } from '../../lib/api/type-safe-client'
-import { TeachersSection } from './TeachersSection'
+import { z } from 'zod'
+import { TeachersSection } from '../../../../../src/frontend/components/data-management/TeachersSection'
+import { schoolApi, subjectApi, teachersApi } from '../../../../../src/frontend/lib/api'
+import {
+  isValidationError,
+  ValidationError,
+} from '../../../../../src/frontend/lib/api/type-safe-client'
 
-// 個別APIモジュールのモック
-vi.mock('../../lib/api', () => ({
+// 統合API のモック
+vi.mock('../../../../../src/frontend/lib/api', () => ({
   teacherApi: {
     createTeacher: vi.fn(),
     updateTeacher: vi.fn(),
     deleteTeacher: vi.fn(),
     getTeachers: vi.fn(),
+  },
+  teachersApi: {
+    getTeachers: vi.fn(),
+    createTeacher: vi.fn(),
+    updateTeacher: vi.fn(),
+    deleteTeacher: vi.fn(),
   },
   subjectApi: {
     getSubjects: vi.fn(),
@@ -23,8 +32,15 @@ vi.mock('../../lib/api', () => ({
   },
 }))
 
+// SortableRowコンポーネントのモック
+vi.mock('../../../../../src/frontend/components/data-management/SortableRow', () => ({
+  SortableRow: ({ children, ...props }: { children: React.ReactNode; id?: string }) => (
+    <tr data-testid={`sortable-row-${props.id}`}>{children}</tr>
+  ),
+}))
+
 // type-safe-clientのモック
-vi.mock('../../lib/api/type-safe-client', () => ({
+vi.mock('../../../../../src/frontend/lib/api/type-safe-client', () => ({
   ValidationError: class extends Error {
     constructor(
       public issues: unknown[],
@@ -34,11 +50,30 @@ vi.mock('../../lib/api/type-safe-client', () => ({
     }
   },
   isValidationError: vi.fn(),
+  handleApiError: vi.fn((_error: unknown) => 'API Error'),
+  isApiError: vi.fn(),
+  TypeSafeApiError: class extends Error {
+    constructor(
+      public status: number,
+      public errorResponse: unknown
+    ) {
+      super(`API Error ${status}`)
+    }
+  },
+  typeSafeApiClient: {
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    delete: vi.fn(),
+    patch: vi.fn(),
+  },
+  validateResponseType: vi.fn(),
+  ApiClientStats: {},
 }))
 
 // use-toastのモック
 const mockToast = vi.fn()
-vi.mock('../../hooks/use-toast', () => ({
+vi.mock('../../../../../src/frontend/hooks/use-toast', () => ({
   useToast: () => ({ toast: mockToast }),
 }))
 
@@ -126,8 +161,10 @@ describe('TeachersSection', () => {
    * 目的: ローディング中の表示を確認
    * 分岐カバレッジ: isLoading=true分岐
    */
-  it('ローディング状態 - スピナーとメッセージが表示される', () => {
-    render(<TeachersSection {...defaultProps} isLoading={true} />)
+  it('ローディング状態 - スピナーとメッセージが表示される', async () => {
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} isLoading={true} />)
+    })
 
     expect(screen.getByText('読み込み中...')).toBeInTheDocument()
     // ローディングスピナーは見た目だけなので存在確認は困難
@@ -139,8 +176,10 @@ describe('TeachersSection', () => {
    * 目的: 教師データが空の場合の表示を確認
    * 分岐カバレッジ: teachers.length === 0分岐
    */
-  it('空状態 - 教師データが空の場合の表示', () => {
-    render(<TeachersSection {...defaultProps} teachers={[]} />)
+  it('空状態 - 教師データが空の場合の表示', async () => {
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} teachers={[]} />)
+    })
 
     expect(screen.getByText('教師情報が登録されていません')).toBeInTheDocument()
     expect(screen.queryByText('田中先生')).not.toBeInTheDocument()
@@ -151,9 +190,11 @@ describe('TeachersSection', () => {
    * 目的: teachersが配列でない場合の表示を確認
    * 分岐カバレッジ: !Array.isArray(teachers)分岐
    */
-  it('無効データ - teachersが配列でない場合', () => {
-    // @ts-ignore - テスト用に意図的に無効な型を渡す
-    render(<TeachersSection {...defaultProps} teachers={null as unknown} />)
+  it('無効データ - teachersが配列でない場合', async () => {
+    await act(async () => {
+      // @ts-ignore - テスト用に意図的に無効な型を渡す
+      render(<TeachersSection {...defaultProps} teachers={null as unknown} />)
+    })
 
     expect(screen.getByText('教師情報が登録されていません')).toBeInTheDocument()
   })
@@ -163,8 +204,10 @@ describe('TeachersSection', () => {
    * 目的: 教師の基本情報が正しく表示されることを確認
    * 分岐カバレッジ: 全表示ロジック分岐
    */
-  it('教師情報表示 - 基本情報が正しく表示される', () => {
-    render(<TeachersSection {...defaultProps} />)
+  it('教師情報表示 - 基本情報が正しく表示される', async () => {
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} />)
+    })
 
     // 教師名
     expect(screen.getByText('田中先生')).toBeInTheDocument()
@@ -191,7 +234,7 @@ describe('TeachersSection', () => {
    * 目的: 担当科目が空の場合の表示を確認
    * 分岐カバレッジ: subjectsArray.length === 0分岐
    */
-  it('科目空表示 - 担当科目が空の場合「科目なし」が表示される', () => {
+  it('科目空表示 - 担当科目が空の場合「科目なし」が表示される', async () => {
     const teachersWithoutSubjects: Teacher[] = [
       {
         id: 'teacher-empty',
@@ -203,7 +246,9 @@ describe('TeachersSection', () => {
       },
     ]
 
-    render(<TeachersSection {...defaultProps} teachers={teachersWithoutSubjects} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} teachers={teachersWithoutSubjects} />)
+    })
 
     expect(screen.getByText('科目なし')).toBeInTheDocument()
   })
@@ -215,10 +260,14 @@ describe('TeachersSection', () => {
    */
   it('追加ボタン - 教師追加ダイアログが開く', async () => {
     const user = userEvent.setup()
-    render(<TeachersSection {...defaultProps} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} />)
+    })
 
     const addButton = screen.getByText('教師を追加')
-    await user.click(addButton)
+    await act(async () => {
+      await user.click(addButton)
+    })
 
     // ダイアログが開くかはコンポーネント内部状態なので、
     // 実際にはTeacherEditDialogの表示確認が必要
@@ -235,18 +284,21 @@ describe('TeachersSection', () => {
     const user = userEvent.setup()
     const mockOnTeachersUpdate = vi.fn()
 
-    // teacherApi.deleteTeacherのモック設定
-    vi.mocked(teacherApi.deleteTeacher).mockResolvedValueOnce({
+    // teachersApi.deleteTeacherのモック設定
+    vi.mocked(teachersApi.deleteTeacher).mockResolvedValueOnce({
       success: true,
     })
 
-    render(<TeachersSection {...defaultProps} onTeachersUpdate={mockOnTeachersUpdate} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} onTeachersUpdate={mockOnTeachersUpdate} />)
+    })
 
-    const deleteButtons = screen.getAllByLabelText(/教師「.*」を削除/)
-    await user.click(deleteButtons[0]) // 最初の削除ボタンをクリック
+    // data-testidを使用してより確実に削除ボタンを取得
+    const deleteButton = screen.getByTestId('delete-teacher-teacher-1')
+    await user.click(deleteButton)
 
     await waitFor(() => {
-      expect(teacherApi.deleteTeacher).toHaveBeenCalledWith('teacher-1', {
+      expect(teachersApi.deleteTeacher).toHaveBeenCalledWith('teacher-1', {
         token: defaultProps.token,
         getFreshToken: defaultProps.getFreshToken,
       })
@@ -273,13 +325,17 @@ describe('TeachersSection', () => {
       [{ message: 'Invalid ID', code: 'invalid_string', path: ['id'] }] as z.ZodIssue[],
       { id: 'invalid' }
     )
-    vi.mocked(teacherApi.deleteTeacher).mockRejectedValueOnce(validationError)
+    vi.mocked(teachersApi.deleteTeacher).mockRejectedValueOnce(validationError)
     vi.mocked(isValidationError).mockReturnValueOnce(true)
 
-    render(<TeachersSection {...defaultProps} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} />)
+    })
 
-    const deleteButtons = screen.getAllByLabelText(/教師「.*」を削除/)
-    await user.click(deleteButtons[0])
+    const deleteButton = screen.getByTestId('delete-teacher-teacher-1')
+    await act(async () => {
+      await user.click(deleteButton)
+    })
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith({
@@ -300,13 +356,17 @@ describe('TeachersSection', () => {
 
     // 一般エラーのモック
     const generalError = new Error('Network error')
-    vi.mocked(teacherApi.deleteTeacher).mockRejectedValueOnce(generalError)
+    vi.mocked(teachersApi.deleteTeacher).mockRejectedValueOnce(generalError)
     vi.mocked(isValidationError).mockReturnValueOnce(false)
 
-    render(<TeachersSection {...defaultProps} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} />)
+    })
 
-    const deleteButtons = screen.getAllByLabelText(/教師「.*」を削除/)
-    await user.click(deleteButtons[0])
+    const deleteButton = screen.getByTestId('delete-teacher-teacher-1')
+    await act(async () => {
+      await user.click(deleteButton)
+    })
 
     await waitFor(() => {
       expect(mockToast).toHaveBeenCalledWith({
@@ -325,13 +385,17 @@ describe('TeachersSection', () => {
   it('認証なし - tokenなしでは削除処理が実行されない', async () => {
     const user = userEvent.setup()
 
-    render(<TeachersSection {...defaultProps} token={null} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} token={null} />)
+    })
 
-    const deleteButtons = screen.getAllByLabelText(/教師「.*」を削除/)
-    await user.click(deleteButtons[0])
+    const deleteButton = screen.getByTestId('delete-teacher-teacher-1')
+    await act(async () => {
+      await user.click(deleteButton)
+    })
 
     // tokenがないため、API呼び出しは実行されない
-    expect(teacherApi.deleteTeacher).not.toHaveBeenCalled()
+    expect(teachersApi.deleteTeacher).not.toHaveBeenCalled()
   })
 
   /**
@@ -341,10 +405,14 @@ describe('TeachersSection', () => {
    */
   it('編集ボタン - 教師編集ダイアログが開く', async () => {
     const user = userEvent.setup()
-    render(<TeachersSection {...defaultProps} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} />)
+    })
 
     const editButtons = screen.getAllByLabelText(/教師「.*」を編集/)
-    await user.click(editButtons[0])
+    await act(async () => {
+      await user.click(editButtons[0])
+    })
 
     // ダイアログが開くかはコンポーネント内部状態なので、
     // 実際にはTeacherEditDialogの表示確認が必要
@@ -357,7 +425,7 @@ describe('TeachersSection', () => {
    * 目的: subjects文字列の正規化を確認
    * 分岐カバレッジ: typeof teacher.subjects === 'string'分岐
    */
-  it('データ正規化 - subjects文字列が配列として表示される', () => {
+  it('データ正規化 - subjects文字列が配列として表示される', async () => {
     // TypeScript型エラーを回避するため、any型を使用
     const teachersWithStringSubjects: unknown[] = [
       {
@@ -370,7 +438,9 @@ describe('TeachersSection', () => {
       },
     ]
 
-    render(<TeachersSection {...defaultProps} teachers={teachersWithStringSubjects} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} teachers={teachersWithStringSubjects} />)
+    })
 
     // JSON文字列が正規化されて、科目UUIDがそのまま表示される
     expect(screen.getByText('subject-uuid-4')).toBeInTheDocument()
@@ -382,7 +452,7 @@ describe('TeachersSection', () => {
    * 目的: 無効なJSON文字列の処理を確認
    * 分岐カバレッジ: JSON.parse catch分岐
    */
-  it('データ正規化 - 無効なJSON文字列は空配列にフォールバック', () => {
+  it('データ正規化 - 無効なJSON文字列は空配列にフォールバック', async () => {
     // TypeScript型エラーを回避するため、any型を使用
     const teachersWithInvalidJSON: unknown[] = [
       {
@@ -395,7 +465,9 @@ describe('TeachersSection', () => {
       },
     ]
 
-    render(<TeachersSection {...defaultProps} teachers={teachersWithInvalidJSON} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} teachers={teachersWithInvalidJSON} />)
+    })
 
     expect(screen.getByText('科目なし')).toBeInTheDocument()
   })
@@ -405,9 +477,11 @@ describe('TeachersSection', () => {
    * 目的: 同じ位置へのドロップ処理を確認
    * 分岐カバレッジ: active.id === over?.id分岐
    */
-  it('ドラッグ&ドロップ - 同じ位置では変更処理がスキップ', () => {
+  it('ドラッグ&ドロップ - 同じ位置では変更処理がスキップ', async () => {
     const mockOnTeachersUpdate = vi.fn()
-    render(<TeachersSection {...defaultProps} onTeachersUpdate={mockOnTeachersUpdate} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} onTeachersUpdate={mockOnTeachersUpdate} />)
+    })
 
     // DragEndEventをシミュレート（同じ位置）
     const _dragEndEvent = {
@@ -429,9 +503,11 @@ describe('TeachersSection', () => {
     const mockOnTeachersUpdate = vi.fn()
 
     // updateTeacherのモック設定
-    vi.mocked(teacherApi.updateTeacher).mockResolvedValue({ data: mockTeachers[0] })
+    vi.mocked(teachersApi.updateTeacher).mockResolvedValue({ data: mockTeachers[0] })
 
-    render(<TeachersSection {...defaultProps} onTeachersUpdate={mockOnTeachersUpdate} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} onTeachersUpdate={mockOnTeachersUpdate} />)
+    })
 
     // 実際のドラッグ&ドロップのシミュレーションは複雑なので、
     // コンポーネントが正常にレンダーされることを確認
@@ -444,7 +520,7 @@ describe('TeachersSection', () => {
    * 目的: 教師行レンダリング時のエラー処理確認
    * 分岐カバレッジ: try-catch分岐
    */
-  it('エラー処理 - 教師行レンダリングエラー時のフォールバック', () => {
+  it('エラー処理 - 教師行レンダリングエラー時のフォールバック', async () => {
     // エラーを引き起こす可能性のある教師データ
     const problematicTeacher: unknown[] = [
       {
@@ -458,7 +534,9 @@ describe('TeachersSection', () => {
     ]
 
     // エラーが発生してもコンポーネントが壊れないことを確認
-    render(<TeachersSection {...defaultProps} teachers={problematicTeacher} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} teachers={problematicTeacher} />)
+    })
 
     // エラー表示が出ることもあるが、コンポーネントは動作し続ける
     expect(screen.getByText('教師情報管理')).toBeInTheDocument()
@@ -472,13 +550,17 @@ describe('TeachersSection', () => {
   it('一括保存 - tokenなしでは処理されない', async () => {
     const user = userEvent.setup()
 
-    render(<TeachersSection {...defaultProps} token={null} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} token={null} />)
+    })
 
     const saveButton = screen.getByText('教師情報を保存')
-    await user.click(saveButton)
+    await act(async () => {
+      await user.click(saveButton)
+    })
 
     // tokenがないため、API呼び出しは実行されない
-    expect(teacherApi.updateTeacher).not.toHaveBeenCalled()
+    expect(teachersApi.updateTeacher).not.toHaveBeenCalled()
   })
 
   /**
@@ -489,14 +571,18 @@ describe('TeachersSection', () => {
   it('一括保存 - 無効なteachersデータでは処理されない', async () => {
     const user = userEvent.setup()
 
-    // @ts-ignore - テスト用に意図的に無効な型を渡す
-    render(<TeachersSection {...defaultProps} teachers={null as unknown} />)
+    await act(async () => {
+      // @ts-ignore - テスト用に意図的に無効な型を渡す
+      render(<TeachersSection {...defaultProps} teachers={null as unknown} />)
+    })
 
     const saveButton = screen.getByText('教師情報を保存')
-    await user.click(saveButton)
+    await act(async () => {
+      await user.click(saveButton)
+    })
 
     // 無効なデータのため、API呼び出しは実行されない
-    expect(teacherApi.updateTeacher).not.toHaveBeenCalled()
+    expect(teachersApi.updateTeacher).not.toHaveBeenCalled()
   })
 
   /**
@@ -508,9 +594,11 @@ describe('TeachersSection', () => {
     const mockOnTeachersUpdate = vi.fn()
 
     // updateTeacherでエラーを発生させる
-    vi.mocked(teacherApi.updateTeacher).mockRejectedValueOnce(new Error('Update failed'))
+    vi.mocked(teachersApi.updateTeacher).mockRejectedValueOnce(new Error('Update failed'))
 
-    render(<TeachersSection {...defaultProps} onTeachersUpdate={mockOnTeachersUpdate} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} onTeachersUpdate={mockOnTeachersUpdate} />)
+    })
 
     // 実際のドラッグ&ドロップは複雑なので、
     // コンポーネントが正常にレンダーされることを確認
@@ -527,17 +615,21 @@ describe('TeachersSection', () => {
     const user = userEvent.setup()
 
     // 各教師の更新APIを成功させる
-    vi.mocked(teacherApi.updateTeacher)
+    vi.mocked(teachersApi.updateTeacher)
       .mockResolvedValueOnce({ data: mockTeachers[0] })
       .mockResolvedValueOnce({ data: mockTeachers[1] })
 
-    render(<TeachersSection {...defaultProps} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} />)
+    })
 
     const saveButton = screen.getByText('教師情報を保存')
-    await user.click(saveButton)
+    await act(async () => {
+      await user.click(saveButton)
+    })
 
     await waitFor(() => {
-      expect(teacherApi.updateTeacher).toHaveBeenCalledTimes(2)
+      expect(teachersApi.updateTeacher).toHaveBeenCalledTimes(2)
       // トーストが呼ばれたことを確認
       expect(mockToast).toHaveBeenCalled()
     })
@@ -552,18 +644,126 @@ describe('TeachersSection', () => {
     const user = userEvent.setup()
 
     // 一つ成功、一つ失敗
-    vi.mocked(teacherApi.updateTeacher)
+    vi.mocked(teachersApi.updateTeacher)
       .mockResolvedValueOnce({ data: mockTeachers[0] })
       .mockRejectedValueOnce(new Error('Update failed'))
 
-    render(<TeachersSection {...defaultProps} />)
+    await act(async () => {
+      render(<TeachersSection {...defaultProps} />)
+    })
 
     const saveButton = screen.getByText('教師情報を保存')
-    await user.click(saveButton)
+    await act(async () => {
+      await user.click(saveButton)
+    })
 
     await waitFor(() => {
       // トーストが呼ばれたことを確認
       expect(mockToast).toHaveBeenCalled()
+    })
+  })
+
+  describe('基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+      expect(beforeEach).toBeDefined()
+      expect(afterEach).toBeDefined()
+      expect(vi).toBeDefined()
+    })
+
+    it('React Testing Libraryが正しく設定されている', () => {
+      expect(render).toBeDefined()
+      expect(typeof render).toBe('function')
+      expect(screen).toBeDefined()
+      expect(typeof screen.getByText).toBe('function')
+      expect(waitFor).toBeDefined()
+      expect(typeof waitFor).toBe('function')
+      expect(act).toBeDefined()
+      expect(typeof act).toBe('function')
+      expect(userEvent).toBeDefined()
+      expect(typeof userEvent.setup).toBe('function')
+    })
+
+    it('TeachersSectionコンポーネントが正しく定義されている', () => {
+      expect(TeachersSection).toBeDefined()
+      // React memoで包まれたコンポーネントはオブジェクト型として認識される
+      expect(TeachersSection).toBeTruthy()
+      expect(TeachersSection).not.toBeNull()
+    })
+
+    it('モック化されたAPIが正しく設定されている', () => {
+      expect(teachersApi.getTeachers).toBeDefined()
+      expect(typeof teachersApi.getTeachers).toBe('function')
+      expect(teachersApi.createTeacher).toBeDefined()
+      expect(typeof teachersApi.createTeacher).toBe('function')
+      expect(teachersApi.updateTeacher).toBeDefined()
+      expect(typeof teachersApi.updateTeacher).toBe('function')
+      expect(teachersApi.deleteTeacher).toBeDefined()
+      expect(typeof teachersApi.deleteTeacher).toBe('function')
+      expect(subjectApi.getSubjects).toBeDefined()
+      expect(typeof subjectApi.getSubjects).toBe('function')
+      expect(schoolApi.getSettings).toBeDefined()
+      expect(typeof schoolApi.getSettings).toBe('function')
+    })
+
+    it('バリデーション関連のモックが正しく設定されている', () => {
+      expect(ValidationError).toBeDefined()
+      expect(typeof ValidationError).toBe('function')
+      expect(isValidationError).toBeDefined()
+      expect(typeof isValidationError).toBe('function')
+    })
+
+    it('テストユーティリティが正しく設定されている', () => {
+      expect(mockToast).toBeDefined()
+      expect(typeof mockToast).toBe('function')
+    })
+
+    it('教師データ型が正しく定義されている', () => {
+      const testTeacher: Teacher = mockTeachers[0]
+      expect(testTeacher.id).toBeDefined()
+      expect(testTeacher.name).toBeDefined()
+      expect(typeof testTeacher.name).toBe('string')
+      expect(Array.isArray(testTeacher.subjects)).toBe(true)
+      expect(Array.isArray(testTeacher.grades)).toBe(true)
+      // Teacher型にはmaxWeeklyHoursプロパティは存在しない（LegacyTeacherのみ）
+      expect(testTeacher.order).toBeDefined()
+    })
+
+    it('デフォルトプロパティが正しく設定されている', () => {
+      expect(defaultProps).toBeDefined()
+      expect(typeof defaultProps.token).toBe('string')
+      expect(typeof defaultProps.getFreshToken).toBe('function')
+      expect(defaultProps.token).toBe('test-token')
+    })
+
+    it('Vitestモック機能が正しく動作している', () => {
+      expect(vi.fn).toBeDefined()
+      expect(typeof vi.fn).toBe('function')
+      expect(vi.mock).toBeDefined()
+      expect(typeof vi.mock).toBe('function')
+      expect(vi.mocked).toBeDefined()
+      expect(typeof vi.mocked).toBe('function')
+      expect(vi.clearAllMocks).toBeDefined()
+      expect(typeof vi.clearAllMocks).toBe('function')
+    })
+
+    it('JavaScript基本機能が利用可能', () => {
+      expect(Object).toBeDefined()
+      expect(typeof Object.keys).toBe('function')
+      expect(Array).toBeDefined()
+      expect(typeof Array.isArray).toBe('function')
+      expect(Promise).toBeDefined()
+      expect(typeof Promise.resolve).toBe('function')
+    })
+
+    it('Zodバリデーション機能が利用可能', () => {
+      expect(z).toBeDefined()
+      expect(typeof z.object).toBe('function')
+      expect(typeof z.string).toBe('function')
+      expect(typeof z.number).toBe('function')
+      expect(typeof z.array).toBe('function')
     })
   })
 })

@@ -248,17 +248,33 @@ export const TeacherInternalSchema = LegacyTeacherSchema.extend({
   assignmentRestrictions: z.array(IdSchema).default([]).describe('割当制限ID配列'),
 })
 
-export const CreateTeacherRequestSchema = TeacherSchema.omit({
-  id: true,
-  created_at: true,
-  updated_at: true,
+// フロントエンド向けの教師作成リクエストスキーマ（配列形式対応）
+export const CreateTeacherRequestSchema = z.object({
+  name: NameSchema.describe('教師名'),
+  subjects: z.array(z.string().min(1)).default([]).describe('担当教科ID配列'),
+  grades: z.array(GradeSchema).default([]).describe('担当学年配列'),
+  order: z.number().int().positive().optional().describe('表示順序'),
+  assignmentRestrictions: z
+    .array(
+      z.object({
+        displayOrder: z.number().min(1).optional().describe('表示順序'),
+        restrictedDay: z.string().min(1).describe('制限曜日'),
+        restrictedPeriods: z.array(z.number().min(1).max(10)).min(1).describe('制限時限配列'),
+        restrictionLevel: z.enum(['必須', '推奨']).describe('制限レベル'),
+        reason: z.string().max(200).optional().describe('制限理由'),
+      })
+    )
+    .default([])
+    .optional()
+    .describe('割当制限配列'),
 })
 
-/** 内部処理用作成リクエストスキーマ */
+/** 内部処理用作成リクエストスキーマ - school_idも除外 */
 export const CreateTeacherInternalRequestSchema = TeacherInternalSchema.omit({
   id: true,
   created_at: true,
   updated_at: true,
+  school_id: true, // フロントエンドからは送信されないため除外
 })
 
 // ======================
@@ -272,7 +288,7 @@ export const SubjectSchema = z
     school_id: z.string().min(1, '学校IDは必須です').describe('学校ID'),
     created_at: z.string().optional().describe('作成日時'),
     updated_at: z.string().optional().describe('更新日時'),
-    
+
     // データベースフィールド（オプション）
     short_name: z.string().nullable().optional().describe('教科略称'),
     subject_code: z.string().nullable().optional().describe('教科コード'),
@@ -291,7 +307,7 @@ export const SubjectSchema = z
     target_grades: z.string().nullable().optional().describe('対象学年JSON文字列'),
     order: z.number().int().nullable().optional().describe('表示順序'),
     special_classroom: z.string().nullable().optional().describe('特別教室タイプ'),
-    
+
     // フロントエンド統一フィールド（APIレスポンス用）
     grades: z.array(GradeSchema).optional().describe('対象学年配列（フロントエンド用）'),
     targetGrades: z.array(GradeSchema).optional().describe('対象学年配列（別名）'),
@@ -531,6 +547,7 @@ export type EnhancedSchoolSettings = z.infer<typeof EnhancedSchoolSettingsSchema
 export type AssignmentRestriction = z.infer<typeof AssignmentRestrictionSchema>
 export type Subject = z.infer<typeof SubjectSchema>
 export type Teacher = z.infer<typeof TeacherSchema>
+export type LegacyTeacher = z.infer<typeof LegacyTeacherSchema>
 export type TeacherInternal = z.infer<typeof TeacherInternalSchema>
 export type CreateTeacherRequest = z.infer<typeof CreateTeacherRequestSchema>
 export type CreateTeacherInternalRequest = z.infer<typeof CreateTeacherInternalRequestSchema>

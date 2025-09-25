@@ -62,10 +62,10 @@ export class ErrorMonitor {
       this.page.on('console', msg => {
         const msgType = msg.type()
         const msgText = msg.text()
-        
+
         // デバッグ: 全コンソールメッセージをログ出力
         console.log(`🔍 [${this.config.testName}] Console ${msgType}: ${msgText}`)
-        
+
         // error レベルのメッセージは原則的に全て記録
         if (msgType === 'error') {
           console.error(`🚨 [${this.config.testName}] ブラウザコンソールエラー: ${msgText}`)
@@ -85,11 +85,11 @@ export class ErrorMonitor {
         const url = request.url()
         const method = request.method()
         const headers = request.headers()
-        
+
         // API リクエストを詳細ログ出力
         if (url.includes('/api/')) {
           console.log(`📤 [${this.config.testName}] API Request: ${method} ${url}`)
-          
+
           // POSTリクエストの場合、詳細をログ出力
           if (method === 'POST' && url.includes('/api/school/subjects')) {
             console.log(`🚨 [${this.config.testName}] 教科POST発見: ${method} ${url}`)
@@ -109,23 +109,30 @@ export class ErrorMonitor {
         const url = response.url()
         const status = response.status()
         const method = response.request().method()
-        
+
         // 全APIレスポンスをログ出力
         if (url.includes('/api/')) {
-          console.log(`📥 [${this.config.testName}] API Response: ${method} ${url} - Status: ${status}`)
-          
+          console.log(
+            `📥 [${this.config.testName}] API Response: ${method} ${url} - Status: ${status}`
+          )
+
           // 教科API関連の詳細ログ
           if (url.includes('/api/school/subjects')) {
-            console.log(`🔍 [${this.config.testName}] 教科API詳細: ${method} ${url} - Status: ${status}`)
+            console.log(
+              `🔍 [${this.config.testName}] 教科API詳細: ${method} ${url} - Status: ${status}`
+            )
             try {
               const responseText = await response.text()
-              console.log(`📋 [${this.config.testName}] レスポンス内容 (最初の500文字):`, responseText.substring(0, 500))
+              console.log(
+                `📋 [${this.config.testName}] レスポンス内容 (最初の500文字):`,
+                responseText.substring(0, 500)
+              )
             } catch (error) {
               console.log(`📋 [${this.config.testName}] レスポンス読み取りエラー:`, error.message)
             }
           }
         }
-        
+
         // 400番台以上のHTTPエラーは原則的に全て記録
         if (status >= 400) {
           let responseBody = ''
@@ -134,9 +141,9 @@ export class ErrorMonitor {
           } catch (error) {
             responseBody = `レスポンス読み込みエラー: ${error.message}`
           }
-          
+
           const errorInfo = `${method} ${url} - Status: ${status}, Body: ${responseBody}`
-          
+
           console.error(`🌐 [${this.config.testName}] ネットワークエラー: ${errorInfo}`)
           this.networkErrors.push(errorInfo)
         }
@@ -147,9 +154,9 @@ export class ErrorMonitor {
         const url = request.url()
         const method = request.method()
         const failure = request.failure()
-        
+
         const errorInfo = `${method} ${url} - Failed: ${failure?.errorText || 'Unknown error'}`
-        
+
         console.error(`🌐 [${this.config.testName}] リクエスト失敗: ${errorInfo}`)
         this.networkErrors.push(errorInfo)
       })
@@ -203,20 +210,23 @@ export class ErrorMonitor {
     ]
 
     // 設定から無視パターンを取得し、デフォルトパターンとマージ
-    const ignorablePatterns = [...defaultIgnorablePatterns, ...(this.config.ignorablePatterns || [])]
+    const ignorablePatterns = [
+      ...defaultIgnorablePatterns,
+      ...(this.config.ignorablePatterns || []),
+    ]
 
     // 無視パターンに該当しないエラーを致命的エラーとして扱う
     const fatalErrors = allErrors.filter(error => {
       // 無視すべきパターンをチェック
-      const shouldIgnore = ignorablePatterns.some(pattern => 
+      const shouldIgnore = ignorablePatterns.some(pattern =>
         error.toLowerCase().includes(pattern.toLowerCase())
       )
-      
+
       if (shouldIgnore) {
         console.log(`🔕 [${this.config.testName}] 無視するエラー: ${error}`)
         return false
       }
-      
+
       // 無視パターンに該当しない場合は致命的エラーとして扱う
       console.error(`💀 [${this.config.testName}] 致命的エラーとして検出: ${error}`)
       return true

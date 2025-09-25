@@ -15,7 +15,7 @@ test('認証済みユーザーによるUI操作テスト', async ({ page }) => {
   await page.waitForLoadState('networkidle')
 
   console.log('📱 認証状態とローカルストレージの確認')
-  
+
   // 認証状態の確認（LocalStorage）
   const localStorageTokens = await page.evaluate(() => {
     return {
@@ -55,9 +55,9 @@ test('認証済みユーザーによるUI操作テスト', async ({ page }) => {
     const dataButtons = [
       'button:has-text("データ登録")',
       '[data-testid="sidebar-data-button"]',
-      'a:has-text("データ登録")'
+      'a:has-text("データ登録")',
     ]
-    
+
     let dataPageFound = false
     for (const selector of dataButtons) {
       const element = page.locator(selector)
@@ -69,16 +69,13 @@ test('認証済みユーザーによるUI操作テスト', async ({ page }) => {
         break
       }
     }
-    
+
     if (dataPageFound) {
       console.log('✅ データ登録画面への遷移成功')
-      
+
       // 基本設定タブの確認
-      const basicSettingsTabs = [
-        'button:has-text("基本設定")',
-        '[role="tab"]:has-text("基本設定")'
-      ]
-      
+      const basicSettingsTabs = ['button:has-text("基本設定")', '[role="tab"]:has-text("基本設定")']
+
       let settingsTabFound = false
       for (const selector of basicSettingsTabs) {
         const element = page.locator(selector)
@@ -90,15 +87,13 @@ test('認証済みユーザーによるUI操作テスト', async ({ page }) => {
           break
         }
       }
-      
+
       if (settingsTabFound) {
         console.log('✅ 基本設定画面への遷移成功 - 認証されたAPIアクセス確認')
       }
-      
     } else {
       console.log('ℹ️ データ登録ボタンが見つからない可能性')
     }
-    
   } catch (error) {
     console.log('⚠️ UI操作エラー:', error.message)
   }
@@ -114,7 +109,7 @@ test('認証済みユーザーによるUI操作テスト', async ({ page }) => {
   console.log(`📊 検出されたAPI呼び出し (${networkLogs.length}件):`, networkLogs)
 
   console.log('✅ 認証済みユーザーによるUI操作テスト完了')
-  
+
   // エラー監視終了
   errorMonitor.finalize()
 })

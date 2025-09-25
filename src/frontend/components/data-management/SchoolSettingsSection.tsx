@@ -11,7 +11,11 @@ import { Label } from '../ui/label'
 interface SchoolSettingsSectionProps {
   settings: SchoolSettings
   onSettingsUpdate: (settings: SchoolSettings) => void
-  apiOptions: { token: string | null; getFreshToken: () => Promise<string | null>; onSessionExpired: () => void }
+  apiOptions: {
+    token: string | null
+    getFreshToken: () => Promise<string | null>
+    onSessionExpired: () => void
+  }
   isLoading: boolean
   showOfflineButton: boolean
   onOfflineMode: () => void

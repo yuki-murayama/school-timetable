@@ -11,6 +11,7 @@ import {
   type EnhancedSchoolSettings,
   EnhancedSchoolSettingsSchema,
   IdSchema,
+  type LegacyTeacher,
   LegacyTeacherSchema,
   type SchoolSettings,
   SchoolSettingsSchema,
@@ -19,9 +20,7 @@ import {
   SubjectSchema,
   safeJsonParse,
   safeJsonStringify,
-  type Teacher,
   type TeacherDbRow,
-  TeacherSchema,
 } from '@shared/schemas'
 import { z } from 'zod'
 
@@ -262,7 +261,7 @@ export class TypeSafeTeacherService {
       grade?: number
     } = {}
   ): Promise<{
-    teachers: Teacher[]
+    teachers: LegacyTeacher[]
     pagination: {
       page: number
       limit: number
@@ -399,7 +398,7 @@ export class TypeSafeTeacherService {
   /**
    * 教師詳細取得
    */
-  async getTeacher(id: string): Promise<Teacher> {
+  async getTeacher(id: string): Promise<LegacyTeacher> {
     IdSchema.parse(id)
 
     const rawTeacher = await this.db.prepare('SELECT * FROM teachers WHERE id = ?').bind(id).first()
@@ -445,11 +444,11 @@ export class TypeSafeTeacherService {
     console.log('🔧 transformedData:', transformedData)
 
     try {
-      const result = TeacherSchema.parse(transformedData)
-      console.log('✅ TeacherSchema.parse成功:', Object.keys(result))
+      const result = LegacyTeacherSchema.parse(transformedData)
+      console.log('✅ LegacyTeacherSchema.parse成功:', Object.keys(result))
       return result
     } catch (error) {
-      console.error('❌ TeacherSchema.parse失敗:', error)
+      console.error('❌ LegacyTeacherSchema.parse失敗:', error)
       console.error('❌ 入力データ:', transformedData)
       throw new TypeSafeServiceError('教師データの検証に失敗しました', 'TEACHER_VALIDATION_ERROR')
     }
@@ -458,7 +457,7 @@ export class TypeSafeTeacherService {
   /**
    * 教師作成
    */
-  async createTeacher(teacherData: CreateTeacherRequest): Promise<Teacher> {
+  async createTeacher(teacherData: CreateTeacherRequest): Promise<LegacyTeacher> {
     const validatedData = CreateTeacherRequestSchema.parse(teacherData)
 
     const teacherId = crypto.randomUUID()
@@ -499,7 +498,10 @@ export class TypeSafeTeacherService {
   /**
    * 教師更新
    */
-  async updateTeacher(id: string, updateData: Partial<CreateTeacherRequest>): Promise<Teacher> {
+  async updateTeacher(
+    id: string,
+    updateData: Partial<CreateTeacherRequest>
+  ): Promise<LegacyTeacher> {
     IdSchema.parse(id)
 
     // 既存教師の確認
@@ -650,12 +652,12 @@ export class TypeSafeSubjectService {
           updated_at: z.string(),
           // 追加フィールドを許可（データベースから送信される可能性がある）
           school_id: z.string().optional(),
-          short_name: z.string().optional(),
-          subject_code: z.string().optional(),
-          category: z.string().optional(),
-          requires_special_room: z.boolean().optional(),
+          short_name: z.string().nullable(),
+          subject_code: z.string().nullable(),
+          category: z.string().nullable(),
+          requires_special_room: z.number().optional(),
           settings: z.string().optional(),
-          is_active: z.boolean().optional(),
+          is_active: z.number().optional(),
           description: z.string().optional(),
         })
         .passthrough() // 未知のフィールドを許可
@@ -696,6 +698,7 @@ export class TypeSafeSubjectService {
       const subject: Subject = {
         id: raw.id,
         name: raw.name,
+        school_id: raw.school_id || 'default',
         grades: grades,
         weeklyHours: weeklyHours,
         requiresSpecialClassroom: raw.special_classroom !== null && raw.special_classroom !== '',
@@ -747,7 +750,12 @@ export class TypeSafeSubjectService {
     }
 
     // データ構造変換 - 明示的フィールド抽出
-    console.log('📍 単一教科データ変換開始:', { id: subjectRaw.id, name: subjectRaw.name })
+    console.log('📍 単一教科データ変換開始:', {
+      id: subjectRaw.id,
+      name: subjectRaw.name,
+      school_id: subjectRaw.school_id,
+    })
+    console.log('📍 完全なsubjectRawデータ:', subjectRaw)
 
     // 学年配列の処理
     let grades: number[] = []
@@ -762,10 +770,7 @@ export class TypeSafeSubjectService {
     // 週間時間数の処理
     let weeklyHours: Record<string, number> = {}
     if (subjectRaw.weekly_hours) {
-      if (
-        typeof subjectRaw.weekly_hours === 'object' &&
-        !Array.isArray(subjectRaw.weekly_hours)
-      ) {
+      if (typeof subjectRaw.weekly_hours === 'object' && !Array.isArray(subjectRaw.weekly_hours)) {
         weeklyHours = subjectRaw.weekly_hours
       } else if (typeof subjectRaw.weekly_hours === 'number') {
         const targetGrades = grades.length > 0 ? grades : [1, 2, 3, 4, 5, 6]
@@ -780,6 +785,7 @@ export class TypeSafeSubjectService {
     const subject: Subject = {
       id: subjectRaw.id,
       name: subjectRaw.name,
+      school_id: subjectRaw.school_id || 'default',
       grades: grades,
       weeklyHours: weeklyHours,
       requiresSpecialClassroom:
@@ -1000,7 +1006,7 @@ export class TypeSafeClassroomService {
         type: z.string(),
         capacity: z.number().nullable(),
         count: z.number().optional(),
-        location: z.string().optional(),
+        location: z.string().nullable(),
         order: z.number().optional(),
         created_at: z.string().optional(),
         updated_at: z.string().optional(),
@@ -1016,11 +1022,8 @@ export class TypeSafeClassroomService {
         name: raw.name,
         type: raw.type,
         capacity: raw.capacity || 30,
-        equipment: [], // ClassroomSchemaの正しいフィールド
         location: raw.location || '',
         count: raw.count || 1,
-        availability: [], // ClassroomSchemaの正しいフィールド
-        maintenanceSlots: [], // ClassroomSchemaの正しいフィールド
         order: raw.order || 1,
         created_at: raw.created_at,
         updated_at: raw.updated_at,
@@ -1078,7 +1081,7 @@ export class TypeSafeClassroomService {
         type: z.string(),
         capacity: z.number().nullable(),
         count: z.number().optional(),
-        location: z.string().optional(),
+        location: z.string().nullable(),
         order: z.number().optional(),
         created_at: z.string().optional(),
         updated_at: z.string().optional(),
@@ -1092,26 +1095,13 @@ export class TypeSafeClassroomService {
     // データ構造変換 - 明示的フィールド抽出
     console.log('📍 単一教室データ変換開始:', { id: classroomRaw.id, name: classroomRaw.name })
 
-    // facilities の処理
-    let _facilities: string[] = []
-    if (classroomRaw.facilities) {
-      if (typeof classroomRaw.facilities === 'string') {
-        _facilities = safeJsonParse(classroomRaw.facilities, [])
-      } else if (Array.isArray(classroomRaw.facilities)) {
-        _facilities = classroomRaw.facilities
-      }
-    }
-
     const classroom: Classroom = {
       id: classroomRaw.id,
       name: classroomRaw.name,
       type: classroomRaw.type,
       capacity: classroomRaw.capacity || 30,
-      equipment: [], // ClassroomSchemaの正しいフィールド
       location: classroomRaw.location || '',
       count: classroomRaw.count || 1,
-      availability: [], // ClassroomSchemaの正しいフィールド
-      maintenanceSlots: [], // ClassroomSchemaの正しいフィールド
       order: classroomRaw.order || 1,
       created_at: classroomRaw.created_at,
       updated_at: classroomRaw.updated_at,

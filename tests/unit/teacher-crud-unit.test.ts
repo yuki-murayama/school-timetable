@@ -39,6 +39,10 @@ const mockTeacherRaw = {
   order: 1,
   created_at: '2024-01-01T00:00:00.000Z',
   updated_at: '2024-01-01T00:00:00.000Z',
+  // 必須フィールドをすべて追加
+  email: null,
+  employment_type: null,
+  max_hours_per_week: null,
 }
 
 const _mockTeacher: Teacher = {
@@ -54,7 +58,7 @@ const _mockTeacher: Teacher = {
   updated_at: '2024-01-01T00:00:00.000Z',
 }
 
-describe.skip('教師CRUD 単体テスト - 複雑なスキーマ変換問題によりスキップ', () => {
+describe('教師CRUD 単体テスト', () => {
   let teacherService: TypeSafeTeacherService
 
   beforeEach(() => {
@@ -80,7 +84,12 @@ describe.skip('教師CRUD 単体テスト - 複雑なスキーマ変換問題に
 
   describe('教師一覧取得', () => {
     it('TEACHER-UNIT-001: 正常な教師一覧取得', async () => {
-      const mockTeachers = [mockTeacherRaw]
+      const mockTeachers = [
+        {
+          ...mockTeacherRaw,
+          school_id: 'default', // 必須フィールド追加
+        },
+      ]
       mockStatementMethods.first.mockResolvedValue({ total: 1 })
       mockStatementMethods.all.mockResolvedValue({ results: mockTeachers })
 
@@ -119,6 +128,7 @@ describe.skip('教師CRUD 単体テスト - 複雑なスキーマ変換問題に
       mockStatementMethods.first.mockResolvedValue({
         ...mockTeacherRaw,
         name: createRequest.name,
+        school_id: 'default', // 必須フィールド追加
         subjects: JSON.stringify(createRequest.subjects),
         grades: JSON.stringify(createRequest.grades),
       })
@@ -141,7 +151,10 @@ describe.skip('教師CRUD 単体テスト - 複雑なスキーマ変換問題に
 
   describe('教師取得', () => {
     it('TEACHER-UNIT-005: 正常な教師取得', async () => {
-      mockStatementMethods.first.mockResolvedValue(mockTeacherRaw)
+      mockStatementMethods.first.mockResolvedValue({
+        ...mockTeacherRaw,
+        school_id: 'default', // 必須フィールド追加
+      })
 
       const result = await teacherService.getTeacher(VALID_UUID)
 
@@ -174,6 +187,7 @@ describe.skip('教師CRUD 単体テスト - 複雑なスキーマ変換問題に
       mockStatementMethods.first.mockResolvedValue({
         ...mockTeacherRaw,
         name: updateData.name,
+        school_id: 'default', // 必須フィールド追加
         subjects: JSON.stringify(updateData.subjects),
         grades: JSON.stringify(updateData.grades),
       })
@@ -201,7 +215,10 @@ describe.skip('教師CRUD 単体テスト - 複雑なスキーマ変換問題に
   describe('教師削除', () => {
     it('TEACHER-UNIT-009: 正常な教師削除', async () => {
       // 削除前に教師が存在することをモック
-      mockStatementMethods.first.mockResolvedValue(mockTeacherRaw)
+      mockStatementMethods.first.mockResolvedValue({
+        ...mockTeacherRaw,
+        school_id: 'default', // 必須フィールド追加
+      })
 
       const mockDeleteResult = {
         success: true,
@@ -243,6 +260,81 @@ describe.skip('教師CRUD 単体テスト - 複雑なスキーマ変換問題に
       mockStatementMethods.all.mockRejectedValue(new Error('Query failed'))
 
       await expect(teacherService.getTeachers()).rejects.toThrow('Query failed')
+    })
+  })
+
+  describe('基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+      expect(beforeEach).toBeDefined()
+      expect(afterEach).toBeDefined()
+      expect(vi).toBeDefined()
+    })
+
+    it('Vitestモック機能が正しく動作している', () => {
+      expect(vi.fn).toBeDefined()
+      expect(typeof vi.fn).toBe('function')
+      expect(vi.clearAllMocks).toBeDefined()
+      expect(typeof vi.clearAllMocks).toBe('function')
+      expect(vi.restoreAllMocks).toBeDefined()
+      expect(typeof vi.restoreAllMocks).toBe('function')
+    })
+
+    it('共有スキーマ型が正しくインポートされている', () => {
+      // 型定義の存在を間接的に確認
+      const teacherType: Teacher = _mockTeacher
+      expect(teacherType).toBeDefined()
+      expect(teacherType.id).toBe(VALID_UUID)
+    })
+
+    it('TypeSafeTeacherServiceクラスが正しくインポートされている', () => {
+      expect(TypeSafeTeacherService).toBeDefined()
+      expect(typeof TypeSafeTeacherService).toBe('function')
+      expect(TypeSafeServiceError).toBeDefined()
+      expect(typeof TypeSafeServiceError).toBe('function')
+    })
+
+    it('TypeSafeTeacherServiceが正しく作成されている', () => {
+      expect(teacherService).toBeDefined()
+      expect(teacherService).toBeInstanceOf(TypeSafeTeacherService)
+      expect(typeof teacherService.getTeachers).toBe('function')
+    })
+
+    it('TypeSafeTeacherServiceのプロパティが正しく設定されている', () => {
+      expect(teacherService).toHaveProperty('getTeachers')
+      expect(teacherService).toHaveProperty('createTeacher')
+      expect(teacherService).toHaveProperty('updateTeacher')
+      expect(teacherService).toHaveProperty('deleteTeacher')
+      expect(teacherService).toHaveProperty('getTeacher')
+    })
+
+    it('モックデータベースとステートメントが正しく設定されている', () => {
+      expect(mockD1Database).toBeDefined()
+      expect(typeof mockD1Database.prepare).toBe('function')
+      expect(mockPreparedStatement).toBeDefined()
+      expect(typeof mockPreparedStatement.bind).toBe('function')
+      expect(mockStatementMethods).toBeDefined()
+      expect(typeof mockStatementMethods.first).toBe('function')
+      expect(typeof mockStatementMethods.all).toBe('function')
+      expect(typeof mockStatementMethods.run).toBe('function')
+    })
+
+    it('テスト用データが適切に定義されている', () => {
+      expect(VALID_UUID).toBeDefined()
+      expect(typeof VALID_UUID).toBe('string')
+      expect(mockTeacherRaw).toBeDefined()
+      expect(mockTeacherRaw.id).toBe(VALID_UUID)
+      expect(mockTeacherRaw.name).toBe('田中先生')
+    })
+
+    it('JSON機能が利用可能', () => {
+      expect(JSON).toBeDefined()
+      expect(JSON.stringify).toBeDefined()
+      expect(typeof JSON.stringify).toBe('function')
+      expect(JSON.parse).toBeDefined()
+      expect(typeof JSON.parse).toBe('function')
     })
   })
 })

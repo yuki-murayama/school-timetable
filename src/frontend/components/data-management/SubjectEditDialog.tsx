@@ -1,6 +1,6 @@
 import type { Subject } from '@shared/schemas'
 import { Save } from 'lucide-react'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSubjectApi } from '../../hooks/use-subject-api'
 // モジュラー化されたフックをインポート
 import { useSubjectForm } from '../../hooks/use-subject-form'
@@ -65,7 +65,7 @@ export function SubjectEditDialog({
     if (timeSinceLastClick < 500) {
       console.warn('🚫 [UI] 重複クリックを検出しました。無視します。', {
         timeSinceLastClick,
-        subjectName: formData.name
+        subjectName: formData.name,
       })
       return
     }
@@ -75,7 +75,7 @@ export function SubjectEditDialog({
       console.warn('⏳ [UI] 既に保存処理が進行中です。重複実行を防止します。', {
         isProcessing,
         processingRef: processingRef.current,
-        subjectName: formData.name
+        subjectName: formData.name,
       })
       return
     }
@@ -94,26 +94,26 @@ export function SubjectEditDialog({
       console.log('🔄 [UI] 保存処理開始:', {
         subjectName: apiData.name,
         isNewSubject,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       })
 
       const result = await saveSubject(apiData, isNewSubject)
-      
+
       console.log('✅ [UI] 保存処理完了:', {
         subjectName: result.name,
         resultId: result.id,
-        duration: Date.now() - currentTime
+        duration: Date.now() - currentTime,
       })
 
       console.log('🔄 [SubjectEditDialog] onSaveコールバック呼び出し開始:', {
         result,
         resultName: result.name,
         resultId: result.id,
-        hasOnSave: typeof onSave === 'function'
+        hasOnSave: typeof onSave === 'function',
       })
-      
+
       onSave(result)
-      
+
       console.log('✅ [SubjectEditDialog] onSaveコールバック呼び出し完了、ダイアログを閉じます')
       onClose()
     } catch (error) {

@@ -116,7 +116,7 @@ export function TimetableView({ onViewDetail }: TimetableViewProps) {
         }
 
         const response = await fetch(
-          `/api/school/timetables?page=${apiParams.page}&limit=${apiParams.limit}`,
+          `/api/timetables?page=${apiParams.page}&limit=${apiParams.limit}`,
           {
             method: 'GET',
             headers: {
@@ -213,7 +213,7 @@ export function TimetableView({ onViewDetail }: TimetableViewProps) {
         setIsLoading(false)
       }
     },
-    [token, getFreshToken, pagination.itemsPerPage, toast]
+    [token, getFreshToken, pagination.itemsPerPage, toast, pagination.currentPage]
   )
 
   // 型安全なページ変更ハンドラ
@@ -254,7 +254,7 @@ export function TimetableView({ onViewDetail }: TimetableViewProps) {
   // 初期データ読み込み（マウント時のみ）
   useEffect(() => {
     loadTimetables(1)
-  }, []) // 空の依存配列でマウント時のみ実行
+  }, [loadTimetables]) // 空の依存配列でマウント時のみ実行
 
   return (
     <div className='space-y-6'>
@@ -285,9 +285,8 @@ export function TimetableView({ onViewDetail }: TimetableViewProps) {
           ) : (
             <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
               {timetables.map(timetable => (
-                <button
+                <div
                   key={timetable.id}
-                  type='button'
                   className='w-full text-left bg-white border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 cursor-pointer p-0'
                   onClick={() => onViewDetail?.(timetable.id)}
                   data-testid={`view-timetable-${timetable.id}`}
@@ -332,7 +331,7 @@ export function TimetableView({ onViewDetail }: TimetableViewProps) {
                       </button>
                     </div>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           )}

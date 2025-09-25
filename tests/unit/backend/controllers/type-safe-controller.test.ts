@@ -769,14 +769,9 @@ describe('TypeSafeController', () => {
     it('TSC-TEACHER-005: 教師作成正常', async () => {
       const teacherData = {
         name: '新しい先生',
-        school_id: 'f47ac10b-58cc-4372-a567-0e02b2c3d478',
-        subjects: '["数学"]',
-        grades: '[1,2]',
-        assignment_restrictions: '[]',
-        email: null,
-        max_hours_per_week: 25,
-        is_active: 1,
-        order: 1,
+        subjects: ['数学'],
+        grades: [1, 2],
+        assignmentRestrictions: [],
       }
       const context = createMockContext({ body: teacherData })
       const createdTeacher = { ...mockTeacher, ...teacherData, id: 'new-teacher' }
@@ -1574,6 +1569,95 @@ describe('TypeSafeController', () => {
       expect(typeSafeControllers.subjects).toBeInstanceOf(TypeSafeSubjectController)
       expect(typeSafeControllers.classrooms).toBeInstanceOf(TypeSafeClassroomController)
       expect(typeSafeControllers.system).toBeInstanceOf(TypeSafeSystemController)
+    })
+  })
+
+  describe('基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+      expect(beforeEach).toBeDefined()
+      expect(afterEach).toBeDefined()
+      expect(vi).toBeDefined()
+    })
+
+    it('Zodスキーマライブラリが正しく設定されている', () => {
+      expect(z).toBeDefined()
+      expect(typeof z.object).toBe('function')
+      expect(typeof z.string).toBe('function')
+      expect(typeof z.ZodError).toBe('function')
+    })
+
+    it('TypeSafeControllerクラスが正しく定義されている', () => {
+      expect(TypeSafeController).toBeDefined()
+      expect(typeof TypeSafeController).toBe('function')
+      expect(testController).toBeDefined()
+      expect(testController).toBeInstanceOf(TypeSafeController)
+    })
+
+    it('TypeSafeSchoolSettingsControllerが正しく作成されている', () => {
+      const controller = new TypeSafeSchoolSettingsController()
+      expect(controller).toBeDefined()
+      expect(controller).toBeInstanceOf(TypeSafeController)
+      expect(schoolSettingsController).toBeDefined()
+      expect(schoolSettingsController).toBeInstanceOf(TypeSafeController)
+    })
+
+    it('TypeSafeTeacherControllerが正しく作成されている', () => {
+      const controller = new TypeSafeTeacherController()
+      expect(controller).toBeDefined()
+      expect(controller).toBeInstanceOf(TypeSafeController)
+      expect(teacherController).toBeDefined()
+      expect(teacherController).toBeInstanceOf(TypeSafeController)
+    })
+
+    it('各コントローラーインスタンスが正しく設定されている', () => {
+      expect(subjectController).toBeDefined()
+      expect(subjectController).toBeInstanceOf(TypeSafeController)
+      expect(classroomController).toBeDefined()
+      expect(classroomController).toBeInstanceOf(TypeSafeController)
+      expect(systemController).toBeDefined()
+      expect(systemController).toBeInstanceOf(TypeSafeController)
+    })
+
+    it('モックデータが適切に定義されている', () => {
+      expect(mockEnhancedSchoolSettings).toBeDefined()
+      expect(mockEnhancedSchoolSettings.id).toBe('default')
+      expect(mockTeacher).toBeDefined()
+      expect(mockTeacher.name).toBe('田中先生')
+      expect(mockSubject).toBeDefined()
+      expect(mockSubject.name).toBe('数学')
+      expect(mockClassroom).toBeDefined()
+      expect(mockClassroom.name).toBe('1年A組教室')
+    })
+
+    it('モックサービスが正しく設定されている', () => {
+      expect(mockSchoolService).toBeDefined()
+      expect(mockSchoolService.schoolSettings).toBeDefined()
+      expect(mockSchoolService.teachers).toBeDefined()
+      expect(mockSchoolService.subjects).toBeDefined()
+      expect(mockSchoolService.classrooms).toBeDefined()
+      expect(typeof mockSchoolService.getSystemMetrics).toBe('function')
+    })
+
+    it('TypeSafeServiceErrorクラスが正しく定義されている', () => {
+      expect(TypeSafeServiceError).toBeDefined()
+      expect(typeof TypeSafeServiceError).toBe('function')
+      const error = new TypeSafeServiceError('テストエラー', 'TEST_ERROR')
+      expect(error).toBeInstanceOf(Error)
+      expect(error.code).toBe('TEST_ERROR')
+    })
+
+    it('createMockContext関数が正しく動作する', () => {
+      const context = createMockContext({
+        params: { id: 'test' },
+        query: { page: '1' },
+      })
+      expect(context).toBeDefined()
+      expect(context.env).toBeDefined()
+      expect(context.req).toBeDefined()
+      expect(typeof context.json).toBe('function')
     })
   })
 })

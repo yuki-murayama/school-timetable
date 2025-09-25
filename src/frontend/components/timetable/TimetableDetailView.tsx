@@ -30,9 +30,6 @@ interface ComplianceData {
   complianceRate: number
 }
 
-const _WEEKDAYS = ['月曜', '火曜', '水曜', '木曜', '金曜', '土曜']
-const _PERIODS = [1, 2, 3, 4, 5, 6]
-
 type ViewMode = 'detail' | 'edit'
 
 export function TimetableDetailView({
@@ -284,11 +281,7 @@ export function TimetableDetailView({
   const handleCancelEdit = () => {
     setCurrentView('detail')
     setHasChanges(false)
-    // データをリロード（元のデータに戻す）
-    if (id) {
-      setIsLoading(true)
-      // useEffectが自動的にデータを再読み込みします
-    }
+    // キャンセル時は単純にビューを切り替えるだけでデータリロードしない
   }
 
   // 教師クリック処理（教師スケジュール表示用）

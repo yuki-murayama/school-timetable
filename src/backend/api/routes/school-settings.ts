@@ -314,36 +314,69 @@ schoolSettingsApp.openapi(getSchoolSettingsRoute, async c => {
 schoolSettingsApp.openapi(updateSchoolSettingsRoute, async c => {
   try {
     console.log('🚀 学校設定更新開始')
-    
+
     const db = c.env.DB
     console.log('✅ データベース接続確認')
-    
+
     // リクエストデータを取得
-    let updateData;
+    let updateData: Record<string, unknown>
     try {
-      // @hono/zod-openapi のフレームワークレベルバリデーション済みデータを取得
-      updateData = c.req.valid('json')
-      console.log('✅ OpenAPIバリデーション済みデータ取得:', JSON.stringify(updateData, null, 2))
-    } catch (validationError) {
-      console.log('⚠️ OpenAPIバリデーション失敗、生データを取得中...')
+      // 直接JSONを取得して処理
       const rawData = await c.req.json()
-      console.log('📋 生リクエストデータ:', JSON.stringify(rawData, null, 2))
-      
-      // 手動でデータを検証
+      console.log('📋 リクエストデータ取得:', JSON.stringify(rawData, null, 2))
+
+      // データを検証
       updateData = {
-        grade1Classes: Number(rawData.grade1Classes) || 4,
-        grade2Classes: Number(rawData.grade2Classes) || 4,
-        grade3Classes: Number(rawData.grade3Classes) || 3,
-        dailyPeriods: Number(rawData.dailyPeriods) || 6,
-        saturdayPeriods: Number(rawData.saturdayPeriods) || 4,
+        grade1Classes: Number(rawData.grade1Classes),
+        grade2Classes: Number(rawData.grade2Classes),
+        grade3Classes: Number(rawData.grade3Classes),
+        dailyPeriods: Number(rawData.dailyPeriods),
+        saturdayPeriods: Number(rawData.saturdayPeriods),
       }
-      console.log('🔧 手動検証後データ:', JSON.stringify(updateData, null, 2))
+
+      // 基本バリデーション
+      if (
+        Number.isNaN(updateData.grade1Classes) ||
+        updateData.grade1Classes < 1 ||
+        updateData.grade1Classes > 20
+      ) {
+        throw new Error('1学年のクラス数が無効です（1-20の範囲で入力してください）')
+      }
+      if (
+        Number.isNaN(updateData.grade2Classes) ||
+        updateData.grade2Classes < 1 ||
+        updateData.grade2Classes > 20
+      ) {
+        throw new Error('2学年のクラス数が無効です（1-20の範囲で入力してください）')
+      }
+      if (
+        Number.isNaN(updateData.grade3Classes) ||
+        updateData.grade3Classes < 1 ||
+        updateData.grade3Classes > 20
+      ) {
+        throw new Error('3学年のクラス数が無効です（1-20の範囲で入力してください）')
+      }
+      if (
+        Number.isNaN(updateData.dailyPeriods) ||
+        updateData.dailyPeriods < 1 ||
+        updateData.dailyPeriods > 10
+      ) {
+        throw new Error('平日の時限数が無効です（1-10の範囲で入力してください）')
+      }
+      if (
+        Number.isNaN(updateData.saturdayPeriods) ||
+        updateData.saturdayPeriods < 0 ||
+        updateData.saturdayPeriods > 8
+      ) {
+        throw new Error('土曜日の時限数が無効です（0-8の範囲で入力してください）')
+      }
+
+      console.log('✅ バリデーション済みデータ:', JSON.stringify(updateData, null, 2))
+    } catch (parseError) {
+      console.error('❌ リクエストデータ解析エラー:', parseError)
+      throw new Error(`リクエストデータの解析に失敗しました: ${parseError.message}`)
     }
-    
-    if (!updateData) {
-      throw new Error('リクエストデータの取得に失敗しました')
-    }
-    
+
     console.log('✅ リクエストデータ取得完了')
 
     const now = new Date().toISOString()
@@ -370,15 +403,18 @@ schoolSettingsApp.openapi(updateSchoolSettingsRoute, async c => {
       updateData.grade3Classes,
       updateData.dailyPeriods,
       updateData.saturdayPeriods,
-      now
+      now,
     ]
-    
+
     console.log('📝 SQL:', sql)
     console.log('📊 パラメータ:', params)
 
     console.log('🔄 データベース更新実行中...')
-    const result = await db.prepare(sql).bind(...params).run()
-    
+    const result = await db
+      .prepare(sql)
+      .bind(...params)
+      .run()
+
     console.log('✅ DB更新結果:', JSON.stringify(result, null, 2))
 
     if (result.changes === 0) {
@@ -475,7 +511,5 @@ schoolSettingsApp.openapi(updateSchoolSettingsRoute, async c => {
     )
   }
 })
-
-
 
 export default schoolSettingsApp

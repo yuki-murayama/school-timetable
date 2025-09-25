@@ -45,15 +45,16 @@ test.describe('🏫 学校設定管理E2Eテスト', () => {
 
     // 認証状態の確認
     console.log('📍 認証状態の確認')
-    const isLoginPage = await page.locator('input[type="email"], input[type="password"]').count() > 0
+    const isLoginPage =
+      (await page.locator('input[type="email"], input[type="password"]').count()) > 0
     if (isLoginPage) {
       console.log('🔍 ログイン画面が表示されました。認証を実行します。')
-      
+
       // ログイン処理
       await page.fill('input[type="email"]', 'test@school.local')
       await page.fill('input[type="password"]', 'password123')
       await page.click('button[type="submit"]:has-text("ログイン")')
-      
+
       // 認証完了を待機
       await page.waitForTimeout(3000)
       await page.waitForLoadState('networkidle')
@@ -349,45 +350,46 @@ test.describe('🏫 学校設定管理E2Eテスト', () => {
     const errorMonitor = createErrorMonitor(page, '本番環境データ登録画面エラー検知')
 
     // 本番環境URLまたはテスト環境URLを使用
-    const baseURL = process.env.PLAYWRIGHT_BASE_URL || process.env.E2E_BASE_URL || 'http://localhost:5174'
-    
+    const baseURL =
+      process.env.PLAYWRIGHT_BASE_URL || process.env.E2E_BASE_URL || 'http://localhost:5174'
+
     console.log(`🌐 テスト対象URL: ${baseURL}`)
     console.log('🔍 データ登録画面でのサーバー内部エラー検知を開始します...')
-    
+
     // 本番環境の特定エラーパターンを監視する詳細なリスナーを追加
     let tokenErrorDetected = false
     let serverErrorDetected = false
     let settingsErrorDetected = false
-    
+
     // ネットワーク応答の監視
     page.on('response', response => {
       const url = response.url()
       const status = response.status()
-      
+
       if (url.includes('/api/school/')) {
         console.log(`📡 学校関連API応答: ${response.request().method()} ${url} - Status: ${status}`)
-        
+
         if (status >= 500) {
           console.error(`🚨 学校API サーバー内部エラー検出: ${url} - Status: ${status}`)
           serverErrorDetected = true
         }
       }
     })
-    
+
     // コンソールメッセージの詳細監視
     page.on('console', msg => {
       const text = msg.text()
-      
+
       if (text.includes('Invalid or expired token') || text.includes('Token validation failed')) {
         console.error(`🔐 認証トークンエラー検出: ${text}`)
         tokenErrorDetected = true
       }
-      
+
       if (text.includes('設定読み込みエラー') || text.includes('バックエンドAPIが500エラー')) {
         console.error(`⚙️ 設定読み込みエラー検出: ${text}`)
         settingsErrorDetected = true
       }
-      
+
       if (msg.type() === 'error') {
         console.error(`🔥 ブラウザコンソールエラー: ${text}`)
       }
@@ -397,15 +399,15 @@ test.describe('🏫 学校設定管理E2Eテスト', () => {
       // Step 1: 本番環境にアクセス
       console.log('📍 Step 1: 本番環境にアクセス')
       await page.goto(baseURL, { waitUntil: 'networkidle', timeout: 30000 })
-      
+
       // 初期ロード後の状態確認
       await page.waitForTimeout(2000)
       const initialStats = errorMonitor.getStats()
       console.log(`📊 初期ロード後のエラー統計: ${JSON.stringify(initialStats)}`)
-      
+
       // Step 2: データ登録画面（基本情報）へのナビゲーション
       console.log('📍 Step 2: データ登録画面への遷移')
-      
+
       const dataRegistrationButtons = [
         'button:has-text("データ登録")',
         'a:has-text("データ登録")',
@@ -428,12 +430,15 @@ test.describe('🏫 学校設定管理E2Eテスト', () => {
 
       if (!navigationSuccess) {
         console.log('🔍 直接URL遷移を試行...')
-        await page.goto(`${baseURL}/#/school-settings`, { waitUntil: 'networkidle', timeout: 30000 })
+        await page.goto(`${baseURL}/#/school-settings`, {
+          waitUntil: 'networkidle',
+          timeout: 30000,
+        })
       }
 
       // Step 3: 基本設定タブの選択とAPI呼び出し監視
       console.log('📍 Step 3: 基本設定タブの選択')
-      
+
       const basicSettingsTab = page.locator(
         'button:has-text("基本設定"), [role="tab"]:has-text("基本設定")'
       )
@@ -446,75 +451,79 @@ test.describe('🏫 学校設定管理E2Eテスト', () => {
 
       // Step 4: エラー発生の確認と詳細分析
       console.log('📍 Step 4: エラー発生状況の分析')
-      
+
       const finalStats = errorMonitor.getStats()
       console.log(`📊 最終エラー統計: ${JSON.stringify(finalStats)}`)
-      
+
       // エラーレポート生成（例外を投げずに）
       const errorReport = errorMonitor.generateReport()
-      
+
       // 本番環境特有のエラーパターンを確認
-      const hasTokenError = errorReport.consoleErrors.some(error => 
-        error.includes('Invalid or expired token') || 
-        error.includes('Token validation failed') ||
-        error.includes('Authentication failed')
-      ) || tokenErrorDetected
+      const hasTokenError =
+        errorReport.consoleErrors.some(
+          error =>
+            error.includes('Invalid or expired token') ||
+            error.includes('Token validation failed') ||
+            error.includes('Authentication failed')
+        ) || tokenErrorDetected
 
-      const hasServerError = errorReport.networkErrors.some(error => 
-        error.includes('500') || error.includes('Internal Server Error')
-      ) || serverErrorDetected
+      const hasServerError =
+        errorReport.networkErrors.some(
+          error => error.includes('500') || error.includes('Internal Server Error')
+        ) || serverErrorDetected
 
-      const hasSettingsError = errorReport.consoleErrors.some(error => 
-        error.includes('設定読み込みエラー') || 
-        error.includes('バックエンドAPIが500エラー') ||
-        error.includes('デフォルト設定を使用します')
-      ) || settingsErrorDetected
-      
+      const hasSettingsError =
+        errorReport.consoleErrors.some(
+          error =>
+            error.includes('設定読み込みエラー') ||
+            error.includes('バックエンドAPIが500エラー') ||
+            error.includes('デフォルト設定を使用します')
+        ) || settingsErrorDetected
+
       // Step 5: 結果レポートと検証
       console.log('\n📋 本番環境サーバーエラー検知結果:')
       console.log(`🔐 認証トークンエラー: ${hasTokenError ? '✅ 検出' : '❌ 未検出'}`)
       console.log(`🚨 サーバー内部エラー: ${hasServerError ? '✅ 検出' : '❌ 未検出'}`)
       console.log(`⚙️ 設定読み込みエラー: ${hasSettingsError ? '✅ 検出' : '❌ 未検出'}`)
-      
+
       if (hasTokenError || hasServerError || hasSettingsError) {
         console.log('\n🎯 本番環境のサーバー内部エラーが正常に検知されました！')
         console.log('🔧 以下のエラーが検出されました:')
-        
+
         if (hasTokenError) {
           console.log('   🔐 認証トークンエラー - JWT期限切れまたは無効トークン')
         }
-        
+
         if (hasServerError) {
           console.log('   🚨 サーバー内部エラー - HTTP 500応答')
         }
-        
+
         if (hasSettingsError) {
           console.log('   ⚙️ 設定読み込みエラー - バックエンドAPI通信エラー')
         }
-        
+
         console.log('\n💡 これらのエラーは本番環境の問題を示しています。')
         console.log('   アプリケーション修正またはサーバー対応が必要です。')
-        
+
         // 本番環境のエラー検知が目的なので、テスト自体は成功として扱う
       } else {
         console.log('\n📱 現在の本番環境でサーバー内部エラーは検出されませんでした')
         console.log('   システムが正常に動作している可能性があります。')
       }
-
     } catch (error) {
       console.error('\n❌ テスト実行中にエラーが発生しました:', error.message)
-      
+
       // テスト実行エラーでもエラー監視レポートは生成
       const errorReport = errorMonitor.generateReport()
       console.log('\n📊 テスト実行エラー時のエラーレポート:')
       console.log(`   コンソールエラー: ${errorReport.consoleErrors.length}件`)
       console.log(`   ネットワークエラー: ${errorReport.networkErrors.length}件`)
       console.log(`   ページエラー: ${errorReport.pageErrors.length}件`)
-      
+
       // テスト失敗として扱う
       throw error
     }
-    
+
     console.log('\n✅ 本番環境サーバーエラー検知テスト完了')
   })
 })

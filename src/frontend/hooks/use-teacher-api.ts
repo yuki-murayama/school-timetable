@@ -1,6 +1,6 @@
 import type { SchoolSettings, Subject, Teacher } from '@shared/schemas'
 import { useCallback, useEffect, useState } from 'react'
-import { schoolApi, subjectApi, teacherApi } from '../lib/api'
+import { schoolApi, subjectApi, teachersApi as teacherApi } from '../lib/api'
 import { useToast } from './use-toast'
 
 export const useTeacherApi = (
@@ -73,18 +73,9 @@ export const useTeacherApi = (
         let result: Teacher
 
         if (isNewTeacher) {
-          console.log('➕ 統一型安全APIで教師新規作成:', teacherData)
-          result = await teacherApi.createTeacher(
-            {
-              name: teacherData.name || '',
-              subjects: teacherData.subjects || [],
-              grades: (teacherData.grades || []).map(grade =>
-                typeof grade === 'string' ? parseInt(grade, 10) : grade
-              ),
-              assignmentRestrictions: teacherData.assignmentRestrictions || [],
-            },
-            { token }
-          )
+          console.log('➕ 統合型安全APIで教師新規作成:', teacherData)
+          // 統合APIクライアントは完全な型安全バリデーション付き
+          result = await teacherApi.createTeacher(teacherData, { token })
           console.log('✅ 教師新規作成成功:', result)
           toast({
             title: '保存完了',
@@ -95,17 +86,17 @@ export const useTeacherApi = (
             teacherDataId: teacherData.id,
             teacherDataType: typeof teacherData.id,
             hasId: !!teacherData.id,
-            teacherData: teacherData
+            teacherData: teacherData,
           })
-          
+
           if (!teacherData.id) {
             console.error('❌ 教師IDが見つかりません:', {
               teacherData,
-              keys: Object.keys(teacherData)
+              keys: Object.keys(teacherData),
             })
             throw new Error('教師IDが見つかりません')
           }
-          console.log('🔄 統一型安全APIで教師更新:', teacherData)
+          console.log('🔄  統合型安全APIで教師更新:', teacherData)
           result = await teacherApi.updateTeacher(
             teacherData.id,
             {

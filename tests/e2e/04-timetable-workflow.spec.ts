@@ -240,20 +240,20 @@ test.describe('🗓️ 時間割生成・表示E2Eテスト', () => {
       if ((await button.count()) > 0) {
         console.log(`✅ 表示ボタン発見: ${selector}`)
         await button.first().click()
-        
+
         // ローディング状態の解消を待機
         console.log('⏳ ローディング完了を待機中...')
         try {
           // 「読み込み中」ボタンが消えるのを待つ
-          await page.waitForSelector('button:has-text("読み込み中")', { 
-            state: 'detached', 
-            timeout: 30000 
+          await page.waitForSelector('button:has-text("読み込み中")', {
+            state: 'detached',
+            timeout: 30000,
           })
           console.log('✅ ローディング完了')
-        } catch (e) {
+        } catch (_e) {
           console.log('⚠️ ローディング待機タイムアウト - 続行します')
         }
-        
+
         // 追加の待機時間
         await page.waitForTimeout(3000)
         break

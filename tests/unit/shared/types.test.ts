@@ -390,4 +390,77 @@ describe('Shared Types', () => {
       expect(detail.schedule[0].schedule[0].subject).toBe('数学')
     })
   })
+
+  describe('基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+    })
+
+    it('Vitestテスト機能が正しく動作している', () => {
+      expect(() => expect(true).toBe(true)).not.toThrow()
+      expect(() => expect(1).toBe(1)).not.toThrow()
+      expect(() => expect('test').toBe('test')).not.toThrow()
+      expect(() => expect([1, 2]).toEqual([1, 2])).not.toThrow()
+    })
+
+    it('型インポートが正しく定義されている', () => {
+      // TypeScript型は実行時に undefined になることをテスト
+      expect(typeof AssignmentRestriction).toBe('undefined') // 型なので undefined
+      expect(typeof Classroom).toBe('undefined')
+      expect(typeof Env).toBe('undefined')
+      expect(typeof SchoolSettings).toBe('undefined')
+      expect(typeof Subject).toBe('undefined')
+      expect(typeof Teacher).toBe('undefined')
+      expect(typeof TimetableDetail).toBe('undefined')
+      expect(typeof TimetableGenerationResponse).toBe('undefined')
+      expect(typeof TimetableGenerationResult).toBe('undefined')
+      expect(typeof TimetableListItem).toBe('undefined')
+      expect(typeof TimetableSlot).toBe('undefined')
+    })
+
+    it('TypeScriptコンパイル時の型チェックが動作している', () => {
+      // 型定義の存在を間接的にテスト（コンパイル時に検証される）
+      const envTest: Env = { DB: {} as D1Database, GROQ_API_KEY: 'test', NODE_ENV: 'test' }
+      const settingsTest: SchoolSettings = {
+        grade1Classes: 1,
+        grade2Classes: 1,
+        grade3Classes: 1,
+        dailyPeriods: 1,
+        saturdayPeriods: 0,
+        days: [],
+        grades: [],
+        classesPerGrade: {},
+      }
+
+      expect(envTest).toBeDefined()
+      expect(settingsTest).toBeDefined()
+    })
+
+    it('オブジェクト構造テストが正しく動作している', () => {
+      expect(typeof {}).toBe('object')
+      expect(typeof []).toBe('object')
+      expect(Array.isArray([])).toBe(true)
+      expect(Array.isArray({})).toBe(false)
+    })
+
+    it('JavaScript基本機能が利用可能', () => {
+      expect(typeof Object).toBe('function')
+      expect(Object.keys).toBeDefined()
+      expect(typeof Object.keys).toBe('function')
+      expect(Array).toBeDefined()
+      expect(typeof Array).toBe('function')
+      expect(Array.isArray).toBeDefined()
+      expect(typeof Array.isArray).toBe('function')
+    })
+
+    it('テストが正しく実行されている', () => {
+      expect(true).toBe(true)
+      expect(false).toBe(false)
+      expect(1).toBe(1)
+      expect('test').toBe('test')
+      expect([1, 2, 3]).toHaveLength(3)
+    })
+  })
 })

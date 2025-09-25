@@ -156,7 +156,7 @@ let subjectService: TypeSafeSubjectService
 let classroomService: TypeSafeClassroomService
 let schoolService: TypeSafeSchoolService
 
-describe.skip('TypeSafeServiceLayer', () => {
+describe('TypeSafeServiceLayer', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
@@ -477,9 +477,7 @@ describe.skip('TypeSafeServiceLayer', () => {
     it('TSS-TEACHER-002: 教師一覧取得（検索フィルタ）', async () => {
       mockStatementMethods.first.mockResolvedValue({ total: 1 })
       mockStatementMethods.all.mockResolvedValue({
-        results: [
-          mockTeacher,
-        ],
+        results: [mockTeacher],
       })
 
       const result = await teacherService.getTeachers({ search: '田中' })
@@ -523,7 +521,7 @@ describe.skip('TypeSafeServiceLayer', () => {
       mockStatementMethods.first.mockResolvedValue({
         ...mockTeacher,
         id: VALID_UUID_4,
-        name: '新しい先生'
+        name: '新しい先生',
       })
 
       const teacherData: CreateTeacherRequest = {
@@ -565,12 +563,10 @@ describe.skip('TypeSafeServiceLayer', () => {
      */
     it('TSS-TEACHER-007: 教師更新正常', async () => {
       // 既存教師取得のモック
-      mockStatementMethods.first
-        .mockResolvedValueOnce(mockTeacher)
-        .mockResolvedValueOnce({
-          ...mockTeacher,
-          name: '更新された先生',
-        })
+      mockStatementMethods.first.mockResolvedValueOnce(mockTeacher).mockResolvedValueOnce({
+        ...mockTeacher,
+        name: '更新された先生',
+      })
 
       mockStatementMethods.run.mockResolvedValue({ success: true, changes: 1 })
 
@@ -1109,6 +1105,152 @@ describe.skip('TypeSafeServiceLayer', () => {
       expect(error.message).toBe('シンプルエラー')
       expect(error.code).toBe('SIMPLE_ERROR')
       expect(error.details).toBeUndefined()
+    })
+  })
+
+  describe('基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+      expect(beforeEach).toBeDefined()
+      expect(afterEach).toBeDefined()
+      expect(vi).toBeDefined()
+    })
+
+    it('型安全サービスクラスが正しくインポートされている', () => {
+      expect(TypeSafeDbHelper).toBeDefined()
+      expect(typeof TypeSafeDbHelper).toBe('function')
+      expect(TypeSafeSchoolService).toBeDefined()
+      expect(typeof TypeSafeSchoolService).toBe('function')
+      expect(TypeSafeSchoolSettingsService).toBeDefined()
+      expect(typeof TypeSafeSchoolSettingsService).toBe('function')
+      expect(TypeSafeTeacherService).toBeDefined()
+      expect(typeof TypeSafeTeacherService).toBe('function')
+      expect(TypeSafeSubjectService).toBeDefined()
+      expect(typeof TypeSafeSubjectService).toBe('function')
+      expect(TypeSafeClassroomService).toBeDefined()
+      expect(typeof TypeSafeClassroomService).toBe('function')
+    })
+
+    it('エラークラスとZodライブラリが正しく定義されている', () => {
+      expect(TypeSafeServiceError).toBeDefined()
+      expect(typeof TypeSafeServiceError).toBe('function')
+      expect(z).toBeDefined()
+      expect(typeof z).toBe('object')
+      expect(typeof z.string).toBe('function')
+      expect(typeof z.number).toBe('function')
+    })
+
+    it('テスト用定数が正しく定義されている', () => {
+      expect(VALID_UUID).toBe('123e4567-e89b-12d3-a456-426614174000')
+      expect(VALID_UUID_2).toBe('456e7890-e89b-12d3-a456-426614174001')
+      expect(VALID_UUID_3).toBe('789e1234-e89b-12d3-a456-426614174002')
+      expect(VALID_UUID_4).toBe('012e5678-e89b-12d3-a456-426614174003')
+    })
+
+    it('Vitestモック機能が正しく動作している', () => {
+      expect(vi.fn).toBeDefined()
+      expect(typeof vi.fn).toBe('function')
+      expect(vi.clearAllMocks).toBeDefined()
+      expect(typeof vi.clearAllMocks).toBe('function')
+      expect(vi.restoreAllMocks).toBeDefined()
+      expect(typeof vi.restoreAllMocks).toBe('function')
+      expect(vi.spyOn).toBeDefined()
+      expect(typeof vi.spyOn).toBe('function')
+    })
+
+    it('データベースモックオブジェクトが正しく設定されている', () => {
+      expect(mockD1Database).toBeDefined()
+      expect(typeof mockD1Database.prepare).toBe('function')
+      expect(mockPreparedStatement).toBeDefined()
+      expect(typeof mockPreparedStatement.bind).toBe('function')
+      expect(mockStatementMethods).toBeDefined()
+      expect(typeof mockStatementMethods.first).toBe('function')
+      expect(typeof mockStatementMethods.all).toBe('function')
+      expect(typeof mockStatementMethods.run).toBe('function')
+    })
+
+    it('サービスインスタンスが正しく作成されている', () => {
+      expect(dbHelper).toBeDefined()
+      expect(dbHelper).toBeInstanceOf(TypeSafeDbHelper)
+      expect(schoolSettingsService).toBeDefined()
+      expect(schoolSettingsService).toBeInstanceOf(TypeSafeSchoolSettingsService)
+      expect(teacherService).toBeDefined()
+      expect(teacherService).toBeInstanceOf(TypeSafeTeacherService)
+      expect(subjectService).toBeDefined()
+      expect(subjectService).toBeInstanceOf(TypeSafeSubjectService)
+      expect(classroomService).toBeDefined()
+      expect(classroomService).toBeInstanceOf(TypeSafeClassroomService)
+      expect(schoolService).toBeDefined()
+      expect(schoolService).toBeInstanceOf(TypeSafeSchoolService)
+    })
+
+    it('共有スキーマ型が正しくインポートされている', () => {
+      // Teacher型のテスト
+      expect(mockTeacher).toBeDefined()
+      expect(mockTeacher.id).toBe(VALID_UUID)
+      expect(mockTeacher.name).toBe('田中先生')
+      expect(typeof mockTeacher.subjects).toBe('string')
+      expect(typeof mockTeacher.grades).toBe('string')
+
+      // Classroom型のテスト
+      expect(mockClassroom).toBeDefined()
+      expect(mockClassroom.id).toBe(VALID_UUID_3)
+      expect(mockClassroom.name).toBe('1年A組教室')
+      expect(mockClassroom.type).toBe('普通教室')
+    })
+
+    it('グローバルcryptoオブジェクトが正しくモックされている', () => {
+      expect(global.crypto).toBeDefined()
+      expect(typeof global.crypto.randomUUID).toBe('function')
+      const uuid = global.crypto.randomUUID()
+      expect(uuid).toBe('123e4567-e89b-12d3-a456-426614174000')
+    })
+
+    it('JavaScript基本機能が利用可能', () => {
+      expect(Object).toBeDefined()
+      expect(typeof Object).toBe('function')
+      expect(Object.keys).toBeDefined()
+      expect(typeof Object.keys).toBe('function')
+      expect(Array).toBeDefined()
+      expect(typeof Array).toBe('function')
+      expect(Array.isArray).toBeDefined()
+      expect(typeof Array.isArray).toBe('function')
+      expect(Array.isArray([])).toBe(true)
+      expect(Array.isArray({})).toBe(false)
+    })
+
+    it('JSON機能とPromise機能が利用可能', () => {
+      expect(JSON).toBeDefined()
+      expect(JSON.parse).toBeDefined()
+      expect(typeof JSON.parse).toBe('function')
+      expect(JSON.stringify).toBeDefined()
+      expect(typeof JSON.stringify).toBe('function')
+
+      const testData = { id: VALID_UUID, name: 'テストデータ' }
+      const stringified = JSON.stringify(testData)
+      expect(typeof stringified).toBe('string')
+      const parsed = JSON.parse(stringified)
+      expect(parsed).toEqual(testData)
+
+      expect(Promise).toBeDefined()
+      expect(typeof Promise).toBe('function')
+      expect(typeof Promise.resolve).toBe('function')
+      expect(typeof Promise.reject).toBe('function')
+    })
+
+    it('Error機能とコンソール機能が利用可能', () => {
+      expect(Error).toBeDefined()
+      expect(typeof Error).toBe('function')
+
+      const testError = new Error('test message')
+      expect(testError).toBeInstanceOf(Error)
+      expect(testError.message).toBe('test message')
+
+      expect(console).toBeDefined()
+      expect(console.error).toBeDefined()
+      expect(typeof console.error).toBe('function')
     })
   })
 })

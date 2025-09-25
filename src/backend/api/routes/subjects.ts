@@ -3,44 +3,44 @@
  * Zodスキーマによる厳密な型検証とドキュメント自動生成
  */
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
-import {
-  ClassroomTypeSchema,
-  type Env,
-  GradeSchema,
-  IdSchema,
-  NameSchema,
-  PositiveIntegerSchema,
-  SubjectSchema,
-} from '@shared/schemas'
-import { createErrorResponseSchemas, createResponseSchemas, paginationSchema } from '../openapi'
+import { ClassroomTypeSchema, type Env, IdSchema, NameSchema, SubjectSchema } from '@shared/schemas'
+import { createErrorResponseSchemas, createResponseSchemas } from '../openapi'
 
 // 教科管理用OpenAPIアプリ
 const subjectsApp = new OpenAPIHono<{ Bindings: Env }>()
 
 // OpenAPI用の教科作成リクエストスキーマ（transform無し）
-const CreateSubjectRequestSchemaForOpenAPI = z.object({
-  // 必須フィールド
-  name: NameSchema.describe('教科名（必須）'),
-  
-  // 新APIフィールド（推奨）
-  school_id: z.string().optional().describe('学校ID（デフォルト: default）'),
-  weekly_hours: z.number().int().optional().describe('週間授業数'),
-  target_grades: z.union([z.string(), z.array(z.number())]).optional().describe('対象学年'),
-  special_classroom: z.string().optional().describe('特別教室名'),
-  
-  // レガシーフロントエンドフィールドサポート（互換性維持）
-  grades: z.array(z.number()).optional().describe('対象学年（レガシー）'),
-  weeklyHours: z.union([z.number(), z.record(z.string(), z.number())]).optional().describe('週間授業数（レガシー）'),
-  requiresSpecialClassroom: z.boolean().optional().describe('特別教室必要フラグ（レガシー）'),
-  classroomType: z.string().optional().describe('教室タイプ（レガシー）'),
-  specialClassroom: z.string().optional().describe('特別教室（レガシー）'),
-}).passthrough()
+const CreateSubjectRequestSchemaForOpenAPI = z
+  .object({
+    // 必須フィールド
+    name: NameSchema.describe('教科名（必須）'),
+
+    // 新APIフィールド（推奨）
+    school_id: z.string().optional().describe('学校ID（デフォルト: default）'),
+    weekly_hours: z.number().int().optional().describe('週間授業数'),
+    target_grades: z
+      .union([z.string(), z.array(z.number())])
+      .optional()
+      .describe('対象学年'),
+    special_classroom: z.string().optional().describe('特別教室名'),
+
+    // レガシーフロントエンドフィールドサポート（互換性維持）
+    grades: z.array(z.number()).optional().describe('対象学年（レガシー）'),
+    weeklyHours: z
+      .union([z.number(), z.record(z.string(), z.number())])
+      .optional()
+      .describe('週間授業数（レガシー）'),
+    requiresSpecialClassroom: z.boolean().optional().describe('特別教室必要フラグ（レガシー）'),
+    classroomType: z.string().optional().describe('教室タイプ（レガシー）'),
+    specialClassroom: z.string().optional().describe('特別教室（レガシー）'),
+  })
+  .passthrough()
 
 // 実際の処理用のスキーマ（transform付き）
-const CreateSubjectRequestSchema = CreateSubjectRequestSchemaForOpenAPI.transform((data) => {
+const CreateSubjectRequestSchema = CreateSubjectRequestSchemaForOpenAPI.transform(data => {
   console.log('🔍 [SCHEMA TRANSFORM] 受信RAWデータ:', JSON.stringify(data, null, 2))
   console.log('🔍 [SCHEMA TRANSFORM] RAWデータのキー:', Object.keys(data || {}))
-  
+
   // 正規化されたデータを作成
   const normalized = {
     name: data.name,
@@ -49,7 +49,7 @@ const CreateSubjectRequestSchema = CreateSubjectRequestSchemaForOpenAPI.transfor
     target_grades: null as string | null,
     special_classroom: null as string | null,
   }
-  
+
   // 週間授業数の統一処理
   if (data.weekly_hours !== undefined) {
     normalized.weekly_hours = data.weekly_hours
@@ -61,7 +61,7 @@ const CreateSubjectRequestSchema = CreateSubjectRequestSchemaForOpenAPI.transfor
       normalized.weekly_hours = hours.length > 0 && typeof hours[0] === 'number' ? hours[0] : 1
     }
   }
-  
+
   // 対象学年の統一処理
   if (data.target_grades !== undefined) {
     if (typeof data.target_grades === 'string') {
@@ -72,73 +72,83 @@ const CreateSubjectRequestSchema = CreateSubjectRequestSchemaForOpenAPI.transfor
   } else if (data.grades && Array.isArray(data.grades)) {
     normalized.target_grades = JSON.stringify(data.grades)
   }
-  
+
   // 特別教室の統一処理（nullを空文字列に変換）
   if (data.special_classroom !== undefined) {
     normalized.special_classroom = data.special_classroom || ''
   } else if (data.specialClassroom !== undefined) {
     normalized.special_classroom = data.specialClassroom || ''
-  } else if (data.classroomType && typeof data.classroomType === 'string' && data.classroomType !== '普通教室') {
+  } else if (
+    data.classroomType &&
+    typeof data.classroomType === 'string' &&
+    data.classroomType !== '普通教室'
+  ) {
     normalized.special_classroom = data.classroomType
   } else {
     normalized.special_classroom = '' // デフォルト値として空文字列
   }
-  
+
   console.log('🔧 [SCHEMA TRANSFORM] 正規化後データ:', JSON.stringify(normalized, null, 2))
   return normalized
 })
 
 // 教科更新リクエストスキーマ - 作成スキーマのpartial版 + transform処理付き
-const UpdateSubjectRequestSchema = CreateSubjectRequestSchemaForOpenAPI.partial().transform((data) => {
-  console.log('🔍 [UPDATE SCHEMA TRANSFORM] 受信RAWデータ:', JSON.stringify(data, null, 2))
-  console.log('🔍 [UPDATE SCHEMA TRANSFORM] RAWデータのキー:', Object.keys(data || {}))
-  
-  // 正規化されたデータを作成
-  const normalized = {
-    name: data.name,
-    school_id: data.school_id || 'default', // 必須フィールド
-    weekly_hours: null as number | null,
-    target_grades: null as string | null,
-    special_classroom: null as string | null,
-  }
-  
-  // 週間授業数の統一処理
-  if (data.weekly_hours !== undefined) {
-    normalized.weekly_hours = data.weekly_hours
-  } else if (data.weeklyHours !== undefined) {
-    if (typeof data.weeklyHours === 'number') {
-      normalized.weekly_hours = data.weeklyHours
-    } else if (typeof data.weeklyHours === 'object' && data.weeklyHours !== null) {
-      const hours = Object.values(data.weeklyHours)
-      normalized.weekly_hours = hours.length > 0 && typeof hours[0] === 'number' ? hours[0] : 1
+const UpdateSubjectRequestSchema = CreateSubjectRequestSchemaForOpenAPI.partial().transform(
+  data => {
+    console.log('🔍 [UPDATE SCHEMA TRANSFORM] 受信RAWデータ:', JSON.stringify(data, null, 2))
+    console.log('🔍 [UPDATE SCHEMA TRANSFORM] RAWデータのキー:', Object.keys(data || {}))
+
+    // 正規化されたデータを作成
+    const normalized = {
+      name: data.name,
+      school_id: data.school_id || 'default', // 必須フィールド
+      weekly_hours: null as number | null,
+      target_grades: null as string | null,
+      special_classroom: null as string | null,
     }
-  }
-  
-  // 対象学年の統一処理
-  if (data.target_grades !== undefined) {
-    if (typeof data.target_grades === 'string') {
-      normalized.target_grades = data.target_grades
-    } else if (Array.isArray(data.target_grades)) {
-      normalized.target_grades = JSON.stringify(data.target_grades)
+
+    // 週間授業数の統一処理
+    if (data.weekly_hours !== undefined) {
+      normalized.weekly_hours = data.weekly_hours
+    } else if (data.weeklyHours !== undefined) {
+      if (typeof data.weeklyHours === 'number') {
+        normalized.weekly_hours = data.weeklyHours
+      } else if (typeof data.weeklyHours === 'object' && data.weeklyHours !== null) {
+        const hours = Object.values(data.weeklyHours)
+        normalized.weekly_hours = hours.length > 0 && typeof hours[0] === 'number' ? hours[0] : 1
+      }
     }
-  } else if (data.grades && Array.isArray(data.grades)) {
-    normalized.target_grades = JSON.stringify(data.grades)
+
+    // 対象学年の統一処理
+    if (data.target_grades !== undefined) {
+      if (typeof data.target_grades === 'string') {
+        normalized.target_grades = data.target_grades
+      } else if (Array.isArray(data.target_grades)) {
+        normalized.target_grades = JSON.stringify(data.target_grades)
+      }
+    } else if (data.grades && Array.isArray(data.grades)) {
+      normalized.target_grades = JSON.stringify(data.grades)
+    }
+
+    // 特別教室の統一処理（nullを空文字列に変換）
+    if (data.special_classroom !== undefined) {
+      normalized.special_classroom = data.special_classroom || ''
+    } else if (data.specialClassroom !== undefined) {
+      normalized.special_classroom = data.specialClassroom || ''
+    } else if (
+      data.classroomType &&
+      typeof data.classroomType === 'string' &&
+      data.classroomType !== '普通教室'
+    ) {
+      normalized.special_classroom = data.classroomType
+    } else {
+      normalized.special_classroom = '' // デフォルト値として空文字列
+    }
+
+    console.log('🔧 [UPDATE SCHEMA TRANSFORM] 正規化後データ:', JSON.stringify(normalized, null, 2))
+    return normalized
   }
-  
-  // 特別教室の統一処理（nullを空文字列に変換）
-  if (data.special_classroom !== undefined) {
-    normalized.special_classroom = data.special_classroom || ''
-  } else if (data.specialClassroom !== undefined) {
-    normalized.special_classroom = data.specialClassroom || ''
-  } else if (data.classroomType && typeof data.classroomType === 'string' && data.classroomType !== '普通教室') {
-    normalized.special_classroom = data.classroomType
-  } else {
-    normalized.special_classroom = '' // デフォルト値として空文字列
-  }
-  
-  console.log('🔧 [UPDATE SCHEMA TRANSFORM] 正規化後データ:', JSON.stringify(normalized, null, 2))
-  return normalized
-})
+)
 
 // 教科検索クエリスキーマ
 const SubjectQuerySchema = z.object({
@@ -386,64 +396,66 @@ subjectsApp.openapi(getSubjectsRoute, async c => {
     console.log('📊 Subjects retrieved:', subjects.results?.length || 0)
 
     // データベース形式をフロントエンド期待形式に変換
-    const convertedSubjects = (subjects.results || []).map(subjectData => {
-      const resultData = subjectData as Record<string, unknown>
-      
-      try {
-        // target_gradesの安全な解析
-        let grades: number[] = []
-        if (resultData.target_grades && typeof resultData.target_grades === 'string') {
-          try {
-            const parsed = JSON.parse(resultData.target_grades as string)
-            grades = Array.isArray(parsed) ? parsed : []
-          } catch {
-            grades = []
+    const convertedSubjects = (subjects.results || [])
+      .map(subjectData => {
+        const resultData = subjectData as Record<string, unknown>
+
+        try {
+          // target_gradesの安全な解析
+          let grades: number[] = []
+          if (resultData.target_grades && typeof resultData.target_grades === 'string') {
+            try {
+              const parsed = JSON.parse(resultData.target_grades as string)
+              grades = Array.isArray(parsed) ? parsed : []
+            } catch {
+              grades = []
+            }
           }
-        }
 
-        // weekly_hoursの処理
-        let weeklyHours: Record<string, number> = {}
-        if (resultData.weekly_hours && typeof resultData.weekly_hours === 'string') {
-          try {
-            const parsed = JSON.parse(resultData.weekly_hours as string)
-            weeklyHours = typeof parsed === 'object' && parsed !== null ? parsed : {}
-          } catch {
-            weeklyHours = {}
+          // weekly_hoursの処理
+          let weeklyHours: Record<string, number> = {}
+          if (resultData.weekly_hours && typeof resultData.weekly_hours === 'string') {
+            try {
+              const parsed = JSON.parse(resultData.weekly_hours as string)
+              weeklyHours = typeof parsed === 'object' && parsed !== null ? parsed : {}
+            } catch {
+              weeklyHours = {}
+            }
           }
-        }
 
-        const convertedSubject = {
-          id: resultData.id,
-          name: resultData.name,
-          school_id: resultData.school_id, // 必須フィールドを追加
-          grades, // フロントエンド期待フィールド
-          targetGrades: grades, // 別名でも提供
-          target_grades: resultData.target_grades, // 元のDB値も保持
-          weeklyHours,
-          weekly_hours: resultData.weekly_hours, // DB値も保持
-          requiresSpecialClassroom:
-            resultData.requires_special_room === 1 ||
-            (resultData.special_classroom !== null &&
-             resultData.special_classroom !== '' &&
-             resultData.special_classroom !== '普通教室'),
-          specialClassroom: (resultData.special_classroom as string) || '', // フロントエンド期待フィールド
-          special_classroom: resultData.special_classroom, // DB値も保持
-          classroomType: (resultData.special_classroom as string) || '普通教室',
-          color: (resultData.color as string) || '#3B82F6',
-          order: Number(resultData.order) || Number(resultData.id?.toString().slice(-2)) || 1,
-          description: (resultData.description as string) || undefined,
-          created_at: resultData.created_at,
-          updated_at: resultData.updated_at,
-        }
+          const convertedSubject = {
+            id: resultData.id,
+            name: resultData.name,
+            school_id: resultData.school_id, // 必須フィールドを追加
+            grades, // フロントエンド期待フィールド
+            targetGrades: grades, // 別名でも提供
+            target_grades: resultData.target_grades, // 元のDB値も保持
+            weeklyHours,
+            weekly_hours: resultData.weekly_hours, // DB値も保持
+            requiresSpecialClassroom:
+              resultData.requires_special_room === 1 ||
+              (resultData.special_classroom !== null &&
+                resultData.special_classroom !== '' &&
+                resultData.special_classroom !== '普通教室'),
+            specialClassroom: (resultData.special_classroom as string) || '', // フロントエンド期待フィールド
+            special_classroom: resultData.special_classroom, // DB値も保持
+            classroomType: (resultData.special_classroom as string) || '普通教室',
+            color: (resultData.color as string) || '#3B82F6',
+            order: Number(resultData.order) || Number(resultData.id?.toString().slice(-2)) || 1,
+            description: (resultData.description as string) || undefined,
+            created_at: resultData.created_at,
+            updated_at: resultData.updated_at,
+          }
 
-        // Zodスキーマで検証
-        return SubjectSchema.parse(convertedSubject)
-      } catch (parseError) {
-        console.error('教科データ変換エラー:', parseError, 'Data:', resultData)
-        // 変換に失敗した場合はnullを返し、後でフィルターする
-        return null
-      }
-    }).filter(subject => subject !== null) // 変換失敗したものを除外
+          // Zodスキーマで検証
+          return SubjectSchema.parse(convertedSubject)
+        } catch (parseError) {
+          console.error('教科データ変換エラー:', parseError, 'Data:', resultData)
+          // 変換に失敗した場合はnullを返し、後でフィルターする
+          return null
+        }
+      })
+      .filter(subject => subject !== null) // 変換失敗したものを除外
 
     return c.json({
       success: true,
@@ -592,20 +604,22 @@ subjectsApp.openapi(getSubjectRoute, async c => {
   }
 })
 
-
 // 教科更新ハンドラー
 subjectsApp.openapi(updateSubjectRoute, async c => {
   try {
     const db = c.env.DB
     const { id } = c.req.valid('param')
-    const rawUpdateData = c.req.valid('json')
+    const rawUpdateData = await c.req.json()
 
-    console.log('🟢 [SUBJECTS UPDATE] 教科更新RAWリクエスト受信:', JSON.stringify(rawUpdateData, null, 2))
+    console.log(
+      '🟢 [SUBJECTS UPDATE] 教科更新RAWリクエスト受信:',
+      JSON.stringify(rawUpdateData, null, 2)
+    )
     console.log('🔍 [SUBJECTS UPDATE] 受信データのキー:', Object.keys(rawUpdateData || {}))
 
     // transform処理を手動で実行
     const updateData = UpdateSubjectRequestSchema.parse(rawUpdateData)
-    
+
     console.log('🔧 [SUBJECTS UPDATE] Transform後データ:', JSON.stringify(updateData, null, 2))
     console.log('🔍 [SUBJECTS UPDATE] school_id値:', updateData.school_id)
 
@@ -847,14 +861,14 @@ subjectsApp.openapi(deleteSubjectRoute, async c => {
 subjectsApp.openapi(createSubjectRoute, async c => {
   try {
     const db = c.env.DB
-    const rawData = c.req.valid('json')
+    const rawData = await c.req.json()
 
     console.log('🟢 [SUBJECTS API] 教科作成RAWリクエスト受信:', JSON.stringify(rawData, null, 2))
     console.log('🔍 [SUBJECTS API] 受信データのキー:', Object.keys(rawData || {}))
 
     // transform処理を手動で実行
     const createData = CreateSubjectRequestSchema.parse(rawData)
-    
+
     console.log('🔧 [SUBJECTS API] Transform後データ:', JSON.stringify(createData, null, 2))
     console.log('🔍 [SUBJECTS API] school_id値:', createData.school_id)
     console.log('🔍 [SUBJECTS API] school_id型:', typeof createData.school_id)
@@ -874,31 +888,37 @@ subjectsApp.openapi(createSubjectRoute, async c => {
 
     console.log('🔧 [SUBJECTS API] DB挿入用データ:', JSON.stringify(normalizedData, null, 2))
 
-    const insertResult = await db.prepare(`
+    const insertResult = await db
+      .prepare(`
       INSERT INTO subjects (
         id, name, school_id, weekly_hours, target_grades, special_classroom, 
         created_at, updated_at, requires_special_room
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      id,
-      normalizedData.name,
-      normalizedData.school_id,
-      normalizedData.weekly_hours,
-      normalizedData.target_grades,
-      normalizedData.special_classroom,
-      now,
-      now,
-      normalizedData.special_classroom ? 1 : 0
-    ).run()
+    `)
+      .bind(
+        id,
+        normalizedData.name,
+        normalizedData.school_id,
+        normalizedData.weekly_hours,
+        normalizedData.target_grades,
+        normalizedData.special_classroom,
+        now,
+        now,
+        normalizedData.special_classroom ? 1 : 0
+      )
+      .run()
 
     console.log('✅ [SUBJECTS API] DB挿入結果:', JSON.stringify(insertResult, null, 2))
 
     if (insertResult.changes === 0) {
-      return c.json({
-        success: false,
-        error: 'CREATE_FAILED',
-        message: '教科の作成に失敗しました',
-      }, 500)
+      return c.json(
+        {
+          success: false,
+          error: 'CREATE_FAILED',
+          message: '教科の作成に失敗しました',
+        },
+        500
+      )
     }
 
     // 作成された教科データを取得してフロントエンド形式に変換
@@ -926,13 +946,15 @@ subjectsApp.openapi(createSubjectRoute, async c => {
       grades, // フロントエンド期待フィールド
       targetGrades: grades, // 別名でも提供
       target_grades: dbData.target_grades, // 元のDB値も保持
-      weeklyHours: weeklyHoursNumber ? { 
-        [grades[0] || '1']: weeklyHoursNumber, 
-        [grades[1] || '2']: weeklyHoursNumber, 
-        [grades[2] || '3']: weeklyHoursNumber 
-      } : {},
+      weeklyHours: weeklyHoursNumber
+        ? {
+            [grades[0] || '1']: weeklyHoursNumber,
+            [grades[1] || '2']: weeklyHoursNumber,
+            [grades[2] || '3']: weeklyHoursNumber,
+          }
+        : {},
       weekly_hours: dbData.weekly_hours, // DB値も保持
-      requiresSpecialClassroom: 
+      requiresSpecialClassroom:
         dbData.special_classroom !== null &&
         dbData.special_classroom !== '' &&
         dbData.special_classroom !== '普通教室',
@@ -948,12 +970,14 @@ subjectsApp.openapi(createSubjectRoute, async c => {
 
     console.log('✅ [SUBJECTS API] 教科作成完了:', JSON.stringify(responseData, null, 2))
 
-    return c.json({
-      success: true,
-      message: '教科を正常に作成しました',
-      data: responseData,
-    }, 201)
-
+    return c.json(
+      {
+        success: true,
+        message: '教科を正常に作成しました',
+        data: responseData,
+      },
+      201
+    )
   } catch (error) {
     console.error('❌ [SUBJECTS API] 教科作成エラー:', error)
     console.error('❌ [SUBJECTS API] エラー詳細:', {
@@ -964,27 +988,36 @@ subjectsApp.openapi(createSubjectRoute, async c => {
     })
 
     if (error instanceof z.ZodError) {
-      console.error('❌ [SUBJECTS API] Zodバリデーションエラー詳細:', JSON.stringify(error.issues, null, 2))
-      return c.json({
-        success: false,
-        error: 'VALIDATION_ERROR',
-        message: 'リクエストデータが正しくありません',
-        details: { 
-          validationErrors: error.issues,
-          errorDetails: JSON.stringify(error.issues, null, 2)
+      console.error(
+        '❌ [SUBJECTS API] Zodバリデーションエラー詳細:',
+        JSON.stringify(error.issues, null, 2)
+      )
+      return c.json(
+        {
+          success: false,
+          error: 'VALIDATION_ERROR',
+          message: 'リクエストデータが正しくありません',
+          details: {
+            validationErrors: error.issues,
+            errorDetails: JSON.stringify(error.issues, null, 2),
+          },
         },
-      }, 400)
+        400
+      )
     }
 
-    return c.json({
-      success: false,
-      error: 'INTERNAL_SERVER_ERROR',
-      message: '教科の作成中にエラーが発生しました',
-      details: {
-        error: error.message,
-        stack: error.stack
-      }
-    }, 500)
+    return c.json(
+      {
+        success: false,
+        error: 'INTERNAL_SERVER_ERROR',
+        message: '教科の作成中にエラーが発生しました',
+        details: {
+          error: error.message,
+          stack: error.stack,
+        },
+      },
+      500
+    )
   }
 })
 

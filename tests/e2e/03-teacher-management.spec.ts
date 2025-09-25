@@ -286,23 +286,29 @@ test.describe('👨‍🏫 教師管理E2Eテスト', () => {
       console.log(`✅ 追加した教師が一覧に表示されています: ${testData.name}`)
     } else {
       console.log(`⚠️ 追加した教師が一覧に見つかりません: ${testData.name}`)
-      
+
       // エラー確認とテスト失敗
       const errorReport = errorMonitor.generateReport()
       console.error('📊 エラー詳細レポート:', {
         networkErrors: errorReport.networkErrors,
         consoleErrors: errorReport.consoleErrors,
         pageErrors: errorReport.pageErrors,
-        hasFatalErrors: errorReport.hasFatalErrors
+        hasFatalErrors: errorReport.hasFatalErrors,
       })
-      
+
       // ネットワークエラーまたは教師追加失敗を検知した場合はテスト失敗
       if (errorReport.networkErrors.length > 0) {
-        throw new Error(`教師追加に失敗しました。ネットワークエラー: ${errorReport.networkErrors.join(', ')}`)
+        throw new Error(
+          `教師追加に失敗しました。ネットワークエラー: ${errorReport.networkErrors.join(', ')}`
+        )
       } else if (errorReport.consoleErrors.length > 0) {
-        throw new Error(`教師追加に失敗しました。コンソールエラー: ${errorReport.consoleErrors.join(', ')}`)
+        throw new Error(
+          `教師追加に失敗しました。コンソールエラー: ${errorReport.consoleErrors.join(', ')}`
+        )
       } else {
-        throw new Error(`教師追加に失敗しました。一覧に追加した教師 "${testData.name}" が表示されていません。`)
+        throw new Error(
+          `教師追加に失敗しました。一覧に追加した教師 "${testData.name}" が表示されていません。`
+        )
       }
     }
 

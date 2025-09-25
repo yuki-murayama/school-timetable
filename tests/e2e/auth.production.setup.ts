@@ -1,5 +1,4 @@
 import { test as setup } from '@playwright/test'
-import { E2E_TEST_USER } from './utils/test-user'
 
 const authFile = 'tests/e2e/.auth/production-user.json'
 
@@ -27,12 +26,12 @@ setup('production authenticate', async ({ page }) => {
             email: 'test@school.local',
             password: 'password123',
             name: 'テストユーザー1',
-          })
+          }),
         })
         const text = await res.text()
         return { status: res.status, body: text, ok: res.ok }
       })
-      
+
       if (response.ok) {
         console.log('✅ User registration successful')
       } else {
@@ -51,14 +50,16 @@ setup('production authenticate', async ({ page }) => {
         body: JSON.stringify({
           email: 'test@school.local',
           password: 'password123',
-        })
+        }),
       })
       const data = await res.json()
       return { status: res.status, data, ok: res.ok }
     })
 
     if (!loginResponse.ok) {
-      throw new Error(`Login failed: ${loginResponse.status} - ${JSON.stringify(loginResponse.data)}`)
+      throw new Error(
+        `Login failed: ${loginResponse.status} - ${JSON.stringify(loginResponse.data)}`
+      )
     }
 
     if (!loginResponse.data.success) {

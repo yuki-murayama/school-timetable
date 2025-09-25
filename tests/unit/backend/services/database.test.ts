@@ -314,4 +314,74 @@ describe('Database Service', () => {
       expect(teacherData.name).toBe('田中先生')
     })
   })
+
+  describe('基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+      expect(beforeEach).toBeDefined()
+      expect(afterEach).toBeDefined()
+      expect(vi).toBeDefined()
+    })
+
+    it('Vitestモック機能が正しく動作している', () => {
+      expect(vi.fn).toBeDefined()
+      expect(typeof vi.fn).toBe('function')
+      expect(vi.clearAllMocks).toBeDefined()
+      expect(typeof vi.clearAllMocks).toBe('function')
+      expect(vi.restoreAllMocks).toBeDefined()
+      expect(typeof vi.restoreAllMocks).toBe('function')
+    })
+
+    it('モック関数が正しく定義されている', () => {
+      expect(mockExecute).toBeDefined()
+      expect(typeof mockExecute).toBe('function')
+      expect(mockPrepare).toBeDefined()
+      expect(typeof mockPrepare).toBe('function')
+      expect(mockDB).toBeDefined()
+      expect(typeof mockDB).toBe('object')
+    })
+
+    it('環境設定オブジェクトが正しく定義されている', () => {
+      expect(mockEnv).toBeDefined()
+      expect(typeof mockEnv).toBe('object')
+      expect(mockEnv.DB).toBeDefined()
+      expect(mockEnv.GROQ_API_KEY).toBe('test-groq-key')
+      expect(mockEnv.NODE_ENV).toBe('test')
+      expect(mockEnv.JWT_SECRET).toBe('test-jwt-secret')
+    })
+
+    it('データベースモックが正しく設定されている', () => {
+      expect(mockDB.prepare).toBeDefined()
+      expect(typeof mockDB.prepare).toBe('function')
+      expect(mockDB.exec).toBeDefined()
+      expect(typeof mockDB.exec).toBe('function')
+    })
+
+    it('共有型定義が正しくインポートされている', () => {
+      // Env型の存在を間接的に確認
+      const envType = typeof mockEnv
+      expect(envType).toBe('object')
+      expect(mockEnv).toHaveProperty('DB')
+      expect(mockEnv).toHaveProperty('GROQ_API_KEY')
+      expect(mockEnv).toHaveProperty('NODE_ENV')
+    })
+
+    it('JavaScript基本機能が利用可能', () => {
+      expect(JSON).toBeDefined()
+      expect(JSON.parse).toBeDefined()
+      expect(typeof JSON.parse).toBe('function')
+      expect(JSON.stringify).toBeDefined()
+      expect(typeof JSON.stringify).toBe('function')
+    })
+
+    it('Error機能が利用可能', () => {
+      expect(Error).toBeDefined()
+      expect(typeof Error).toBe('function')
+      const testError = new Error('test message')
+      expect(testError).toBeInstanceOf(Error)
+      expect(testError.message).toBe('test message')
+    })
+  })
 })

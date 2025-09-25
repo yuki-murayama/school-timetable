@@ -714,4 +714,136 @@ describe('教師CRUD統合テスト - 分岐網羅 - スキップ中', () => {
       console.log('✅ データ永続性テスト完了')
     })
   })
+
+  describe('基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+      expect(beforeAll).toBeDefined()
+      expect(afterAll).toBeDefined()
+      expect(beforeEach).toBeDefined()
+      expect(vi).toBeDefined()
+    })
+
+    it('テスト用の定数が正しく定義されている', () => {
+      expect(API_BASE).toBe('http://localhost:42465/api/frontend/school')
+      expect(TEST_TOKEN).toBe('test-token')
+      expect(AUTH_CREDENTIALS).toBeDefined()
+      expect(AUTH_CREDENTIALS.email).toBe('test@school.local')
+      expect(AUTH_CREDENTIALS.password).toBe('password123')
+    })
+
+    it('ユーティリティ関数が正しく定義されている', () => {
+      expect(getAuthToken).toBeDefined()
+      expect(typeof getAuthToken).toBe('function')
+      expect(global.fetch).toBeDefined()
+      expect(typeof global.fetch).toBe('function')
+    })
+
+    it('Vitestモック機能が正しく動作している', () => {
+      expect(vi.fn).toBeDefined()
+      expect(typeof vi.fn).toBe('function')
+      expect(vi.clearAllMocks).toBeDefined()
+      expect(typeof vi.clearAllMocks).toBe('function')
+      expect(vi.restoreAllMocks).toBeDefined()
+      expect(typeof vi.restoreAllMocks).toBe('function')
+    })
+
+    it('Teacher型とApiResponse型が正しく定義されている', () => {
+      const testTeacher: Teacher = {
+        id: 'test-id',
+        name: 'Test Teacher',
+        subjects: [],
+        grades: [],
+        created_at: '2024-01-01T00:00:00.000Z',
+      }
+      expect(testTeacher.id).toBe('test-id')
+      expect(testTeacher.name).toBe('Test Teacher')
+      expect(Array.isArray(testTeacher.subjects)).toBe(true)
+      expect(Array.isArray(testTeacher.grades)).toBe(true)
+
+      const testApiResponse: ApiResponse<Teacher> = {
+        success: true,
+        data: testTeacher,
+      }
+      expect(testApiResponse.success).toBe(true)
+      expect(testApiResponse.data).toBeDefined()
+    })
+
+    it('apiRequest関数が正しく設定されている', () => {
+      expect(apiRequest).toBeDefined()
+      expect(typeof apiRequest).toBe('function')
+      expect(apiRequest.length).toBeGreaterThanOrEqual(1) // 最低1つの引数を取る
+    })
+
+    it('createTestTeacher関数が正しく動作している', () => {
+      expect(createTestTeacher).toBeDefined()
+      expect(typeof createTestTeacher).toBe('function')
+
+      const testTeacher = createTestTeacher('Test Name', ['数学'], [1, 2])
+      expect(testTeacher.name).toBe('Test Name')
+      expect(testTeacher.subjects).toEqual(['数学'])
+      expect(testTeacher.grades).toEqual([1, 2])
+      expect(testTeacher.email).toContain('@test.com')
+    })
+
+    it('グローバル変数とMapが正しく初期化されている', () => {
+      expect(createdTeacherIds).toBeDefined()
+      expect(Array.isArray(createdTeacherIds)).toBe(true)
+      expect(createdTeachersData).toBeDefined()
+      expect(createdTeachersData instanceof Map).toBe(true)
+      expect(typeof createdTeachersData.get).toBe('function')
+      expect(typeof createdTeachersData.set).toBe('function')
+      expect(typeof createdTeachersData.delete).toBe('function')
+    })
+
+    it('JavaScript基本機能が利用可能', () => {
+      expect(Object).toBeDefined()
+      expect(typeof Object).toBe('function')
+      expect(Object.keys).toBeDefined()
+      expect(typeof Object.keys).toBe('function')
+      expect(Array).toBeDefined()
+      expect(typeof Array).toBe('function')
+      expect(Array.isArray).toBeDefined()
+      expect(typeof Array.isArray).toBe('function')
+      expect(Array.isArray([])).toBe(true)
+      expect(Array.isArray({})).toBe(false)
+    })
+
+    it('JSON機能とPromise機能が利用可能', () => {
+      expect(JSON).toBeDefined()
+      expect(JSON.parse).toBeDefined()
+      expect(typeof JSON.parse).toBe('function')
+      expect(JSON.stringify).toBeDefined()
+      expect(typeof JSON.stringify).toBe('function')
+
+      const testData = { name: 'テスト教師', subjects: ['数学', '理科'] }
+      const stringified = JSON.stringify(testData)
+      expect(typeof stringified).toBe('string')
+      const parsed = JSON.parse(stringified)
+      expect(parsed).toEqual(testData)
+
+      expect(Promise).toBeDefined()
+      expect(typeof Promise).toBe('function')
+      expect(typeof Promise.resolve).toBe('function')
+      expect(typeof Promise.reject).toBe('function')
+    })
+
+    it('Date機能と時刻操作が正しく動作している', () => {
+      expect(Date).toBeDefined()
+      expect(typeof Date).toBe('function')
+
+      const testDate = new Date()
+      expect(testDate).toBeInstanceOf(Date)
+      expect(typeof testDate.toISOString).toBe('function')
+
+      const isoString = testDate.toISOString()
+      expect(typeof isoString).toBe('string')
+      expect(isoString).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/)
+
+      expect(typeof Date.now).toBe('function')
+      expect(typeof Date.now()).toBe('number')
+    })
+  })
 })

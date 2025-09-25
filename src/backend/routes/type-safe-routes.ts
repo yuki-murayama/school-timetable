@@ -3,7 +3,7 @@
  * 既存のAPIエンドポイントを型安全化したもの
  */
 
-import type { ClassroomDbRow, Env, SubjectDbRow, TeacherDbRow } from '@shared/schemas'
+import type { ClassroomDbRow, Env, SubjectDbRow } from '@shared/schemas'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
 import { logger } from 'hono/logger'
@@ -178,8 +178,6 @@ export function createTypeSafeRoutes() {
     }
   })
 
-
-
   // ======================
   // 学校設定管理ルート - テスト実装
   // ======================
@@ -189,7 +187,6 @@ export function createTypeSafeRoutes() {
 
   // セキュリティ：認証なしでアクセスできる学校設定更新エンドポイントは削除
   // 認証必須のAPIルートに移動済み
-
 
   // ======================
   // 教師管理ルート（統合API用） - テスト実装
@@ -203,80 +200,7 @@ export function createTypeSafeRoutes() {
   // [REMOVED] Legacy school settings endpoints - now handled by OpenAPI routes
 
   // [REMOVED] Legacy teachers endpoints - now handled by OpenAPI routes
-    console.log('📍 /school/teachers エンドポイント到達')
-    try {
-      console.log('🗄️ データベース接続確認')
-      if (!c.env?.DB) {
-        throw new Error('Database connection not available')
-      }
-
-      // DBからteachersを取得
-      const results = await c.env.DB.prepare(`
-        SELECT * FROM teachers
-      `).all()
-
-      console.log('🗄️ 取得結果:', results)
-
-      if (!results?.results) {
-        throw new Error('Teachers query failed')
-      }
-
-      // 安全なJSONパース関数
-      const safeJsonParse = (jsonString: string | null, defaultValue: unknown) => {
-        if (!jsonString) return defaultValue
-        try {
-          return JSON.parse(jsonString)
-        } catch {
-          return defaultValue
-        }
-      }
-
-      // 教師データの変換（フロントエンドスキーマに合わせて）
-      const convertedData = results.results.map((teacher: TeacherDbRow) => ({
-        id: teacher.id,
-        name: teacher.name,
-        email: teacher.email || undefined,
-        subjects: safeJsonParse(teacher.subjects, []),
-        grades: safeJsonParse(teacher.grades, []),
-        assignmentRestrictions: safeJsonParse(teacher.assignmentRestrictions, []),
-        maxWeeklyHours: teacher.maxWeeklyHours || 25,
-        preferredTimeSlots: safeJsonParse(teacher.preferredTimeSlots, []),
-        unavailableSlots: safeJsonParse(teacher.unavailableSlots, []),
-        created_at: teacher.created_at
-          ? new Date(teacher.created_at).toISOString()
-          : new Date().toISOString(),
-        updated_at: teacher.updated_at
-          ? new Date(teacher.updated_at).toISOString()
-          : new Date().toISOString(),
-      }))
-
-      console.log('✅ 変換後データ:', convertedData)
-
-      return c.json({
-        success: true,
-        data: {
-          teachers: convertedData,
-          pagination: {
-            page: 1,
-            limit: 100,
-            total: convertedData.length,
-            totalPages: 1,
-          },
-        },
-      })
-    } catch (error) {
-      console.error('❌ /school/teachers エラー:', error)
-      return c.json(
-        {
-          success: false,
-          error: 'TEACHERS_ERROR',
-          message: error.message,
-          details: { originalError: error.message },
-        },
-        500
-      )
-    }
-  })
+  // All teacher endpoints have been migrated to the unified OpenAPI implementation
 
   // 教科一覧取得（テスト版）
   app.get('/school/subjects', async c => {
@@ -625,12 +549,6 @@ export function createTypeSafeRoutes() {
       )
     }
   })
-
-
-
-
-
-
 
   // ======================
   // セキュリティ：すべての認証なしAPIエンドポイントを削除

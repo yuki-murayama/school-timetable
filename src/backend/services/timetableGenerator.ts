@@ -523,9 +523,16 @@ export class TimetableGenerator {
         `🎯 クラス割当開始: ${subject.name} ${grade}年${classIndex}組 (週${weeklyHours}時間)`
       )
 
+      // 安全性チェック：異常な値を防止
       if (weeklyHours === 0) {
         this.log(`⚠️ 週間授業時数が0です: ${subject.name} ${grade}年`)
         return
+      }
+
+      if (!Number.isFinite(weeklyHours) || weeklyHours < 0 || weeklyHours > 50) {
+        this.log(`❌ 異常な週間授業時数を検出: ${weeklyHours} (${subject.name} ${grade}年) - 安全な値に修正`)
+        weeklyHours = Math.max(0, Math.min(50, weeklyHours)) || 0
+        if (weeklyHours === 0) return
       }
     } catch (error) {
       this.log(`❌ assignSubjectToClass初期化エラー:`, error)
@@ -779,6 +786,13 @@ export class TimetableGenerator {
     for (const candidate of this.candidates) {
       if (candidate.assignedHours < candidate.requiredHours) {
         const remaining = candidate.requiredHours - candidate.assignedHours
+
+        // 安全性チェック：異常な値を防止
+        if (!Number.isFinite(remaining) || remaining <= 0 || remaining > 50) {
+          this.log(`❌ 異常な未割当時間数を検出: ${remaining} (${candidate.subject.name}) - スキップ`)
+          continue
+        }
+
         this.log(
           `⚠️ ${candidate.subject.name} ${candidate.classGrade}年${candidate.classSection}組: ${remaining}時間未割当`
         )

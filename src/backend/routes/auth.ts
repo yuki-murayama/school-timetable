@@ -127,7 +127,6 @@ authApp.use(
   })
 )
 
-
 // ログインエンドポイント - デバッグ版
 authApp.post('/login', zValidator('json', loginSchema), async c => {
   console.log('🔍 ログインエンドポイントが呼ばれました')
@@ -429,6 +428,15 @@ authApp.get('/health', c => {
   return c.json({
     status: 'ok',
     message: 'Authentication service is running',
+    timestamp: new Date().toISOString(),
+  })
+})
+
+// デバッグエンドポイント
+authApp.get('/debug', c => {
+  return c.json({
+    status: 'ok',
+    message: 'Auth app is working',
     timestamp: new Date().toISOString(),
   })
 })

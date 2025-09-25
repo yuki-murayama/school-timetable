@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 test.describe('📚 シンプル教科追加テスト', () => {
   test.use({ storageState: 'tests/e2e/.auth/production-user.json' })
@@ -35,10 +35,10 @@ test.describe('📚 シンプル教科追加テスト', () => {
     // フォーム入力
     console.log('📍 Step 4: フォーム入力')
     await page.fill('#subject-name', uniqueTestName)
-    
+
     const grade2Checkbox = page.locator('#grade-2')
     await grade2Checkbox.check()
-    
+
     await page.fill('#weekly-lessons', '2')
 
     // 保存
@@ -56,7 +56,7 @@ test.describe('📚 シンプル教科追加テスト', () => {
     // 一覧での確認
     console.log('📍 Step 7: 一覧での教科確認')
     await page.waitForTimeout(1000)
-    
+
     const createdSubjectRow = page.locator(`tr:has-text("${uniqueTestName}")`)
     await expect(createdSubjectRow).toBeVisible({ timeout: 5000 })
     console.log(`✅ 教科「${uniqueTestName}」が一覧に表示されています`)
@@ -65,8 +65,8 @@ test.describe('📚 シンプル教科追加テスト', () => {
     const gradeCell = createdSubjectRow.locator('td').nth(1)
     const gradeText = await gradeCell.textContent()
     console.log(`📊 対象学年: ${gradeText}`)
-    
-    const hoursCell = createdSubjectRow.locator('td').nth(3) 
+
+    const hoursCell = createdSubjectRow.locator('td').nth(3)
     const hoursText = await hoursCell.textContent()
     console.log(`📚 週授業数: ${hoursText}`)
 

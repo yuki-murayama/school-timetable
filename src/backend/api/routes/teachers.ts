@@ -5,33 +5,32 @@
 import { createRoute, OpenAPIHono, z } from '@hono/zod-openapi'
 import {
   AssignmentRestrictionSchema,
+  CreateTeacherRequestSchema,
   type Env,
-  GradeSchema,
   IdSchema,
   LegacyTeacherSchema,
-  NameSchema,
   safeJsonParse,
   safeJsonStringify,
-  TeacherSchema,
 } from '@shared/schemas'
 import { createErrorResponseSchemas, createResponseSchemas, paginationSchema } from '../openapi'
 
 // 教師管理用OpenAPIアプリ
 const teachersApp = new OpenAPIHono<{ Bindings: Env }>()
 
-// 教師作成リクエストスキーマ（統一API用 - より柔軟な検証）
-const CreateTeacherRequestSchema = z.object({
-  name: NameSchema.describe('教師名'),
-  subjects: z.array(z.string().min(1)).default([]).describe('担当教科ID配列（文字列）'),
-  grades: z.array(GradeSchema).default([]).describe('担当学年配列'),
-  assignmentRestrictions: z.array(AssignmentRestrictionSchema).optional().describe('割当制限配列'),
-  order: z.number().int().positive().optional().describe('表示順序'),
-  // フロントエンドから送信される可能性のあるフィールドを許可（無視）
-  school_id: z.string().optional().describe('学校ID（互換性のため、無視される）'),
+// フロントエンド向け簡単な割当制限スキーマ
+const _SimpleAssignmentRestrictionSchema = z.object({
+  displayOrder: z.number().min(1).optional().describe('表示順序'),
+  restrictedDay: z.string().min(1).describe('制限曜日'),
+  restrictedPeriods: z.array(z.number().min(1).max(10)).min(1).describe('制限時限配列'),
+  restrictionLevel: z.enum(['必須', '推奨']).describe('制限レベル'),
+  reason: z.string().max(200).optional().describe('制限理由'),
 })
 
+// 共有スキーマを使用（フロントエンドとバックエンドの統一）
+const TeacherCreateRequestSchema = CreateTeacherRequestSchema
+
 // 教師更新リクエストスキーマ
-const UpdateTeacherRequestSchema = CreateTeacherRequestSchema.partial()
+const UpdateTeacherRequestSchema = TeacherCreateRequestSchema.partial()
 
 // 教師検索クエリスキーマ - 配列パラメータを含む柔軟な処理
 const _TeacherQuerySchema = z
@@ -265,47 +264,7 @@ const createTeacherRoute = createRoute({
     body: {
       content: {
         'application/json': {
-          schema: {
-            type: 'object',
-            properties: {
-              name: {
-                type: 'string',
-                minLength: 1,
-                maxLength: 100,
-                example: '田中太郎',
-              },
-              subjects: {
-                type: 'array',
-                items: { type: 'string', format: 'uuid' },
-                example: ['math-001', 'science-001'],
-              },
-              grades: {
-                type: 'array',
-                items: { type: 'number', minimum: 1, maximum: 6 },
-                example: [1, 2],
-              },
-              assignmentRestrictions: {
-                type: 'array',
-                items: {
-                  type: 'object',
-                  properties: {
-                    displayOrder: { type: 'number', minimum: 1 },
-                    restrictedDay: { type: 'string', example: '月曜' },
-                    restrictedPeriods: {
-                      type: 'array',
-                      items: { type: 'number', minimum: 1, maximum: 10 },
-                      minItems: 1,
-                    },
-                    restrictionLevel: { type: 'string', enum: ['必須', '推奨'] },
-                    reason: { type: 'string', maxLength: 200 },
-                  },
-                  required: ['restrictedDay', 'restrictedPeriods', 'restrictionLevel'],
-                },
-              },
-              order: { type: 'number', minimum: 1 },
-            },
-            required: ['name'],
-          },
+          schema: TeacherCreateRequestSchema,
         },
       },
     },
@@ -358,25 +317,7 @@ const updateTeacherRoute = createRoute({
     body: {
       content: {
         'application/json': {
-          schema: {
-            type: 'object',
-            properties: {
-              name: { type: 'string', minLength: 1, maxLength: 100 },
-              subjects: {
-                type: 'array',
-                items: { type: 'string', format: 'uuid' },
-              },
-              grades: {
-                type: 'array',
-                items: { type: 'number', minimum: 1, maximum: 6 },
-              },
-              assignmentRestrictions: {
-                type: 'array',
-                items: { type: 'object' },
-              },
-              order: { type: 'number', minimum: 1 },
-            },
-          },
+          schema: UpdateTeacherRequestSchema,
         },
       },
     },
@@ -447,7 +388,6 @@ const deleteTeacherRoute = createRoute({
     ...createErrorResponseSchemas(), // エラーレスポンス
   },
 })
-
 
 // ハンドラー実装
 
@@ -638,7 +578,8 @@ teachersApp.openapi(getTeacherRoute, async c => {
       }
     }
 
-    const teacher = TeacherSchema.parse(teacherData)
+    // LegacyTeacherSchemaを使用してバリデーション
+    const teacher = LegacyTeacherSchema.parse(teacherData)
 
     return c.json({
       success: true,
@@ -674,43 +615,65 @@ teachersApp.openapi(getTeacherRoute, async c => {
 teachersApp.openapi(createTeacherRoute, async c => {
   try {
     const db = c.env.DB
-    // @hono/zod-openapi のフレームワークレベルバリデーション済みデータを取得
+
+    // @hono/zod-openapiの自動バリデーションを使用（手動バリデーションを削除）
     const validatedData = c.req.valid('json')
+
+    console.log(
+      '🔍 [AUTO-VALIDATION] Validated data from unified API:',
+      JSON.stringify(validatedData, null, 2)
+    )
 
     // 一意ID生成
     const teacherId = crypto.randomUUID()
     const now = new Date().toISOString()
 
     // 制限情報のJSON文字列化
-    const restrictionsJson = validatedData.assignmentRestrictions
-      ? safeJsonStringify(
-          validatedData.assignmentRestrictions,
-          z.array(AssignmentRestrictionSchema)
-        )
-      : { success: true, json: '[]' }
+    console.log(
+      '🔍 [RESTRICTIONS] Processing assignmentRestrictions:',
+      JSON.stringify(validatedData.assignmentRestrictions, null, 2)
+    )
 
-    if (!restrictionsJson.success) {
-      throw new Error('割当制限のシリアライゼーションに失敗しました')
-    }
+    const restrictionsJsonString =
+      validatedData.assignmentRestrictions && validatedData.assignmentRestrictions.length > 0
+        ? safeJsonStringify(validatedData.assignmentRestrictions)
+        : '[]'
 
-    // データベース挿入（現在のテーブル構造に合わせる）
+    console.log('🔍 [RESTRICTIONS] JSON string result:', restrictionsJsonString)
+
+    // データベース挿入（現在のテーブル構造に合わせる - school_id必須フィールド追加、grades追加、assignment_restrictions追加）
+    console.log('🔍 [DATABASE] Preparing insert with data:', {
+      teacherId,
+      name: validatedData.name,
+      subjects: JSON.stringify(validatedData.subjects),
+      grades: JSON.stringify(validatedData.grades),
+      assignment_restrictions: restrictionsJsonString,
+      order: validatedData.order || 1,
+    })
+
     const result = await db
       .prepare(`
         INSERT INTO teachers (
-          id, name, subjects, \`order\`, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?)
+          id, name, school_id, subjects, grades, assignment_restrictions, \`order\`, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `)
       .bind(
         teacherId,
         validatedData.name,
-        JSON.stringify(validatedData.subjects),
+        'default', // デフォルトのschool_id
+        JSON.stringify(validatedData.subjects || []),
+        JSON.stringify(validatedData.grades || []),
+        restrictionsJsonString, // 制限情報のJSON文字列
         validatedData.order || 1,
         now,
         now
       )
       .run()
 
+    console.log('🔍 [DATABASE] Insert result:', JSON.stringify(result, null, 2))
+
     if (!result.success) {
+      console.error('❌ [DATABASE] Insert failed:', result)
       throw new Error('データベース挿入に失敗しました')
     }
 
@@ -731,30 +694,38 @@ teachersApp.openapi(createTeacherRoute, async c => {
       updated_at: now,
     }
 
-    const teacher = TeacherSchema.parse(teacherData)
-
+    // TeacherSchemaを削除したため、直接teacherDataを返す
     return c.json(
       {
         success: true,
-        data: teacher,
+        data: teacherData,
         message: '教師を正常に作成しました',
       },
       201
     )
   } catch (error) {
-    console.error('教師作成エラー:', error)
+    console.error('🚨 教師作成エラー:', error)
+    console.error('🚨 Error stack:', error instanceof Error ? error.stack : 'No stack available')
+    console.error('🚨 Error type:', error?.constructor?.name)
 
     if (error instanceof z.ZodError) {
+      console.error('🚨 Zod validation failed:', JSON.stringify(error.issues, null, 2))
       return c.json(
         {
           success: false,
           error: 'VALIDATION_ERROR',
-          message: 'リクエストデータが正しくありません',
+          message: 'Validation failed: Required',
           details: { validationErrors: error.issues },
         },
         400
       )
     }
+
+    // 🚨 詳細なエラーログを出力
+    console.error('❌ [TEACHER CREATE ERROR] 教師作成中にエラーが発生:', error)
+    console.error('❌ [ERROR STACK]:', error instanceof Error ? error.stack : 'No stack available')
+    console.error('❌ [ERROR TYPE]:', typeof error)
+    console.error('❌ [ERROR CONSTRUCTOR]:', error?.constructor?.name)
 
     return c.json(
       {
@@ -772,7 +743,6 @@ teachersApp.openapi(updateTeacherRoute, async c => {
   try {
     const db = c.env.DB
     const { id } = c.req.valid('param')
-    // @hono/zod-openapi のフレームワークレベルバリデーション済みデータを取得
     const updateData = c.req.valid('json')
 
     // 既存教師の確認
@@ -802,12 +772,12 @@ teachersApp.openapi(updateTeacherRoute, async c => {
 
     if (updateData.subjects !== undefined) {
       updateFields.push('subjects = ?')
-      updateParams.push(JSON.stringify(updateData.subjects))
+      updateParams.push(JSON.stringify(updateData.subjects || []))
     }
 
     if (updateData.grades !== undefined) {
       updateFields.push('grades = ?')
-      updateParams.push(JSON.stringify(updateData.grades))
+      updateParams.push(JSON.stringify(updateData.grades || []))
     }
 
     if (updateData.assignmentRestrictions !== undefined) {
@@ -873,7 +843,8 @@ teachersApp.openapi(updateTeacherRoute, async c => {
       }
     }
 
-    const teacher = TeacherSchema.parse(teacherData)
+    // LegacyTeacherSchemaを使用してバリデーション
+    const teacher = LegacyTeacherSchema.parse(teacherData)
 
     return c.json({
       success: true,

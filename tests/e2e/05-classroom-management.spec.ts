@@ -10,7 +10,7 @@
  * - データの永続化確認
  */
 
-import { expect, test } from '@playwright/test'
+import { test } from '@playwright/test'
 import { createErrorMonitor } from './utils/error-monitor'
 
 // 認証状態はPlaywright設定で自動管理される
@@ -184,7 +184,7 @@ test.describe('🏫 教室管理E2Eテスト', () => {
             break
           }
         }
-        
+
         if (typeSelected) break
       }
     }
@@ -234,10 +234,10 @@ test.describe('🏫 教室管理E2Eテスト', () => {
           console.log(`✅ 保存ボタン発見: ${selector}`)
           await button.click({ force: true })
           console.log(`🔄 保存ボタンクリック実行: ${selector}`)
-          
+
           // ダイアログが閉じるまで待機
           await page.waitForTimeout(3000)
-          
+
           // ダイアログが閉じられたかを確認
           const dialogExists = await page.locator('[role="dialog"]').count()
           if (dialogExists === 0) {
@@ -245,7 +245,7 @@ test.describe('🏫 教室管理E2Eテスト', () => {
           } else {
             console.log(`⚠️ ダイアログがまだ開いています - 保存失敗の可能性`)
           }
-          
+
           saveSuccess = true
           break
         }
@@ -285,23 +285,29 @@ test.describe('🏫 教室管理E2Eテスト', () => {
       console.log(`✅ 追加した教室が一覧に表示されています: ${testData.name}`)
     } else {
       console.log(`⚠️ 追加した教室が一覧に見つかりません: ${testData.name}`)
-      
+
       // エラー確認とテスト失敗
       const errorReport = errorMonitor.generateReport()
       console.error('📊 エラー詳細レポート:', {
         networkErrors: errorReport.networkErrors,
         consoleErrors: errorReport.consoleErrors,
         pageErrors: errorReport.pageErrors,
-        hasFatalErrors: errorReport.hasFatalErrors
+        hasFatalErrors: errorReport.hasFatalErrors,
       })
-      
+
       // ネットワークエラーまたは教室追加失敗を検知した場合はテスト失敗
       if (errorReport.networkErrors.length > 0) {
-        throw new Error(`教室追加に失敗しました。ネットワークエラー: ${errorReport.networkErrors.join(', ')}`)
+        throw new Error(
+          `教室追加に失敗しました。ネットワークエラー: ${errorReport.networkErrors.join(', ')}`
+        )
       } else if (errorReport.consoleErrors.length > 0) {
-        throw new Error(`教室追加に失敗しました。コンソールエラー: ${errorReport.consoleErrors.join(', ')}`)
+        throw new Error(
+          `教室追加に失敗しました。コンソールエラー: ${errorReport.consoleErrors.join(', ')}`
+        )
       } else {
-        throw new Error(`教室追加に失敗しました。一覧に追加した教室 "${testData.name}" が表示されていません。`)
+        throw new Error(
+          `教室追加に失敗しました。一覧に追加した教室 "${testData.name}" が表示されていません。`
+        )
       }
     }
 

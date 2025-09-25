@@ -433,8 +433,6 @@ const deleteClassroomRoute = createRoute({
   },
 })
 
-
-
 // ハンドラー実装
 
 // 教室一覧取得ハンドラー
@@ -653,8 +651,9 @@ classroomsApp.openapi(getClassroomRoute, async c => {
 classroomsApp.openapi(createClassroomRoute, async c => {
   try {
     const db = c.env.DB
-    // @hono/zod-openapi のフレームワークレベルバリデーション済みデータを取得
-    const validatedData = c.req.valid('json')
+    // 直接JSONパースして手動で検証（@hono/zod-openapi のバリデーション問題回避）
+    const rawData = await c.req.json()
+    const validatedData = CreateClassroomRequestSchema.parse(rawData)
 
     // 一意ID生成
     const classroomId = crypto.randomUUID()
@@ -737,8 +736,9 @@ classroomsApp.openapi(updateClassroomRoute, async c => {
     const db = c.env.DB
     const { id } = c.req.valid('param')
     console.log('🔍 [DEBUG] 教室更新ID:', id)
-    // @hono/zod-openapi のフレームワークレベルバリデーション済みデータを取得
-    const updateData = c.req.valid('json')
+    // 直接JSONパースして手動で検証（@hono/zod-openapi のバリデーション問題回避）
+    const rawData = await c.req.json()
+    const updateData = UpdateClassroomRequestSchema.parse(rawData)
     console.log('🔍 [DEBUG] 教室更新データ:', JSON.stringify(updateData, null, 2))
 
     // 既存教室の確認
@@ -834,7 +834,7 @@ classroomsApp.openapi(updateClassroomRoute, async c => {
 
     const updatedData = updatedResult as Record<string, unknown>
     console.log('🔍 [DEBUG] updatedData型変換後:', JSON.stringify(updatedData, null, 2))
-    
+
     const classroomData = {
       id: updatedData.id,
       name: updatedData.name,
@@ -845,7 +845,7 @@ classroomsApp.openapi(updateClassroomRoute, async c => {
       created_at: updatedData.created_at,
       updated_at: updatedData.updated_at,
     }
-    
+
     console.log('🔍 [DEBUG] 最終レスポンスデータ:', JSON.stringify(classroomData, null, 2))
 
     // 一時的にスキーマ検証をスキップ（E2Eテスト用）

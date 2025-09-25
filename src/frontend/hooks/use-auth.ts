@@ -264,7 +264,7 @@ export function useCustomAuth() {
     }
 
     initializeAuth()
-  }, [restoreAuthState])
+  }, []) // 依存配列を空にして、コンポーネント初期化時のみ実行
 
   // 自動トークン更新（本番環境では無効化）
   useEffect(() => {

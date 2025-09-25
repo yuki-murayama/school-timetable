@@ -178,6 +178,9 @@ export class TimetablePersistenceService {
       const currentTime = new Date().toISOString()
       const timetableId = `timetable-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 
+      // statistics を安全にアクセス可能な形に変換
+      const safeStats = (statistics && typeof statistics === 'object') ? statistics as any : {}
+
       await this.db
         .prepare(`
           INSERT INTO generated_timetables (
@@ -188,12 +191,12 @@ export class TimetablePersistenceService {
         .bind(
           timetableId,
           JSON.stringify(result.timetable),
-          JSON.stringify(statistics),
+          JSON.stringify(statistics || {}),
           JSON.stringify({ method: 'program-optimized', autoSaved: true }),
           'program-optimized',
-          statistics.bestAssignmentRate || 0,
-          statistics.totalSlots || 0,
-          statistics.totalAssignments || 0,
+          safeStats.bestAssignmentRate || 0,
+          safeStats.totalSlots || 0,
+          safeStats.totalAssignments || 0,
           currentTime,
           currentTime
         )

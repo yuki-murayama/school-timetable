@@ -79,6 +79,15 @@ export class DataTransformService {
     const safeNumber = (value: unknown, defaultValue: number): number => {
       try {
         if (value === null || value === undefined) return defaultValue
+        // 配列、オブジェクト、関数、BigInt、Symbolの場合もデフォルト値を使用
+        if (
+          Array.isArray(value) ||
+          typeof value === 'object' ||
+          typeof value === 'function' ||
+          typeof value === 'bigint' ||
+          typeof value === 'symbol'
+        )
+          return defaultValue
         const parsed = Number(value)
         return Number.isNaN(parsed) ? defaultValue : parsed
       } catch {
@@ -225,6 +234,15 @@ export class DataTransformService {
     const safeNumber = (value: unknown, defaultValue: number): number => {
       try {
         if (value === null || value === undefined) return defaultValue
+        // 配列、オブジェクト、関数、BigInt、Symbolの場合もデフォルト値を使用
+        if (
+          Array.isArray(value) ||
+          typeof value === 'object' ||
+          typeof value === 'function' ||
+          typeof value === 'bigint' ||
+          typeof value === 'symbol'
+        )
+          return defaultValue
         const parsed = Number(value)
         return Number.isNaN(parsed) ? defaultValue : parsed
       } catch {

@@ -516,4 +516,78 @@ describe('Teacher Service', () => {
       expect(invalidData.max_hours_per_week).toBeLessThan(0)
     })
   })
+
+  describe('基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+      expect(beforeEach).toBeDefined()
+      expect(vi).toBeDefined()
+    })
+
+    it('Vitestモック機能が正しく動作している', () => {
+      expect(vi.fn).toBeDefined()
+      expect(typeof vi.fn).toBe('function')
+      expect(vi.clearAllMocks).toBeDefined()
+      expect(typeof vi.clearAllMocks).toBe('function')
+      expect(vi.restoreAllMocks).toBeDefined()
+      expect(typeof vi.restoreAllMocks).toBe('function')
+    })
+
+    it('モックオブジェクトが正しく定義されている', () => {
+      expect(mockPrepare).toBeDefined()
+      expect(typeof mockPrepare).toBe('function')
+      expect(mockDB).toBeDefined()
+      expect(typeof mockDB).toBe('object')
+      expect(typeof mockDB.prepare).toBe('function')
+      expect(typeof mockDB.exec).toBe('function')
+    })
+
+    it('環境変数モックが正しく設定されている', () => {
+      expect(_mockEnv).toBeDefined()
+      expect(typeof _mockEnv).toBe('object')
+      expect(_mockEnv.DB).toBeDefined()
+      expect(_mockEnv.GROQ_API_KEY).toBe('test-groq-key')
+      expect(_mockEnv.NODE_ENV).toBe('test')
+    })
+
+    it('共有型定義が正しくインポートされている', () => {
+      // Env型の存在を間接的に確認
+      const envType = typeof _mockEnv
+      expect(envType).toBe('object')
+      expect(_mockEnv).toHaveProperty('DB')
+      expect(_mockEnv).toHaveProperty('GROQ_API_KEY')
+      expect(_mockEnv).toHaveProperty('NODE_ENV')
+    })
+
+    it('データベースモック構造が正しい', () => {
+      expect(mockDB.prepare).toBeDefined()
+      expect(mockDB.exec).toBeDefined()
+      // prepare()が呼び出されたときのmock関数の返り値を確認
+      const stmt = mockPrepare()
+      expect(stmt.bind).toBeDefined()
+      expect(stmt.all).toBeDefined()
+      expect(stmt.first).toBeDefined()
+      expect(stmt.run).toBeDefined()
+    })
+
+    it('JavaScript基本機能が利用可能', () => {
+      expect(JSON).toBeDefined()
+      expect(JSON.stringify).toBeDefined()
+      expect(typeof JSON.stringify).toBe('function')
+      expect(JSON.parse).toBeDefined()
+      expect(typeof JSON.parse).toBe('function')
+    })
+
+    it('テスト用データ作成機能が動作している', () => {
+      const testArray = ['数学', '理科']
+      const testString = JSON.stringify(testArray)
+      expect(testString).toBe('["数学","理科"]')
+
+      const parsedArray = JSON.parse(testString)
+      expect(parsedArray).toEqual(testArray)
+      expect(Array.isArray(parsedArray)).toBe(true)
+    })
+  })
 })

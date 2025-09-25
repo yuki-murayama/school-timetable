@@ -86,13 +86,13 @@ export function TeacherEditDialog({
       console.log('🔄 Calling saveTeacher API...')
       const result = await saveTeacher(formData, isNewTeacher)
       console.log('✅ API result:', result)
-      
+
       // 結果にIDが含まれているかを確認
       if (!result.id) {
         console.error('❌ API結果にIDが含まれていません:', result)
         throw new Error('保存結果にIDが含まれていません')
       }
-      
+
       console.log('🔗 保存結果のID確認:', result.id)
       onSave(result)
       onClose()

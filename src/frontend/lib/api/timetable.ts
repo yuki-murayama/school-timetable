@@ -50,11 +50,7 @@ export const timetableApi = {
   },
 
   async getTimetables(options?: ApiOptions): Promise<TimetableListItem[]> {
-    return apiClient.get<TimetableListItem[]>(
-      '/timetables',
-      TimetableListResponseSchema,
-      options
-    )
+    return apiClient.get<TimetableListItem[]>('/timetables', TimetableListResponseSchema, options)
   },
 
   // 生成された時間割の取得（ページネーション対応）

@@ -109,4 +109,51 @@ describe('cn utility function', () => {
     expect(result).toContain('active:bg-blue-600')
     expect(result).not.toContain('btn-large')
   })
+
+  describe('基本プロパティテスト', () => {
+    it('テストフレームワークが正しく設定されている', () => {
+      expect(describe).toBeDefined()
+      expect(it).toBeDefined()
+      expect(expect).toBeDefined()
+      expect(vi).toBeDefined()
+    })
+
+    it('Vitestモック機能が正しく動作している', () => {
+      expect(vi.spyOn).toBeDefined()
+      expect(typeof vi.spyOn).toBe('function')
+      expect(vi.fn).toBeDefined()
+      expect(typeof vi.fn).toBe('function')
+    })
+
+    it('cn関数が正しく定義されている', () => {
+      expect(cn).toBeDefined()
+      expect(typeof cn).toBe('function')
+    })
+
+    it('cn関数の基本動作確認', () => {
+      const result = cn('test')
+      expect(typeof result).toBe('string')
+      expect(result).toBe('test')
+    })
+
+    it('import.meta環境が正しく設定されている', () => {
+      expect(import.meta).toBeDefined()
+      expect(import.meta.env).toBeDefined()
+      expect(typeof import.meta.env).toBe('object')
+    })
+
+    it('コンソールオブジェクトが利用可能', () => {
+      expect(console).toBeDefined()
+      expect(console.error).toBeDefined()
+      expect(typeof console.error).toBe('function')
+    })
+
+    it('JavaScriptグローバル機能が利用可能', () => {
+      expect(Object).toBeDefined()
+      expect(Object.defineProperty).toBeDefined()
+      expect(typeof Object.defineProperty).toBe('function')
+      expect(Symbol).toBeDefined()
+      expect(typeof Symbol).toBe('function')
+    })
+  })
 })

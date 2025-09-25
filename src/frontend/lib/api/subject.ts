@@ -44,10 +44,10 @@ const VoidResponseSchema = z.object({}).or(z.null()).or(z.undefined())
  * バックエンドからのSubjectデータを正規化
  * JSON文字列フィールドを適切な型に変換し、統一したフィールド形式を提供
  */
-function normalizeSubjectData(rawSubject: any): Subject {
+function normalizeSubjectData(rawSubject: Record<string, unknown>): Subject {
   // 対象学年の正規化処理（複数ソースから統一）
   let grades: number[] = []
-  
+
   // 1. grades フィールド（バックエンドから新たに追加）
   if (rawSubject.grades && Array.isArray(rawSubject.grades)) {
     grades = rawSubject.grades
@@ -66,41 +66,41 @@ function normalizeSubjectData(rawSubject: any): Subject {
   else if (rawSubject.targetGrades && Array.isArray(rawSubject.targetGrades)) {
     grades = rawSubject.targetGrades
   }
-  
+
   // 週間授業数の正規化処理
   let weeklyHours: Record<string, number> = {}
-  let weekly_hours: number | null = null
-  
+  let _weekly_hours: number | null = null
+
   if (rawSubject.weeklyHours && typeof rawSubject.weeklyHours === 'object') {
     weeklyHours = rawSubject.weeklyHours
   } else if (typeof rawSubject.weekly_hours === 'number') {
-    weekly_hours = rawSubject.weekly_hours
+    _weekly_hours = rawSubject.weekly_hours
     // 対象学年に基づいてweeklyHoursオブジェクトも生成
     grades.forEach(grade => {
       weeklyHours[grade.toString()] = rawSubject.weekly_hours
     })
   }
-  
+
   // 特別教室の正規化処理
   const requiresSpecialClassroom = Boolean(
     rawSubject.requiresSpecialClassroom ||
-    (rawSubject.special_classroom && 
-     rawSubject.special_classroom !== null && 
-     rawSubject.special_classroom !== '' && 
-     rawSubject.special_classroom !== '普通教室')
+      (rawSubject.special_classroom &&
+        rawSubject.special_classroom !== null &&
+        rawSubject.special_classroom !== '' &&
+        rawSubject.special_classroom !== '普通教室')
   )
-  
+
   const specialClassroom = rawSubject.specialClassroom || rawSubject.special_classroom || ''
   const classroomType = rawSubject.classroomType || rawSubject.special_classroom || '普通教室'
-  
+
   console.log('🔧 正規化処理:', {
     原始データ: rawSubject.name,
     grades_抽出: grades,
     target_grades_原始: rawSubject.target_grades,
     weekly_hours_原始: rawSubject.weekly_hours,
-    weeklyHours_生成: weeklyHours
+    weeklyHours_生成: weeklyHours,
   })
-  
+
   // 正規化されたSubjectオブジェクトを返す
   return {
     ...rawSubject,
@@ -127,12 +127,12 @@ export const subjectApi = {
       subjects: Subject[]
       pagination?: { page: number; limit: number; total: number; totalPages: number }
     }>('/subjects', SubjectsListResponseSchema, options)
-    
+
     // バックエンドからのレスポンスを正規化（対象学年の処理）
     if (response.subjects && Array.isArray(response.subjects)) {
       response.subjects = response.subjects.map(subject => normalizeSubjectData(subject))
     }
-    
+
     return response
   },
 
@@ -141,7 +141,7 @@ export const subjectApi = {
     options?: ApiOptions
   ): Promise<Subject> {
     console.log('🔍 [FRONTEND DEBUG] 教科作成リクエスト:', JSON.stringify(subject, null, 2))
-    
+
     // 正しい統合OpenAPIエンドポイントを使用
     const rawResponse = await apiClient.post<z.infer<typeof CreateSubjectRequestSchema>, Subject>(
       '/subjects',
@@ -150,7 +150,7 @@ export const subjectApi = {
       SubjectSchema,
       options
     )
-    
+
     // レスポンスを正規化してから返す
     const normalizedResponse = normalizeSubjectData(rawResponse)
     console.log('✅ [FRONTEND DEBUG] 教科作成正規化後:', {
@@ -158,9 +158,9 @@ export const subjectApi = {
       grades_正規化前: rawResponse.grades,
       target_grades_正規化前: rawResponse.target_grades,
       grades_正規化後: normalizedResponse.grades,
-      targetGrades_正規化後: normalizedResponse.targetGrades
+      targetGrades_正規化後: normalizedResponse.targetGrades,
     })
-    
+
     return normalizedResponse
   },
 
@@ -176,7 +176,7 @@ export const subjectApi = {
       SubjectSchema,
       options
     )
-    
+
     // レスポンスを正規化してから返す
     const normalizedResponse = normalizeSubjectData(rawResponse)
     console.log('✅ [FRONTEND DEBUG] 教科更新正規化後:', {
@@ -184,9 +184,9 @@ export const subjectApi = {
       grades_正規化前: rawResponse.grades,
       target_grades_正規化前: rawResponse.target_grades,
       grades_正規化後: normalizedResponse.grades,
-      targetGrades_正規化後: normalizedResponse.targetGrades
+      targetGrades_正規化後: normalizedResponse.targetGrades,
     })
-    
+
     return normalizedResponse
   },
 
@@ -205,14 +205,11 @@ export const subjectApi = {
           name: subject.name,
           school_id: 'default',
         })
-        const rawResponse = await apiClient.put<z.infer<typeof UpdateSubjectRequestSchema>, Subject>(
-          `/subjects/${subject.id}`,
-          updateData,
-          UpdateSubjectRequestSchema,
-          SubjectSchema,
-          options
-        )
-        
+        const rawResponse = await apiClient.put<
+          z.infer<typeof UpdateSubjectRequestSchema>,
+          Subject
+        >(`/subjects/${subject.id}`, updateData, UpdateSubjectRequestSchema, SubjectSchema, options)
+
         // レスポンスを正規化してから追加
         const normalizedResponse = normalizeSubjectData(rawResponse)
         updatedSubjects.push(normalizedResponse)

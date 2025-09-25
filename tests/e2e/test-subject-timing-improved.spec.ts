@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 test.describe('📚 タイミング改良版教科管理テスト', () => {
   test.use({ storageState: 'tests/e2e/.auth/user.json' })
@@ -40,7 +40,7 @@ test.describe('📚 タイミング改良版教科管理テスト', () => {
 
     // Step 5: フォーム入力（改良版タイミング）
     console.log('📍 Step 5: フォーム入力（改良版）')
-    
+
     // 教科名入力
     await page.waitForSelector('#subject-name', { timeout: 10000 })
     await page.fill('#subject-name', uniqueTestName)
@@ -64,7 +64,7 @@ test.describe('📚 タイミング改良版教科管理テスト', () => {
     const saveButton = page.locator('[role="dialog"] button:has-text("追加")').last()
     await expect(saveButton).toBeVisible({ timeout: 10000 })
     await saveButton.click()
-    
+
     // API完了を確実に待機
     await page.waitForLoadState('networkidle')
     await page.waitForTimeout(5000) // API処理完了待機
@@ -83,7 +83,7 @@ test.describe('📚 タイミング改良版教科管理テスト', () => {
 
     // Step 9: 一覧表示確認（改良版タイミング）
     console.log('📍 Step 9: 一覧表示確認（改良版）')
-    
+
     // まず一覧テーブルの存在確認
     await expect(page.locator('table')).toBeVisible({ timeout: 10000 })
     await page.waitForTimeout(2000) // テーブル描画安定化
@@ -91,24 +91,24 @@ test.describe('📚 タイミング改良版教科管理テスト', () => {
     // 作成した教科の検索
     const createdSubjectRow = page.locator(`tr:has-text("${uniqueTestName}")`)
     await expect(createdSubjectRow).toBeVisible({ timeout: 15000 })
-    
+
     console.log(`✅ 教科「${uniqueTestName}」が一覧に表示されています`)
 
     // Step 10: 詳細情報確認（改良版タイミング）
     console.log('📍 Step 10: 詳細情報確認（改良版）')
     await page.waitForTimeout(1000) // セル内容安定化
-    
+
     const gradeCell = createdSubjectRow.locator('td').nth(1)
     const gradeText = await gradeCell.textContent()
     console.log(`📊 対象学年: ${gradeText}`)
-    
+
     const hoursCell = createdSubjectRow.locator('td').nth(3)
     const hoursText = await hoursCell.textContent()
     console.log(`📚 週授業数: ${hoursText}`)
 
     // Step 11: 最終スクリーンショット
     await page.screenshot({ path: `test-results/timing-improved-success-${Date.now()}.png` })
-    
+
     console.log('✅ タイミング改良版教科管理テスト完了')
   })
 })

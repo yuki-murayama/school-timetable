@@ -2,21 +2,21 @@
  * 時間割管理API - シンプルなHono実装（safeParseAsync問題回避）
  */
 
-import type { Env } from '@shared/schemas'
-import { 
-  IdSchema, 
-  GradeSchema, 
-  ClassNumberSchema, 
-  PeriodSchema, 
-  WeekdaySchema,
-  PositiveIntegerSchema,
-  TimetableSlotSchema,
-  TimetableSchema
-} from '@shared/schemas'
 import { createRoute, OpenAPIHono } from '@hono/zod-openapi'
+import type { Env } from '@shared/schemas'
+import {
+  ClassNumberSchema,
+  GradeSchema,
+  IdSchema,
+  PeriodSchema,
+  PositiveIntegerSchema,
+  TimetableSchema,
+  TimetableSlotSchema,
+  WeekdaySchema,
+} from '@shared/schemas'
 import { z } from 'zod'
-import { createResponseSchemas, createErrorResponseSchemas, paginationSchema } from '../openapi'
 import type { TimetableGenerationResult } from '../../services/timetable-generation-service'
+import { createErrorResponseSchemas, createResponseSchemas, paginationSchema } from '../openapi'
 
 // 時間割管理用アプリ
 const timetablesApp = new OpenAPIHono<{ Bindings: Env }>()
